@@ -34,6 +34,7 @@ public class TelegramNotificationDispatchServiceTests
             {
                 Enabled = true,
                 EnableDailySummary = true,
+                EnableGameStartPush = false,
                 EnableNewsPush = false,
                 EnableGameFinalPush = false,
                 DailySummaryHour = 11,
@@ -125,6 +126,7 @@ public class TelegramNotificationDispatchServiceTests
             {
                 Enabled = true,
                 EnableDailySummary = false,
+                EnableGameStartPush = false,
                 EnableNewsPush = true,
                 EnableGameFinalPush = false,
                 NewsLookbackHours = 48
@@ -200,6 +202,7 @@ public class TelegramNotificationDispatchServiceTests
             {
                 Enabled = true,
                 EnableDailySummary = false,
+                EnableGameStartPush = false,
                 EnableNewsPush = false,
                 EnableGameFinalPush = true,
                 FinalLookbackHours = 24
@@ -211,6 +214,57 @@ public class TelegramNotificationDispatchServiceTests
         Assert.Contains(pushService.Messages, item => item.ChatId == "chat-ct" && item.Title.Contains("中信兄弟 vs 統一7-ELEVEn獅"));
         Assert.DoesNotContain(pushService.Messages, item => item.ChatId == "chat-ct" && item.Title.Contains("樂天桃猿 vs 味全龍"));
         Assert.Contains(pushService.Messages, item => item.ChatId == "chat-all" && item.Title.Contains("樂天桃猿 vs 味全龍"));
+    }
+
+    [Fact]
+    public async Task GameStartPush_SendsPregameReminderForTrackedTeam()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.TelegramChatSubscriptions.Add(new TelegramChatSubscription
+        {
+            ChatId = "chat-ct",
+            ChatTitle = "CT",
+            EnableSchedulePush = true,
+            EnableNewsPush = false,
+            FollowedTeamCode = "CT",
+            CreatedTime = DateTimeOffset.UtcNow,
+            LastUpdatedTime = DateTimeOffset.UtcNow
+        });
+
+        dbContext.Games.Add(new GameInfo
+        {
+            GameDate = new DateOnly(2026, 3, 27),
+            StartTime = new TimeOnly(18, 35),
+            AwayTeamCode = "UL",
+            HomeTeamCode = "CT",
+            Status = "Scheduled",
+            Venue = "洲際",
+            LastUpdatedTime = new DateTimeOffset(2026, 3, 27, 9, 0, 0, TimeSpan.Zero)
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var pushService = new RecordingPushService(dbContext);
+        var service = CreateService(
+            dbContext,
+            pushService,
+            new PushNotificationOptions
+            {
+                Enabled = true,
+                EnableDailySummary = false,
+                EnableGameStartPush = true,
+                EnableNewsPush = false,
+                EnableGameFinalPush = false,
+                GameStartLeadMinutes = 30
+            },
+            new FixedTimeProvider(new DateTimeOffset(2026, 3, 27, 10, 10, 0, TimeSpan.Zero)));
+
+        await service.ProcessPendingNotificationsAsync();
+
+        Assert.Single(pushService.Messages);
+        Assert.Equal("GameStart", pushService.Messages[0].PushType);
+        Assert.Contains("開賽提醒", pushService.Messages[0].Title);
+        Assert.Contains("你追蹤的 中信兄弟 即將在 25 分鐘後開打", pushService.Messages[0].Body);
     }
 
     private static TelegramNotificationDispatchService CreateService(

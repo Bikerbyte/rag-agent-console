@@ -10,6 +10,7 @@ public class CommandReplyService(
     ApplicationDbContext dbContext,
     ICpblGameSyncService cpblGameSyncService,
     IBaseballNewsSyncService baseballNewsSyncService,
+    ICpblOfficialDataClient officialDataClient,
     ICpblInsightService cpblInsightService,
     ILogger<CommandReplyService> logger) : ICommandReplyService
 {
@@ -36,6 +37,41 @@ public class CommandReplyService(
         if (IsMyFollowCommand(normalizedCommand))
         {
             return await BuildMyFollowReplyAsync(chatId, cancellationToken);
+        }
+
+        if (TryParseNotifyCommand(normalizedCommand, out var notifyScope, out var notifyEnabled))
+        {
+            return await BuildNotifyReplyAsync(chatId, notifyScope, notifyEnabled, cancellationToken);
+        }
+
+        if (IsPreviewCommand(normalizedCommand, out var previewTeamInput))
+        {
+            return await BuildPreviewReplyAsync(previewTeamInput, cancellationToken);
+        }
+
+        if (IsNextGameCommand(normalizedCommand, out var nextTeamInput))
+        {
+            return await BuildNextCommandReplyAsync(chatId, nextTeamInput, cancellationToken);
+        }
+
+        if (IsLiveCommand(normalizedCommand))
+        {
+            return await BuildLiveReplyAsync(cancellationToken);
+        }
+
+        if (IsResultCommand(normalizedCommand))
+        {
+            return await BuildResultReplyAsync(cancellationToken);
+        }
+
+        if (IsYesterdayCommand(normalizedCommand))
+        {
+            return await BuildYesterdayReplyAsync(cancellationToken);
+        }
+
+        if (IsStandingsCommand(normalizedCommand))
+        {
+            return await BuildStandingsReplyAsync(cancellationToken);
         }
 
         if (IsTodayBestCommand(normalizedCommand))
@@ -141,7 +177,204 @@ public class CommandReplyService(
             replyBuilder.AppendLine($"- {reason}");
         }
 
-        replyBuilder.AppendLine("如果你還想繼續查，可以直接輸入：今天有比賽嗎 / 有什麼最新新聞 / /follow 兄弟");
+        replyBuilder.AppendLine("如果你還想繼續查，可以直接輸入：/next 兄弟 / /live / 有什麼最新新聞");
+        return replyBuilder.ToString().TrimEnd();
+    }
+
+    private async Task<string> BuildNextCommandReplyAsync(string? chatId, string? teamInput, CancellationToken cancellationToken)
+    {
+        string teamCode;
+
+        if (!string.IsNullOrWhiteSpace(teamInput))
+        {
+            if (!TryResolveTeamCode(teamInput, out teamCode))
+            {
+                return BuildUnknownTeamReply("下一場比賽", teamInput);
+            }
+        }
+        else
+        {
+            teamCode = await GetFollowedTeamCodeAsync(chatId, cancellationToken) ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(teamCode))
+            {
+                return "下一場比賽\n請輸入 /next 兄弟，或先用 /follow 設定你追蹤的球隊。";
+            }
+        }
+
+        return await BuildNextGameReplyAsync(teamCode, cancellationToken);
+    }
+
+    private async Task<string> BuildNextGameReplyAsync(string teamCode, CancellationToken cancellationToken)
+    {
+        var today = GetTaipeiToday();
+        for (var dayOffset = 0; dayOffset <= 7; dayOffset++)
+        {
+            await TryRefreshGameDateAsync(today.AddDays(dayOffset), cancellationToken);
+        }
+
+        var taipeiNow = GetTaipeiNow();
+        var teamName = CpblTeamCatalog.GetDisplayName(teamCode);
+
+        var upcomingGames = await dbContext.Games
+            .Where(game =>
+                (game.HomeTeamCode == teamCode || game.AwayTeamCode == teamCode) &&
+                game.GameDate >= today)
+            .OrderBy(game => game.GameDate)
+            .ThenBy(game => game.StartTime)
+            .ToListAsync(cancellationToken);
+
+        var nextGame = upcomingGames.FirstOrDefault(game => IsUpcomingGame(game, taipeiNow));
+        if (nextGame is null)
+        {
+            return $"{teamName} 下一場\n目前還找不到接下來的賽程資料。";
+        }
+
+        var opponentCode = string.Equals(nextGame.HomeTeamCode, teamCode, StringComparison.OrdinalIgnoreCase)
+            ? nextGame.AwayTeamCode
+            : nextGame.HomeTeamCode;
+        var homeAwayLabel = string.Equals(nextGame.HomeTeamCode, teamCode, StringComparison.OrdinalIgnoreCase) ? "主場" : "客場";
+        var startTime = nextGame.StartTime?.ToString("HH:mm") ?? "--:--";
+
+        var replyBuilder = new StringBuilder();
+        replyBuilder.AppendLine($"{teamName} 下一場");
+        replyBuilder.AppendLine($"{nextGame.GameDate:yyyy/MM/dd} {startTime}");
+        replyBuilder.AppendLine($"{homeAwayLabel}對 {CpblTeamCatalog.GetDisplayName(opponentCode)}");
+        replyBuilder.AppendLine($"地點: {nextGame.Venue ?? "待公告"}");
+        replyBuilder.AppendLine($"狀態: {BuildLocalizedStatus(nextGame)}");
+        return replyBuilder.ToString().TrimEnd();
+    }
+
+    private async Task<string> BuildLiveReplyAsync(CancellationToken cancellationToken)
+    {
+        var today = GetTaipeiToday();
+        await TryRefreshGameDateAsync(today, cancellationToken);
+
+        var liveGames = await dbContext.Games
+            .Where(game =>
+                game.GameDate == today &&
+                (game.Status == "Live" || !string.IsNullOrWhiteSpace(game.InningText)))
+            .OrderBy(game => game.StartTime)
+            .ToListAsync(cancellationToken);
+
+        if (liveGames.Count == 0)
+        {
+            return $"即時比分\n{today:yyyy/MM/dd}\n目前沒有進行中的比賽。";
+        }
+
+        var replyBuilder = new StringBuilder();
+        replyBuilder.AppendLine($"即時比分 | {today:yyyy/MM/dd}");
+
+        for (var index = 0; index < liveGames.Count; index++)
+        {
+            var game = liveGames[index];
+            var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+            var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+
+            replyBuilder.AppendLine($"{index + 1}. {awayName} vs {homeName}");
+            replyBuilder.AppendLine($"   狀態: {BuildLocalizedStatus(game)}");
+
+            if (game.AwayScore.HasValue && game.HomeScore.HasValue)
+            {
+                replyBuilder.AppendLine($"   比分: {awayName} {game.AwayScore} : {game.HomeScore} {homeName}");
+            }
+
+            replyBuilder.AppendLine($"   地點: {game.Venue ?? "待公告"}");
+        }
+
+        return replyBuilder.ToString().TrimEnd();
+    }
+
+    private async Task<string> BuildPreviewReplyAsync(string? teamInput, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(teamInput))
+        {
+            return await BuildScheduleReplyAsync(0, "今日對戰", cancellationToken);
+        }
+
+        if (!TryResolveTeamCode(teamInput, out var teamCode))
+        {
+            return BuildUnknownTeamReply("賽前預覽", teamInput);
+        }
+
+        var teamScheduleReply = await BuildTeamScheduleReplyAsync(teamCode, 0, cancellationToken);
+        return $"賽前預覽\n{teamScheduleReply}";
+    }
+
+    private async Task<string> BuildResultReplyAsync(CancellationToken cancellationToken)
+    {
+        return await BuildCompletedGamesReplyAsync(0, "今日賽果", "今天目前還沒有已完賽結果。", cancellationToken);
+    }
+
+    private async Task<string> BuildYesterdayReplyAsync(CancellationToken cancellationToken)
+    {
+        return await BuildCompletedGamesReplyAsync(-1, "昨日賽果", "昨天沒有已完賽結果，或官方來源尚未提供資料。", cancellationToken);
+    }
+
+    private async Task<string> BuildCompletedGamesReplyAsync(
+        int dayOffset,
+        string heading,
+        string emptyMessage,
+        CancellationToken cancellationToken)
+    {
+        var targetDate = GetTaipeiToday().AddDays(dayOffset);
+        await TryRefreshGameDateAsync(targetDate, cancellationToken);
+
+        var finalGames = await dbContext.Games
+            .Where(game =>
+                game.GameDate == targetDate &&
+                game.Status == "Final" &&
+                game.HomeScore.HasValue &&
+                game.AwayScore.HasValue)
+            .OrderBy(game => game.StartTime)
+            .ToListAsync(cancellationToken);
+
+        if (finalGames.Count == 0)
+        {
+            return $"{heading}\n{targetDate:yyyy/MM/dd}\n{emptyMessage}";
+        }
+
+        var replyBuilder = new StringBuilder();
+        replyBuilder.AppendLine($"{heading} | {targetDate:yyyy/MM/dd}");
+
+        for (var index = 0; index < finalGames.Count; index++)
+        {
+            var game = finalGames[index];
+            var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+            var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+            replyBuilder.AppendLine($"{index + 1}. {awayName} {game.AwayScore}:{game.HomeScore} {homeName}");
+            replyBuilder.AppendLine($"   地點: {game.Venue ?? "待公告"}");
+        }
+
+        return replyBuilder.ToString().TrimEnd();
+    }
+
+    private async Task<string> BuildStandingsReplyAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<CpblTeamStandingSnapshot> standings;
+        try
+        {
+            standings = await officialDataClient.GetStandingsAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Standings lookup failed while building command reply.");
+            standings = [];
+        }
+
+        if (standings.Count == 0)
+        {
+            return "目前排名\n暫時抓不到官方排名資料，稍後再試一次。";
+        }
+
+        var replyBuilder = new StringBuilder();
+        replyBuilder.AppendLine("目前排名");
+
+        foreach (var standing in standings.OrderBy(item => item.Rank))
+        {
+            replyBuilder.AppendLine(
+                $"{standing.Rank}. {standing.TeamName} | {standing.Wins}-{standing.Losses}-{standing.Ties} | 勝率 {standing.WinningPercentage:0.000} | 勝差 {standing.GamesBehindText} | {standing.StreakText}");
+        }
+
         return replyBuilder.ToString().TrimEnd();
     }
 
@@ -198,7 +431,7 @@ public class CommandReplyService(
             replyBuilder.AppendLine($"相關新聞: {summary.LatestNewsTitle}");
         }
 
-        replyBuilder.AppendLine($"你也可以接著輸入：{summary.TeamName}今天有沒有比賽 / /follow {summary.TeamName} / 今日最值得看");
+        replyBuilder.AppendLine($"你也可以接著輸入：{summary.TeamName}今天有沒有比賽 / /next {summary.TeamName} / /follow {summary.TeamName}");
         return replyBuilder.ToString().TrimEnd();
     }
 
@@ -250,7 +483,7 @@ public class CommandReplyService(
             replyBuilder.AppendLine($"下一場: {BuildGameSummary(nextGame)}");
         }
 
-        replyBuilder.AppendLine("你也可以直接輸入：有什麼最新新聞 / 今日最值得看 / 今天有什麼比賽");
+        replyBuilder.AppendLine($"你也可以直接輸入：/next {teamName} / 明天有什麼比賽 / 有什麼最新新聞");
         return replyBuilder.ToString().TrimEnd();
     }
 
@@ -397,7 +630,7 @@ public class CommandReplyService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var teamName = CpblTeamCatalog.GetDisplayName(teamCode);
-        return $"已開始追蹤 {teamName}\n之後我會優先幫你整理這隊的今日賽程、賽後重點和相關新聞。";
+        return $"已開始追蹤 {teamName}\n之後我會優先提醒這隊的開賽、終場，也會先整理相關新聞和 recap。\n你也可以用 /notify 看目前提醒設定。";
     }
 
     private async Task<string> BuildUnfollowReplyAsync(string? chatId, CancellationToken cancellationToken)
@@ -427,16 +660,68 @@ public class CommandReplyService(
     {
         if (string.IsNullOrWhiteSpace(chatId))
         {
-            return "我的追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+            return "目前追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
         }
 
         var followedTeamCode = await GetFollowedTeamCodeAsync(chatId, cancellationToken);
         if (string.IsNullOrWhiteSpace(followedTeamCode))
         {
-            return "我的追蹤\n你目前還沒有設定追蹤球隊，可以輸入 /follow 兄弟 或 /follow 樂天。";
+            return "目前追蹤\n你目前還沒有設定追蹤球隊，可以輸入 /follow 兄弟 或 /follow 樂天。";
         }
 
-        return $"我的追蹤\n目前優先整理的是 {CpblTeamCatalog.GetDisplayName(followedTeamCode)}。";
+        return $"目前追蹤\n現在追蹤的是 {CpblTeamCatalog.GetDisplayName(followedTeamCode)}。";
+    }
+
+    private async Task<string> BuildNotifyReplyAsync(
+        string? chatId,
+        NotificationScope notifyScope,
+        bool? notifyEnabled,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(chatId))
+        {
+            return "提醒設定\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+        }
+
+        var subscription = await dbContext.TelegramChatSubscriptions
+            .FirstOrDefaultAsync(chat => chat.ChatId == chatId, cancellationToken);
+
+        if (subscription is null)
+        {
+            return "提醒設定\n目前還找不到這個聊天紀錄，請先再傳一次訊息給 bot。";
+        }
+
+        if (!notifyEnabled.HasValue)
+        {
+            return BuildNotifyStatusReply(subscription);
+        }
+
+        switch (notifyScope)
+        {
+            case NotificationScope.All:
+                subscription.EnableSchedulePush = notifyEnabled.Value;
+                subscription.EnableNewsPush = notifyEnabled.Value;
+                break;
+            case NotificationScope.Game:
+                subscription.EnableSchedulePush = notifyEnabled.Value;
+                break;
+            case NotificationScope.News:
+                subscription.EnableNewsPush = notifyEnabled.Value;
+                break;
+        }
+
+        subscription.LastUpdatedTime = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var scopeText = notifyScope switch
+        {
+            NotificationScope.All => "全部提醒",
+            NotificationScope.Game => "比賽提醒",
+            NotificationScope.News => "新聞提醒",
+            _ => "提醒"
+        };
+        var statusText = notifyEnabled.Value ? "已開啟" : "已關閉";
+        return $"提醒設定\n{scopeText}{statusText}。\n\n{BuildNotifyStatusBody(subscription)}";
     }
 
     private async Task<string?> GetFollowedTeamCodeAsync(string? chatId, CancellationToken cancellationToken)
@@ -556,8 +841,11 @@ public class CommandReplyService(
     private static bool IsMyFollowCommand(string normalizedCommand)
     {
         return normalizedCommand.Equals("/my_follow", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("/following", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("following", StringComparison.OrdinalIgnoreCase) ||
                normalizedCommand.Equals("我的追蹤", StringComparison.Ordinal) ||
-               normalizedCommand.Equals("目前追蹤", StringComparison.Ordinal);
+               normalizedCommand.Equals("目前追蹤", StringComparison.Ordinal) ||
+               normalizedCommand.Equals("追蹤清單", StringComparison.Ordinal);
     }
 
     private static bool IsUnfollowCommand(string normalizedCommand)
@@ -591,6 +879,180 @@ public class CommandReplyService(
         return normalizedCommand.Equals("/help", StringComparison.OrdinalIgnoreCase) ||
                normalizedCommand.Equals("help", StringComparison.OrdinalIgnoreCase) ||
                normalizedCommand.Equals("幫助", StringComparison.Ordinal);
+    }
+
+    private static bool TryParseNotifyCommand(
+        string normalizedCommand,
+        out NotificationScope notifyScope,
+        out bool? notifyEnabled)
+    {
+        notifyScope = NotificationScope.All;
+        notifyEnabled = null;
+
+        var parts = normalizedCommand
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        var head = parts[0];
+        if (!head.Equals("/notify", StringComparison.OrdinalIgnoreCase) &&
+            !head.Equals("notify", StringComparison.OrdinalIgnoreCase) &&
+            !head.Equals("提醒", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (parts.Length == 1)
+        {
+            return true;
+        }
+
+        var second = parts[1];
+        if (TryParseNotifyState(second, out var directState))
+        {
+            notifyScope = NotificationScope.All;
+            notifyEnabled = directState;
+            return true;
+        }
+
+        notifyScope = second.ToLowerInvariant() switch
+        {
+            "game" or "games" or "比賽" => NotificationScope.Game,
+            "news" or "新聞" => NotificationScope.News,
+            "all" or "全部" => NotificationScope.All,
+            _ => NotificationScope.All
+        };
+
+        if (parts.Length >= 3 && TryParseNotifyState(parts[2], out var scopedState))
+        {
+            notifyEnabled = scopedState;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseNotifyState(string rawValue, out bool isEnabled)
+    {
+        switch (rawValue.ToLowerInvariant())
+        {
+            case "on":
+            case "open":
+            case "enable":
+            case "enabled":
+            case "開":
+            case "開啟":
+                isEnabled = true;
+                return true;
+            case "off":
+            case "close":
+            case "disable":
+            case "disabled":
+            case "關":
+            case "關閉":
+                isEnabled = false;
+                return true;
+            default:
+                isEnabled = false;
+                return false;
+        }
+    }
+
+    private static bool IsLiveCommand(string normalizedCommand)
+    {
+        return normalizedCommand.Equals("/live", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("live", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Contains("正在打", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("進行中", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("即時比分", StringComparison.Ordinal);
+    }
+
+    private static bool IsPreviewCommand(string normalizedCommand, out string? teamInput)
+    {
+        teamInput = null;
+
+        if (normalizedCommand.Equals("/preview", StringComparison.OrdinalIgnoreCase) ||
+            normalizedCommand.Equals("/game", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (normalizedCommand.StartsWith("/preview ", StringComparison.OrdinalIgnoreCase))
+        {
+            teamInput = normalizedCommand["/preview ".Length..].Trim();
+            return true;
+        }
+
+        if (normalizedCommand.StartsWith("/game ", StringComparison.OrdinalIgnoreCase))
+        {
+            teamInput = normalizedCommand["/game ".Length..].Trim();
+            return true;
+        }
+
+        if (normalizedCommand.Contains("對戰", StringComparison.Ordinal) ||
+            normalizedCommand.Contains("賽前", StringComparison.Ordinal) ||
+            normalizedCommand.Contains("預覽", StringComparison.Ordinal))
+        {
+            teamInput = normalizedCommand;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsResultCommand(string normalizedCommand)
+    {
+        return normalizedCommand.Equals("/result", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("/results", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Contains("賽果", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("比賽結果", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("已完賽", StringComparison.Ordinal);
+    }
+
+    private static bool IsYesterdayCommand(string normalizedCommand)
+    {
+        return normalizedCommand.Equals("/yesterday", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("昨天", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("昨天有什麼比賽", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("昨日賽", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("昨日賽果", StringComparison.Ordinal);
+    }
+
+    private static bool IsStandingsCommand(string normalizedCommand)
+    {
+        return normalizedCommand.Equals("/standings", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Equals("/standing", StringComparison.OrdinalIgnoreCase) ||
+               normalizedCommand.Contains("排名", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("戰績排行", StringComparison.Ordinal) ||
+               normalizedCommand.Contains("standings", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsNextGameCommand(string normalizedCommand, out string? teamInput)
+    {
+        teamInput = null;
+
+        if (normalizedCommand.Equals("/next", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (normalizedCommand.StartsWith("/next ", StringComparison.OrdinalIgnoreCase))
+        {
+            teamInput = normalizedCommand["/next ".Length..].Trim();
+            return true;
+        }
+
+        if ((normalizedCommand.Contains("下一場", StringComparison.Ordinal) ||
+             normalizedCommand.Contains("下場", StringComparison.Ordinal)) &&
+            !normalizedCommand.Contains("比分", StringComparison.Ordinal))
+        {
+            teamInput = normalizedCommand;
+            return true;
+        }
+
+        return false;
     }
 
     private static string BuildTeamTemperatureText(CpblTeamSummary summary)
@@ -710,23 +1172,105 @@ public class CommandReplyService(
         return !string.Equals(localizedStatus, "尚未開打", StringComparison.Ordinal);
     }
 
+    private static bool TryResolveTeamCode(string rawValue, out string teamCode)
+    {
+        return CpblTeamCatalog.TryResolveTeamCode(rawValue, out teamCode) ||
+               CpblTeamCatalog.TryResolveTeamCodeFromText(rawValue, out teamCode, out _);
+    }
+
+    private static string BuildUnknownTeamReply(string heading, string rawValue)
+    {
+        return $"{heading}\n找不到「{rawValue}」這支球隊。你可以試試：兄弟、統一、樂天、味全、富邦、台鋼。";
+    }
+
+    private static bool IsUpcomingGame(GameInfo game, DateTime taipeiNow)
+    {
+        var today = DateOnly.FromDateTime(taipeiNow);
+        if (game.GameDate < today)
+        {
+            return false;
+        }
+
+        var localizedStatus = BuildLocalizedStatus(game);
+        if (!string.Equals(localizedStatus, "尚未開打", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (game.GameDate > today || !game.StartTime.HasValue)
+        {
+            return true;
+        }
+
+        return game.StartTime.Value >= TimeOnly.FromDateTime(taipeiNow).AddMinutes(-5);
+    }
+
+    private static string BuildNotifyStatusReply(TelegramChatSubscription subscription)
+    {
+        return $"提醒設定\n{BuildNotifyStatusBody(subscription)}";
+    }
+
+    private static string BuildNotifyStatusBody(TelegramChatSubscription subscription)
+    {
+        var followedTeamText = string.IsNullOrWhiteSpace(subscription.FollowedTeamCode)
+            ? "未設定"
+            : CpblTeamCatalog.GetDisplayName(subscription.FollowedTeamCode);
+
+        return $"""
+目前追蹤: {followedTeamText}
+- 比賽提醒: {BuildOnOffText(subscription.EnableSchedulePush)}
+- 新聞提醒: {BuildOnOffText(subscription.EnableNewsPush)}
+
+可用指令:
+- /notify on
+- /notify off
+- /notify game on
+- /notify news off
+""";
+    }
+
+    private static string BuildOnOffText(bool isEnabled)
+    {
+        return isEnabled ? "開啟" : "關閉";
+    }
+
     private static string BuildHelpReply()
     {
         return """
 你可以直接輸入指令：
 - /today：今天賽程
-- /today_best：今天最值得看的比賽
+- /tomorrow：明天賽程
+- /live：現在正在打的比賽
 - /team 兄弟：球隊近況摘要
+- /preview：看今天對戰
+- /preview 兄弟：看某隊今天的對戰資訊
+- /next 兄弟：這隊下一場比賽
+- /yesterday：昨天已完賽結果
+- /result：今天已完賽結果
+- /standings：目前排名
 - /follow 兄弟：設定你想追的隊伍
-- /my_follow：查看目前追蹤
+- /following：查看目前追蹤
+- /notify：查看提醒狀態
+- /notify game on：開啟比賽提醒
 - /recap：看今天打完的重點
-
-如果不想記指令，也可以直接打中文：
-- 想看今天賽程：今天有什麼比賽
-- 想查某隊今天有沒有打：統一今天有沒有比賽
-- 想看某隊近況：樂天最近怎麼樣
-- 想看新聞：有什麼最新新聞
+- /news：最新新聞
 """;
+
+/// 先註解掉，太長了 - Ian 2026/3/29
+// "如果不想記指令，也可以直接打中文：
+// - 想看今天賽程：今天有什麼比賽
+// - 想看明天賽程：明天有什麼比賽
+// - 想看即時比分：現在有哪場在打
+// - 想看賽前對戰：/preview
+// - 想查某隊下一場：兄弟下一場什麼時候
+// - 想看昨天賽果：/yesterday
+// - 想看今天賽果：/result
+// - 想看目前排名：/standings
+// - 想查某隊今天有沒有打：統一今天有沒有比賽
+// - 想看某隊近況：樂天最近怎麼樣
+// - 想看新聞：有什麼最新新聞
+// - 想調整提醒：/notify news off"
+
     }
 
     private static string NormalizeCommand(string rawValue)
@@ -802,5 +1346,12 @@ public class CommandReplyService(
         Summary,
         TeamToday,
         TeamTomorrow
+    }
+
+    private enum NotificationScope
+    {
+        All,
+        Game,
+        News
     }
 }

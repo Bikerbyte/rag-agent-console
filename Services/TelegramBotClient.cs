@@ -135,10 +135,14 @@ public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOption
             [
                 [
                     new TelegramInlineKeyboardButton { Text = "今天賽程", CallbackData = "/today" },
-                    new TelegramInlineKeyboardButton { Text = "今日最值得看", CallbackData = "/today_best" }
+                    new TelegramInlineKeyboardButton { Text = "明日賽程", CallbackData = "/tomorrow" }
                 ],
                 [
-                    new TelegramInlineKeyboardButton { Text = "我的追蹤", CallbackData = "/my_follow" },
+                    new TelegramInlineKeyboardButton { Text = "即時比分", CallbackData = "/live" },
+                    new TelegramInlineKeyboardButton { Text = "下一場", CallbackData = "/next" }
+                ],
+                [
+                    new TelegramInlineKeyboardButton { Text = "我的追蹤", CallbackData = "/following" },
                     new TelegramInlineKeyboardButton { Text = "最新新聞", CallbackData = "/news" }
                 ],
                 [
