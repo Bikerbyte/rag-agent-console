@@ -1,0 +1,125 @@
+@page
+@model CPBLLineBotCloud.Pages.Groups.IndexModel
+@{
+    ViewData["Title"] = "Telegram Chats";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Telegram chats</h1>
+        <p class="page-copy">Manage which chats receive daily summary, news, and which team should be treated as that chat's tracked team.</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">
+        @Model.StatusMessage
+    </div>
+}
+
+<section class="panel mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">@(Model.IsEditMode ? "Edit Telegram chat" : "Add Telegram chat")</h2>
+        @if (Model.IsEditMode)
+        {
+            <form method="post" asp-page-handler="Reset">
+                <button type="submit" class="btn btn-outline-secondary">New chat</button>
+            </form>
+        }
+    </div>
+
+    <form method="post" asp-page-handler="Save">
+        <input type="hidden" asp-for="Input.TelegramChatSubscriptionId" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label asp-for="Input.ChatTitle" class="form-label"></label>
+                <input asp-for="Input.ChatTitle" class="form-control" />
+                <span asp-validation-for="Input.ChatTitle" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Input.ChatId" class="form-label"></label>
+                <input asp-for="Input.ChatId" class="form-control" />
+                <span asp-validation-for="Input.ChatId" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <div class="form-check">
+                    <input asp-for="Input.EnableSchedulePush" class="form-check-input" />
+                    <label asp-for="Input.EnableSchedulePush" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check">
+                    <input asp-for="Input.EnableNewsPush" class="form-check-input" />
+                    <label asp-for="Input.EnableNewsPush" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Input.FollowedTeamCode" class="form-label">Tracked team</label>
+                <select asp-for="Input.FollowedTeamCode" class="form-select">
+                    @foreach (var team in Model.TeamOptions)
+                    {
+                        <option value="@team.Value">@team.Label</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <p class="text-muted small">
+            <code>Daily / Final Push</code> sends the daily summary and final score alerts.
+            <code>News Push</code> sends newly synced CPBL news.
+            <code>Tracked team</code> only changes which team the chat gets prioritized updates for. Leave it blank to stay neutral.
+        </p>
+
+        <button type="submit" class="btn btn-primary">@(Model.IsEditMode ? "Save changes" : "Create chat")</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2 class="h4 mb-3">Configured Telegram chats</h2>
+
+    <table class="table admin-table">
+        <thead>
+            <tr>
+                <th>Chat</th>
+                <th>Daily / Final Push</th>
+                <th>News Push</th>
+                <th>Tracked Team</th>
+                <th>Updated</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var chat in Model.Subscriptions)
+        {
+            <tr>
+                <td>
+                    <strong>@chat.ChatTitle</strong>
+                    <div class="muted-line">@chat.ChatId</div>
+                </td>
+                <td>@(chat.EnableSchedulePush ? "Enabled" : "Disabled")</td>
+                <td>@(chat.EnableNewsPush ? "Enabled" : "Disabled")</td>
+                <td>@(string.IsNullOrWhiteSpace(chat.FollowedTeamCode) ? "Neutral" : CPBLLineBotCloud.Models.CpblTeamCatalog.GetDisplayName(chat.FollowedTeamCode))</td>
+                <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                <td class="text-end">
+                    <form method="post" asp-page-handler="Edit">
+                        <input type="hidden" name="id" value="@chat.TelegramChatSubscriptionId" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Edit</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

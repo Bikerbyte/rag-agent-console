@@ -1,0 +1,56 @@
+@page
+@model CPBLLineBotCloud.Pages.News.IndexModel
+@{
+    ViewData["Title"] = "News";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Admin</p>
+        <h1>News</h1>
+        <p class="page-copy">保留最近同步的官方新聞，方便確認 bot 回覆和推播時看到的是哪一批資料。</p>
+    </div>
+    <form method="post" asp-page-handler="Sync">
+        <button class="btn btn-primary" type="submit">立即同步</button>
+    </form>
+</div>
+
+<section class="panel">
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info mb-3">@Model.StatusMessage</div>
+    }
+
+    <table class="table admin-table">
+        <thead>
+            <tr>
+                <th>發布時間</th>
+                <th>分類</th>
+                <th>標題</th>
+                <th>來源</th>
+                <th>已推播</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.NewsItems.Count == 0)
+        {
+            <tr>
+                <td colspan="5">目前還沒有已同步的新聞資料。</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var item in Model.NewsItems)
+            {
+                <tr>
+                    <td>@item.PublishTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@(string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category)</td>
+                    <td><a href="@item.Url" target="_blank" rel="noreferrer">@item.Title</a></td>
+                    <td>@item.SourceName</td>
+                    <td>@(item.IsSent ? "是" : "否")</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</section>

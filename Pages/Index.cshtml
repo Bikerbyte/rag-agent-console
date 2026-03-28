@@ -1,0 +1,84 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="dashboard-hero">
+    <div>
+        <p class="eyebrow">CPBL Telegram Assistant</p>
+        <h1>Small side project for CPBL schedules, team summaries, tracked-team reminders, and quick recap messages inside Telegram.</h1>
+        <p class="page-copy">The goal is simple: make the bot feel like a helpful baseball assistant instead of just dumping official tables into chat.</p>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <section class="stat-card">
+        <span class="stat-label">Teams</span>
+        <strong class="stat-value">@Model.TeamCount</strong>
+    </section>
+    <section class="stat-card">
+        <span class="stat-label">Today's Games</span>
+        <strong class="stat-value">@Model.TodayGameCount</strong>
+    </section>
+    <section class="stat-card">
+        <span class="stat-label">News Items</span>
+        <strong class="stat-value">@Model.NewsCount</strong>
+    </section>
+    <section class="stat-card">
+        <span class="stat-label">Telegram Chats</span>
+        <strong class="stat-value">@Model.ChatCount</strong>
+    </section>
+    <section class="stat-card">
+        <span class="stat-label">Push Logs</span>
+        <strong class="stat-value">@Model.PushLogCount</strong>
+    </section>
+    <section class="stat-card">
+        <span class="stat-label">Sync Logs</span>
+        <strong class="stat-value">@Model.SyncLogCount</strong>
+    </section>
+</div>
+
+<div class="content-grid">
+    <section class="panel">
+        <h2>Runtime</h2>
+        <ul class="plain-list">
+            <li>PID: <code>@Model.CurrentProcessId</code></li>
+            <li>Started: @Model.ProcessStartTime.ToString("yyyy-MM-dd HH:mm:ss")</li>
+            <li>Environment: @Model.EnvironmentName</li>
+            <li>Current URL: <code>@Model.CurrentBaseUrl</code></li>
+            <li>Telegram bot: @(Model.BotEnabled ? "Enabled" : "Disabled") / Token @(Model.HasBotToken ? "Configured" : "Missing")</li>
+        </ul>
+    </section>
+    <section class="panel">
+        <h2>Local operation</h2>
+        <ul class="plain-list">
+            <li>Use <code>Run-Local.cmd</code> to start the site with a visible console window.</li>
+            <li>Use <code>Status-Local.cmd</code> to check which PID is listening on the default port.</li>
+            <li>Use <code>Stop-Local.cmd</code> to force-stop the local site when a port is still occupied.</li>
+        </ul>
+    </section>
+</div>
+
+<div class="content-grid mt-4">
+    <section class="panel">
+        <h2>Latest sync</h2>
+        <ul class="plain-list">
+            <li>Schedule: @Model.LatestGameSyncText</li>
+            <li>News: @Model.LatestNewsSyncText</li>
+        </ul>
+    </section>
+    <section class="panel">
+        <h2>Latest reply</h2>
+        <p class="mb-0">@Model.LatestReplyText</p>
+    </section>
+</div>
+
+<section class="panel mt-4">
+    <h2>Bot flow</h2>
+    <ul class="plain-list">
+        <li>Main commands: <code>/today</code>, <code>/today_best</code>, <code>/team 兄弟</code>, <code>/follow 兄弟</code>, <code>/my_follow</code>, <code>/recap</code>.</li>
+        <li>Natural language also works, for example <code>今天有什麼比賽</code>, <code>統一今天有沒有打</code>, <code>樂天近況</code>, <code>最新新聞</code>.</li>
+        <li>The bot is neutral by default and only switches to a team-first view after that chat chooses a tracked team.</li>
+    </ul>
+</section>

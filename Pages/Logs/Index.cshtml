@@ -1,0 +1,87 @@
+@page
+@model CPBLLineBotCloud.Pages.Logs.IndexModel
+@{
+    ViewData["Title"] = "Logs";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Logs</h1>
+        <p class="page-copy">只保留最近的推播與同步紀錄，夠看 bot 有沒有正常運作就好。</p>
+    </div>
+</div>
+
+<div class="content-grid">
+    <section class="panel">
+        <h2>Push logs</h2>
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>時間</th>
+                    <th>類型</th>
+                    <th>Chat</th>
+                    <th>訊息</th>
+                    <th>結果</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.PushLogs.Count == 0)
+            {
+                <tr>
+                    <td colspan="5">目前還沒有推播或回覆紀錄。</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var log in Model.PushLogs)
+                {
+                    <tr>
+                        <td>@log.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@log.PushType</td>
+                        <td>@log.TargetGroupId</td>
+                        <td>@log.MessageTitle</td>
+                        <td>@(log.IsSuccess ? "成功" : log.ErrorMessage)</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="panel">
+        <h2>Sync job logs</h2>
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>工作</th>
+                    <th>開始</th>
+                    <th>結束</th>
+                    <th>結果</th>
+                    <th>訊息</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.SyncJobLogs.Count == 0)
+            {
+                <tr>
+                    <td colspan="5">目前還沒有同步紀錄。</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var log in Model.SyncJobLogs)
+                {
+                    <tr>
+                        <td>@log.JobName</td>
+                        <td>@log.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@log.EndTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@(log.IsSuccess ? "成功" : "失敗")</td>
+                        <td>@log.Message</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </section>
+</div>

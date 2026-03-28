@@ -1,0 +1,60 @@
+@page
+@model CPBLLineBotCloud.Pages.Games.IndexModel
+@{
+    ViewData["Title"] = "Games";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Games</h1>
+        <p class="page-copy">這裡只放 bot 目前會用到的官方賽程與比分資料，方便確認同步內容和狀態。</p>
+    </div>
+    <form method="post" asp-page-handler="Sync">
+        <button class="btn btn-primary" type="submit">立即同步</button>
+    </form>
+</div>
+
+<section class="panel">
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info mb-3">@Model.StatusMessage</div>
+    }
+
+    <table class="table admin-table">
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>時間</th>
+                <th>對戰</th>
+                <th>狀態</th>
+                <th>比分</th>
+                <th>球場</th>
+                <th>更新時間</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.Games.Count == 0)
+        {
+            <tr>
+                <td colspan="7">目前還沒有已同步的比賽資料。</td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var game in Model.Games)
+            {
+                <tr>
+                    <td>@game.GameDate</td>
+                    <td>@(game.StartTime?.ToString("HH:mm") ?? "--:--")</td>
+                    <td>@game.Matchup</td>
+                    <td>@game.Status</td>
+                    <td>@game.Score</td>
+                    <td>@game.Venue</td>
+                    <td>@game.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</section>

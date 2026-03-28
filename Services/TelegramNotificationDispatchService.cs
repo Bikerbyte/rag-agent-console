@@ -1,0 +1,314 @@
+using System.Text;
+using CPBLLineBotCloud.Data;
+using CPBLLineBotCloud.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+namespace CPBLLineBotCloud.Services;
+
+public class TelegramNotificationDispatchService(
+    ApplicationDbContext dbContext,
+    ICpblInsightService cpblInsightService,
+    ITelegramPushService telegramPushService,
+    IOptions<PushNotificationOptions> pushOptions,
+    TimeProvider timeProvider,
+    ILogger<TelegramNotificationDispatchService> logger) : ITelegramNotificationDispatchService
+{
+    private static readonly TimeZoneInfo TaipeiTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time");
+
+    public async Task ProcessPendingNotificationsAsync(CancellationToken cancellationToken = default)
+    {
+        var options = pushOptions.Value;
+        if (!options.Enabled)
+        {
+            logger.LogDebug("Telegram push notifications are disabled in configuration.");
+            return;
+        }
+
+        var subscriptions = await dbContext.TelegramChatSubscriptions
+            .OrderBy(chat => chat.ChatTitle)
+            .ToListAsync(cancellationToken);
+
+        if (subscriptions.Count == 0)
+        {
+            logger.LogDebug("No Telegram chat subscriptions are configured for auto push.");
+            return;
+        }
+
+        var taipeiNow = TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), TaipeiTimeZone);
+
+        if (options.EnableDailySummary)
+        {
+            await DispatchDailySummaryAsync(subscriptions, taipeiNow, options, cancellationToken);
+        }
+
+        if (options.EnableNewsPush)
+        {
+            await DispatchNewsPushAsync(subscriptions, taipeiNow, options, cancellationToken);
+        }
+
+        if (options.EnableGameFinalPush)
+        {
+            await DispatchGameFinalPushAsync(subscriptions, taipeiNow, options, cancellationToken);
+        }
+    }
+
+    private async Task DispatchDailySummaryAsync(
+        IReadOnlyList<TelegramChatSubscription> subscriptions,
+        DateTimeOffset taipeiNow,
+        PushNotificationOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (taipeiNow.Hour < options.DailySummaryHour ||
+            (taipeiNow.Hour == options.DailySummaryHour && taipeiNow.Minute < options.DailySummaryMinute))
+        {
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(taipeiNow.DateTime);
+        var summaryTitle = $"每日摘要 {today:yyyy/MM/dd}";
+        var dailyFocus = await cpblInsightService.GetDailyFocusAsync(cancellationToken);
+
+        foreach (var subscription in subscriptions.Where(chat => chat.EnableSchedulePush))
+        {
+            var alreadySent = await HasSuccessfulPushAsync(subscription.ChatId, "DailySummary", summaryTitle, cancellationToken);
+            if (alreadySent)
+            {
+                continue;
+            }
+
+            var messageBody = await BuildDailySummaryBodyAsync(subscription, today, dailyFocus, cancellationToken);
+            await telegramPushService.SendPushAsync(subscription.ChatId, summaryTitle, messageBody, "DailySummary", cancellationToken);
+        }
+    }
+
+    private async Task DispatchNewsPushAsync(
+        IReadOnlyList<TelegramChatSubscription> subscriptions,
+        DateTimeOffset taipeiNow,
+        PushNotificationOptions options,
+        CancellationToken cancellationToken)
+    {
+        var cutoff = taipeiNow.AddHours(-Math.Max(1, options.NewsLookbackHours)).ToUniversalTime();
+
+        var pendingNews = await dbContext.NewsItems
+            .Where(news => !news.IsSent && news.PublishTime >= cutoff)
+            .OrderBy(news => news.PublishTime)
+            .ToListAsync(cancellationToken);
+
+        foreach (var news in pendingNews)
+        {
+            var eligibleSubscriptions = subscriptions
+                .Where(chat => chat.EnableNewsPush &&
+                               (string.IsNullOrWhiteSpace(chat.FollowedTeamCode) || IsRelatedNews(news, chat.FollowedTeamCode)))
+                .ToList();
+
+            if (eligibleSubscriptions.Count == 0)
+            {
+                news.IsSent = true;
+                continue;
+            }
+
+            var allDelivered = true;
+            foreach (var subscription in eligibleSubscriptions)
+            {
+                var alreadySent = await HasSuccessfulPushAsync(subscription.ChatId, "NewsPush", news.Title, cancellationToken);
+                if (alreadySent)
+                {
+                    continue;
+                }
+
+                var messageBody = BuildNewsPushBody(news, subscription.FollowedTeamCode);
+                var isSuccess = await telegramPushService.SendPushAsync(subscription.ChatId, news.Title, messageBody, "NewsPush", cancellationToken);
+                allDelivered &= isSuccess;
+            }
+
+            if (allDelivered)
+            {
+                news.IsSent = true;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task DispatchGameFinalPushAsync(
+        IReadOnlyList<TelegramChatSubscription> subscriptions,
+        DateTimeOffset taipeiNow,
+        PushNotificationOptions options,
+        CancellationToken cancellationToken)
+    {
+        var cutoff = taipeiNow.AddHours(-Math.Max(1, options.FinalLookbackHours)).ToUniversalTime();
+        var today = DateOnly.FromDateTime(taipeiNow.DateTime);
+
+        var finalGames = await dbContext.Games
+            .Where(game =>
+                game.Status == "Final" &&
+                game.HomeScore.HasValue &&
+                game.AwayScore.HasValue &&
+                (game.LastUpdatedTime >= cutoff || game.GameDate >= today.AddDays(-1)))
+            .OrderBy(game => game.GameDate)
+            .ThenBy(game => game.StartTime)
+            .ToListAsync(cancellationToken);
+
+        foreach (var game in finalGames)
+        {
+            var finalTitle = BuildFinalPushTitle(game);
+
+            foreach (var subscription in subscriptions.Where(chat => chat.EnableSchedulePush))
+            {
+                if (!string.IsNullOrWhiteSpace(subscription.FollowedTeamCode) &&
+                    !IsTrackedTeamGame(game, subscription.FollowedTeamCode))
+                {
+                    continue;
+                }
+
+                var alreadySent = await HasSuccessfulPushAsync(subscription.ChatId, "GameFinal", finalTitle, cancellationToken);
+                if (alreadySent)
+                {
+                    continue;
+                }
+
+                var messageBody = BuildFinalPushBody(game, subscription.FollowedTeamCode);
+                await telegramPushService.SendPushAsync(subscription.ChatId, finalTitle, messageBody, "GameFinal", cancellationToken);
+            }
+        }
+    }
+
+    private async Task<bool> HasSuccessfulPushAsync(
+        string chatId,
+        string pushType,
+        string messageTitle,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.PushLogs.AnyAsync(
+            log => log.TargetGroupId == chatId &&
+                   log.PushType == pushType &&
+                   log.MessageTitle == messageTitle &&
+                   log.IsSuccess,
+            cancellationToken);
+    }
+
+    private async Task<string> BuildDailySummaryBodyAsync(
+        TelegramChatSubscription subscription,
+        DateOnly targetDate,
+        CpblDailyFocus dailyFocus,
+        CancellationToken cancellationToken)
+    {
+        var replyBuilder = new StringBuilder();
+        replyBuilder.AppendLine($"{targetDate:yyyy/MM/dd} 主動整理");
+
+        if (!string.IsNullOrWhiteSpace(subscription.FollowedTeamCode))
+        {
+            var teamSummary = await cpblInsightService.GetTeamSummaryAsync(subscription.FollowedTeamCode, cancellationToken);
+            replyBuilder.AppendLine(BuildTrackedTeamDailyLine(targetDate, subscription.FollowedTeamCode, teamSummary));
+            replyBuilder.AppendLine(string.Empty);
+        }
+
+        foreach (var item in dailyFocus.Items.Take(3))
+        {
+            replyBuilder.AppendLine($"- {item}");
+        }
+
+        return replyBuilder.ToString().TrimEnd();
+    }
+
+    private static string BuildTrackedTeamDailyLine(DateOnly targetDate, string teamCode, CpblTeamSummary? summary)
+    {
+        var teamName = CpblTeamCatalog.GetDisplayName(teamCode);
+
+        if (summary?.NextGame is { } nextGame && nextGame.GameDate == targetDate)
+        {
+            var opponentCode = nextGame.HomeTeamCode == teamCode ? nextGame.AwayTeamCode : nextGame.HomeTeamCode;
+            var opponentName = CpblTeamCatalog.GetDisplayName(opponentCode);
+            var venue = string.IsNullOrWhiteSpace(nextGame.Venue) ? "待公告" : nextGame.Venue;
+            var timeText = nextGame.StartTime?.ToString("HH:mm") ?? "--:--";
+            var homeAwayText = nextGame.HomeTeamCode == teamCode ? "主場" : "客場";
+            return $"你追蹤的 {teamName} 今天有比賽: {timeText} {homeAwayText}對 {opponentName}，地點 {venue}";
+        }
+
+        if (summary?.LatestGame is { } latestGame && latestGame.GameDate == targetDate)
+        {
+            return $"你追蹤的 {teamName} 今天已完賽: {BuildCompactFinalLine(latestGame)}";
+        }
+
+        return $"你追蹤的 {teamName} 今天沒有排到比賽。";
+    }
+
+    private static string BuildNewsPushBody(NewsInfo news, string? followedTeamCode)
+    {
+        var lines = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(followedTeamCode) && IsRelatedNews(news, followedTeamCode))
+        {
+            lines.Add($"你追蹤的 {CpblTeamCatalog.GetDisplayName(followedTeamCode)} 有新消息");
+        }
+
+        lines.Add($"時間: {news.PublishTime.ToOffset(TimeSpan.FromHours(8)):MM/dd HH:mm}");
+
+        if (!string.IsNullOrWhiteSpace(news.Summary))
+        {
+            lines.Add($"摘要: {news.Summary}");
+        }
+
+        lines.Add($"來源: {news.SourceName}");
+        lines.Add(news.Url);
+        return string.Join('\n', lines);
+    }
+
+    private static string BuildFinalPushTitle(GameInfo game)
+    {
+        var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+        var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+        return $"終場快報 {game.GameDate:MM/dd} {awayName} vs {homeName}";
+    }
+
+    private static string BuildFinalPushBody(GameInfo game, string? followedTeamCode)
+    {
+        var lines = new List<string>
+        {
+            BuildCompactFinalLine(game)
+        };
+
+        if (!string.IsNullOrWhiteSpace(followedTeamCode) && IsTrackedTeamGame(game, followedTeamCode))
+        {
+            lines.Add(BuildTrackedTeamResultLine(game, followedTeamCode));
+        }
+
+        if (!string.IsNullOrWhiteSpace(game.Venue))
+        {
+            lines.Add($"地點: {game.Venue}");
+        }
+
+        return string.Join('\n', lines);
+    }
+
+    private static string BuildCompactFinalLine(GameInfo game)
+    {
+        var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+        var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+        return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}";
+    }
+
+    private static string BuildTrackedTeamResultLine(GameInfo game, string trackedTeamCode)
+    {
+        var teamName = CpblTeamCatalog.GetDisplayName(trackedTeamCode);
+        var didWin =
+            (game.HomeTeamCode == trackedTeamCode && game.HomeScore > game.AwayScore) ||
+            (game.AwayTeamCode == trackedTeamCode && game.AwayScore > game.HomeScore);
+
+        return didWin ? $"{teamName} 收下這場比賽。" : $"{teamName} 這場沒能拿下。";
+    }
+
+    private static bool IsTrackedTeamGame(GameInfo game, string teamCode)
+    {
+        return string.Equals(game.HomeTeamCode, teamCode, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(game.AwayTeamCode, teamCode, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRelatedNews(NewsInfo news, string teamCode)
+    {
+        var content = $"{news.Title}\n{news.Summary}\n{news.Category}";
+        return CpblTeamCatalog.GetSearchKeywords(teamCode)
+            .Any(keyword => content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+}

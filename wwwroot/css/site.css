@@ -1,0 +1,154 @@
+:root {
+  --app-bg: #f3f2ec;
+  --panel-bg: #fffdf8;
+  --panel-border: #d8d3c6;
+  --text-main: #1f2a30;
+  --text-soft: #66737a;
+  --accent: #1f5f4a;
+  --accent-strong: #174838;
+  --accent-soft: #e6efe9;
+}
+
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .form-select:focus {
+  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(31, 95, 74, 0.2);
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+  background:
+    radial-gradient(circle at top right, rgba(31, 95, 74, 0.08), transparent 28%),
+    linear-gradient(180deg, #f7f5ef 0%, var(--app-bg) 100%);
+  color: var(--text-main);
+}
+
+.dashboard-hero,
+.page-header,
+.panel,
+.stat-card {
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background-color: var(--panel-bg);
+  box-shadow: 0 10px 30px rgba(31, 42, 48, 0.04);
+}
+
+.dashboard-hero {
+  background:
+    linear-gradient(135deg, rgba(31, 95, 74, 0.08), rgba(255, 253, 248, 0.96)),
+    var(--panel-bg);
+}
+
+.stats-grid,
+.content-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.content-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.eyebrow,
+.stat-label,
+.page-copy,
+.muted-line {
+  color: var(--text-soft);
+}
+
+.eyebrow {
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-copy,
+.muted-line {
+  margin-bottom: 0;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+}
+
+.app-nav {
+  background: rgba(255, 253, 248, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.navbar-brand,
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-strong);
+}
+
+.btn-primary {
+  color: #fff;
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.plain-list {
+  margin-bottom: 0;
+  padding-left: 1.2rem;
+}
+
+.admin-table {
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+
+.admin-table thead th {
+  color: var(--text-soft);
+  font-weight: 600;
+  border-bottom-width: 1px;
+}
+
+.admin-table td,
+.admin-table th {
+  background: transparent;
+}
+
+.alert-info {
+  color: var(--text-main);
+  background-color: var(--accent-soft);
+  border-color: rgba(31, 95, 74, 0.15);
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 60px;
+}
