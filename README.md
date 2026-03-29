@@ -31,9 +31,9 @@
 ![Telegram demo](docs/demo/image.png)
 ![Telegram demo](docs/demo/image-1.png)
 
+- 及時戰況更新
+![Telegram demo](docs/demo/realtime_update.png)
 
-
-- 
 
 ## 資料庫
 

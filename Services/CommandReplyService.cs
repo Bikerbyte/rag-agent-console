@@ -1130,7 +1130,7 @@ public class CommandReplyService(
     private static string BuildHelpReply()
     {
         return """
-你可以直接輸入指令：
+請直接輸入指令：
 - /today：今天賽程、包含進行中比賽戰況
 - /tomorrow：明天賽程
 - /yesterday：昨天已完賽結果
