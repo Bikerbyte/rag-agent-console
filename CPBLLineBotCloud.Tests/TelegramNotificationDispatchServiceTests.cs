@@ -267,6 +267,118 @@ public class TelegramNotificationDispatchServiceTests
         Assert.Contains("你追蹤的 中信兄弟 即將在 25 分鐘後開打", pushService.Messages[0].Body);
     }
 
+    [Fact]
+    public async Task LiveScorePush_SendsScoreUpdateForTrackedTeam()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.TelegramChatSubscriptions.Add(new TelegramChatSubscription
+        {
+            ChatId = "chat-ct",
+            ChatTitle = "CT",
+            EnableSchedulePush = true,
+            EnableNewsPush = false,
+            FollowedTeamCode = "CT",
+            CreatedTime = DateTimeOffset.UtcNow,
+            LastUpdatedTime = DateTimeOffset.UtcNow
+        });
+
+        dbContext.Games.Add(new GameInfo
+        {
+            GameDate = new DateOnly(2026, 3, 27),
+            StartTime = new TimeOnly(18, 35),
+            AwayTeamCode = "CT",
+            HomeTeamCode = "UL",
+            AwayScore = 4,
+            HomeScore = 3,
+            PreviousAwayScore = 2,
+            PreviousHomeScore = 3,
+            Status = "Live",
+            PreviousStatus = "Live",
+            InningText = "7局上",
+            Venue = "台南",
+            LastUpdatedTime = new DateTimeOffset(2026, 3, 27, 11, 50, 0, TimeSpan.Zero)
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var pushService = new RecordingPushService(dbContext);
+        var service = CreateService(
+            dbContext,
+            pushService,
+            new PushNotificationOptions
+            {
+                Enabled = true,
+                EnableDailySummary = false,
+                EnableGameStartPush = false,
+                EnableLiveScorePush = true,
+                EnableNewsPush = false,
+                EnableGameFinalPush = false
+            },
+            new FixedTimeProvider(new DateTimeOffset(2026, 3, 27, 12, 0, 0, TimeSpan.Zero)));
+
+        await service.ProcessPendingNotificationsAsync();
+
+        Assert.Single(pushService.Messages);
+        Assert.Equal("GameLiveUpdate", pushService.Messages[0].PushType);
+        Assert.Contains("戰況更新", pushService.Messages[0].Title);
+        Assert.Contains("你追蹤的 中信兄弟 有新戰況", pushService.Messages[0].Body);
+        Assert.Contains("中信兄弟 逆轉超前", pushService.Messages[0].Body);
+    }
+
+    [Fact]
+    public async Task LiveScorePush_DoesNotSendWhenScoreDidNotChange()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.TelegramChatSubscriptions.Add(new TelegramChatSubscription
+        {
+            ChatId = "chat-ct",
+            ChatTitle = "CT",
+            EnableSchedulePush = true,
+            EnableNewsPush = false,
+            FollowedTeamCode = "CT",
+            CreatedTime = DateTimeOffset.UtcNow,
+            LastUpdatedTime = DateTimeOffset.UtcNow
+        });
+
+        dbContext.Games.Add(new GameInfo
+        {
+            GameDate = new DateOnly(2026, 3, 27),
+            StartTime = new TimeOnly(18, 35),
+            AwayTeamCode = "CT",
+            HomeTeamCode = "UL",
+            AwayScore = 2,
+            HomeScore = 1,
+            PreviousAwayScore = 2,
+            PreviousHomeScore = 1,
+            Status = "Live",
+            PreviousStatus = "Live",
+            InningText = "6局下",
+            Venue = "台南",
+            LastUpdatedTime = new DateTimeOffset(2026, 3, 27, 11, 40, 0, TimeSpan.Zero)
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var pushService = new RecordingPushService(dbContext);
+        var service = CreateService(
+            dbContext,
+            pushService,
+            new PushNotificationOptions
+            {
+                Enabled = true,
+                EnableDailySummary = false,
+                EnableGameStartPush = false,
+                EnableLiveScorePush = true,
+                EnableNewsPush = false,
+                EnableGameFinalPush = false
+            },
+            new FixedTimeProvider(new DateTimeOffset(2026, 3, 27, 12, 0, 0, TimeSpan.Zero)));
+
+        await service.ProcessPendingNotificationsAsync();
+
+        Assert.Empty(pushService.Messages);
+    }
+
     private static TelegramNotificationDispatchService CreateService(
         ApplicationDbContext dbContext,
         RecordingPushService pushService,

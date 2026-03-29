@@ -17,8 +17,14 @@ public class GameInfo
     public int? HomeScore { get; set; }
     public int? AwayScore { get; set; }
 
+    public int? PreviousHomeScore { get; set; }
+    public int? PreviousAwayScore { get; set; }
+
     [MaxLength(32)]
     public required string Status { get; set; }
+
+    [MaxLength(32)]
+    public string? PreviousStatus { get; set; }
 
     [MaxLength(32)]
     public string? InningText { get; set; }

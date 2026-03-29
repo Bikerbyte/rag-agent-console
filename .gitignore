@@ -17,6 +17,7 @@ coverage/
 *.log
 AGENTS.md
 cpbl_telegram_bot_rework_plan.md
+internal_project_notes.md
 
 .fake
 LOCAL_BOT_IMPLEMENTATION_NOTES.md

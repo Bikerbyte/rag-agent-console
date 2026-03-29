@@ -45,8 +45,29 @@ public partial class CpblGameSyncService(
                 .Where(game => game.GameDate == targetDate)
                 .ToListAsync(cancellationToken);
 
-            dbContext.Games.RemoveRange(existingGames);
-            dbContext.Games.AddRange(officialGames);
+            var matchedGameIds = new HashSet<int>();
+
+            foreach (var officialGame in officialGames)
+            {
+                var existingGame = FindMatchingGame(existingGames, officialGame);
+                if (existingGame is null)
+                {
+                    dbContext.Games.Add(officialGame);
+                    continue;
+                }
+
+                matchedGameIds.Add(existingGame.GameInfoId);
+                ApplyOfficialSnapshot(existingGame, officialGame);
+            }
+
+            var staleGames = existingGames
+                .Where(game => !matchedGameIds.Contains(game.GameInfoId))
+                .ToList();
+
+            if (staleGames.Count > 0)
+            {
+                dbContext.Games.RemoveRange(staleGames);
+            }
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
@@ -186,6 +207,48 @@ public partial class CpblGameSyncService(
                 DisplayName = team.DisplayName
             });
         }
+    }
+
+    private static GameInfo? FindMatchingGame(IReadOnlyList<GameInfo> existingGames, GameInfo officialGame)
+    {
+        var sameTeams = existingGames
+            .Where(game =>
+                string.Equals(game.HomeTeamCode, officialGame.HomeTeamCode, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(game.AwayTeamCode, officialGame.AwayTeamCode, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (sameTeams.Count == 0)
+        {
+            return null;
+        }
+
+        if (officialGame.StartTime.HasValue)
+        {
+            var exactTimeMatch = sameTeams.FirstOrDefault(game => game.StartTime == officialGame.StartTime);
+            if (exactTimeMatch is not null)
+            {
+                return exactTimeMatch;
+            }
+        }
+
+        return sameTeams[0];
+    }
+
+    private static void ApplyOfficialSnapshot(GameInfo existingGame, GameInfo officialGame)
+    {
+        existingGame.PreviousAwayScore = existingGame.AwayScore;
+        existingGame.PreviousHomeScore = existingGame.HomeScore;
+        existingGame.PreviousStatus = existingGame.Status;
+        existingGame.GameDate = officialGame.GameDate;
+        existingGame.StartTime = officialGame.StartTime;
+        existingGame.AwayTeamCode = officialGame.AwayTeamCode;
+        existingGame.HomeTeamCode = officialGame.HomeTeamCode;
+        existingGame.AwayScore = officialGame.AwayScore;
+        existingGame.HomeScore = officialGame.HomeScore;
+        existingGame.Status = officialGame.Status;
+        existingGame.InningText = officialGame.InningText;
+        existingGame.Venue = officialGame.Venue;
+        existingGame.LastUpdatedTime = officialGame.LastUpdatedTime;
     }
 
     private static string BuildStatusText(JsonElement gameElement)

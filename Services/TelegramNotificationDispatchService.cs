@@ -47,6 +47,11 @@ public class TelegramNotificationDispatchService(
             await DispatchGameStartPushAsync(subscriptions, taipeiNow, options, cancellationToken);
         }
 
+        if (options.EnableLiveScorePush)
+        {
+            await DispatchLiveScorePushAsync(subscriptions, taipeiNow, cancellationToken);
+        }
+
         if (options.EnableNewsPush)
         {
             await DispatchNewsPushAsync(subscriptions, taipeiNow, options, cancellationToken);
@@ -235,6 +240,54 @@ public class TelegramNotificationDispatchService(
         }
     }
 
+    private async Task DispatchLiveScorePushAsync(
+        IReadOnlyList<TelegramChatSubscription> subscriptions,
+        DateTimeOffset taipeiNow,
+        CancellationToken cancellationToken)
+    {
+        var today = DateOnly.FromDateTime(taipeiNow.DateTime);
+        var liveGames = await dbContext.Games
+            .Where(game =>
+                game.Status == "Live" &&
+                game.GameDate >= today.AddDays(-1) &&
+                game.HomeScore.HasValue &&
+                game.AwayScore.HasValue &&
+                game.PreviousHomeScore.HasValue &&
+                game.PreviousAwayScore.HasValue)
+            .OrderBy(game => game.GameDate)
+            .ThenBy(game => game.StartTime)
+            .ToListAsync(cancellationToken);
+
+        foreach (var game in liveGames)
+        {
+            if (!HasScoreChanged(game))
+            {
+                continue;
+            }
+
+            var updateTitle = BuildLiveScorePushTitle(game);
+
+            foreach (var subscription in subscriptions.Where(chat =>
+                         chat.EnableSchedulePush &&
+                         !string.IsNullOrWhiteSpace(chat.FollowedTeamCode)))
+            {
+                if (!IsTrackedTeamGame(game, subscription.FollowedTeamCode!))
+                {
+                    continue;
+                }
+
+                var alreadySent = await HasSuccessfulPushAsync(subscription.ChatId, "GameLiveUpdate", updateTitle, cancellationToken);
+                if (alreadySent)
+                {
+                    continue;
+                }
+
+                var messageBody = BuildLiveScorePushBody(game, subscription.FollowedTeamCode!);
+                await telegramPushService.SendPushAsync(subscription.ChatId, updateTitle, messageBody, "GameLiveUpdate", cancellationToken);
+            }
+        }
+    }
+
     private async Task<bool> HasSuccessfulPushAsync(
         string chatId,
         string pushType,
@@ -330,6 +383,13 @@ public class TelegramNotificationDispatchService(
         return $"開賽提醒 {game.GameDate:MM/dd} {awayName} vs {homeName}";
     }
 
+    private static string BuildLiveScorePushTitle(GameInfo game)
+    {
+        var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+        var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+        return $"戰況更新 {game.GameDate:MM/dd} {awayName} vs {homeName} {game.AwayScore}:{game.HomeScore}";
+    }
+
     private static string BuildGameStartPushBody(GameInfo game, string trackedTeamCode, int minutesLeft)
     {
         var trackedTeamName = CpblTeamCatalog.GetDisplayName(trackedTeamCode);
@@ -342,6 +402,33 @@ public class TelegramNotificationDispatchService(
         var venueText = string.IsNullOrWhiteSpace(game.Venue) ? "待公告" : game.Venue;
 
         return $"你追蹤的 {trackedTeamName} 即將在 {minutesLeft} 分鐘後開打\n{game.GameDate:MM/dd} {startTimeText} {homeAwayText}對 {opponentName}\n地點: {venueText}";
+    }
+
+    private static string BuildLiveScorePushBody(GameInfo game, string trackedTeamCode)
+    {
+        var trackedTeamName = CpblTeamCatalog.GetDisplayName(trackedTeamCode);
+        var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
+        var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
+        var highlights = BuildLiveHighlights(game, awayName, homeName);
+        var lines = new List<string>
+        {
+            $"你追蹤的 {trackedTeamName} 有新戰況",
+            $"目前比分: {awayName} {game.AwayScore}:{game.HomeScore} {homeName}"
+        };
+
+        if (highlights.Count > 0)
+        {
+            lines.Add($"重點: {string.Join(" / ", highlights)}");
+        }
+
+        lines.Add($"狀態: {BuildLiveStatusText(game)}");
+
+        if (!string.IsNullOrWhiteSpace(game.Venue))
+        {
+            lines.Add($"地點: {game.Venue}");
+        }
+
+        return string.Join('\n', lines);
     }
 
     private static string BuildFinalPushBody(GameInfo game, string? followedTeamCode)
@@ -387,6 +474,78 @@ public class TelegramNotificationDispatchService(
                string.Equals(game.AwayTeamCode, teamCode, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool HasScoreChanged(GameInfo game)
+    {
+        return game.AwayScore != game.PreviousAwayScore || game.HomeScore != game.PreviousHomeScore;
+    }
+
+    private static List<string> BuildLiveHighlights(GameInfo game, string awayName, string homeName)
+    {
+        var highlights = new List<string>();
+        var awayDelta = (game.AwayScore ?? 0) - (game.PreviousAwayScore ?? 0);
+        var homeDelta = (game.HomeScore ?? 0) - (game.PreviousHomeScore ?? 0);
+
+        if (awayDelta > 0)
+        {
+            highlights.Add($"{awayName} 攻下 {awayDelta} 分");
+        }
+
+        if (homeDelta > 0)
+        {
+            highlights.Add($"{homeName} 攻下 {homeDelta} 分");
+        }
+
+        var leadChangeText = BuildLeadChangeText(game, awayName, homeName);
+        if (!string.IsNullOrWhiteSpace(leadChangeText))
+        {
+            highlights.Add(leadChangeText);
+        }
+
+        return highlights;
+    }
+
+    private static string? BuildLeadChangeText(GameInfo game, string awayName, string homeName)
+    {
+        var previousState = GetLeadState(game.PreviousAwayScore ?? 0, game.PreviousHomeScore ?? 0);
+        var currentState = GetLeadState(game.AwayScore ?? 0, game.HomeScore ?? 0);
+
+        if (previousState == currentState)
+        {
+            return null;
+        }
+
+        return (previousState, currentState) switch
+        {
+            (LeadState.Tied, LeadState.AwayLead) => $"{awayName} 取得領先",
+            (LeadState.Tied, LeadState.HomeLead) => $"{homeName} 取得領先",
+            (LeadState.AwayLead, LeadState.Tied) => $"{homeName} 追平比數",
+            (LeadState.HomeLead, LeadState.Tied) => $"{awayName} 追平比數",
+            (LeadState.AwayLead, LeadState.HomeLead) => $"{homeName} 逆轉超前",
+            (LeadState.HomeLead, LeadState.AwayLead) => $"{awayName} 逆轉超前",
+            _ => null
+        };
+    }
+
+    private static LeadState GetLeadState(int awayScore, int homeScore)
+    {
+        if (awayScore == homeScore)
+        {
+            return LeadState.Tied;
+        }
+
+        return awayScore > homeScore ? LeadState.AwayLead : LeadState.HomeLead;
+    }
+
+    private static string BuildLiveStatusText(GameInfo game)
+    {
+        if (!string.IsNullOrWhiteSpace(game.InningText))
+        {
+            return $"進行中，{game.InningText}";
+        }
+
+        return "進行中";
+    }
+
     private static DateTimeOffset? BuildTaipeiGameTime(GameInfo game)
     {
         if (!game.StartTime.HasValue)
@@ -404,5 +563,12 @@ public class TelegramNotificationDispatchService(
         var content = $"{news.Title}\n{news.Summary}\n{news.Category}";
         return CpblTeamCatalog.GetSearchKeywords(teamCode)
             .Any(keyword => content.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private enum LeadState
+    {
+        Tied,
+        AwayLead,
+        HomeLead
     }
 }

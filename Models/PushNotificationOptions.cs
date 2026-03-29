@@ -7,6 +7,7 @@ public class PushNotificationOptions
     public bool Enabled { get; set; } = true;
     public bool EnableDailySummary { get; set; } = true;
     public bool EnableGameStartPush { get; set; } = true;
+    public bool EnableLiveScorePush { get; set; } = true;
     public bool EnableNewsPush { get; set; } = true;
     public bool EnableGameFinalPush { get; set; } = true;
     public int WorkerIntervalSeconds { get; set; } = 90;

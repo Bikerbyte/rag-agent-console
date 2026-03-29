@@ -16,6 +16,7 @@ services:
       TelegramBot__ApiBaseUrl: https://api.telegram.org
       TelegramBot__PollingDelaySeconds: 3
       PushNotifications__EnableGameStartPush: ${ENABLE_GAME_START_PUSH:-true}
+      PushNotifications__EnableLiveScorePush: ${ENABLE_LIVE_SCORE_PUSH:-true}
       PushNotifications__GameStartLeadMinutes: ${GAME_START_LEAD_MINUTES:-30}
     ports:
       - "${APP_PORT:-8080}:8080"
