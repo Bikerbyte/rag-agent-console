@@ -210,59 +210,6 @@ public class CommandReplyServiceTests
     }
 
     [Fact]
-    public async Task PreviewReply_ShowsTodayMatchups()
-    {
-        await using var dbContext = CreateDbContext();
-        var today = GetTaipeiToday();
-
-        dbContext.Games.Add(new GameInfo
-        {
-            GameDate = today,
-            StartTime = new TimeOnly(18, 35),
-            AwayTeamCode = "CT",
-            HomeTeamCode = "UL",
-            Status = "Scheduled",
-            Venue = "台南",
-            LastUpdatedTime = DateTimeOffset.UtcNow
-        });
-
-        await dbContext.SaveChangesAsync();
-
-        var service = CreateService(dbContext);
-        var reply = await service.BuildReplyAsync("/preview");
-
-        Assert.Contains("今日對戰", reply);
-        Assert.Contains("中信兄弟 vs 統一7-ELEVEn獅", reply);
-    }
-
-    [Fact]
-    public async Task PreviewReply_CanFilterByTeam()
-    {
-        await using var dbContext = CreateDbContext();
-        var today = GetTaipeiToday();
-
-        dbContext.Games.Add(new GameInfo
-        {
-            GameDate = today,
-            StartTime = new TimeOnly(17, 5),
-            AwayTeamCode = "FG",
-            HomeTeamCode = "CT",
-            Status = "Scheduled",
-            Venue = "洲際",
-            LastUpdatedTime = DateTimeOffset.UtcNow
-        });
-
-        await dbContext.SaveChangesAsync();
-
-        var service = CreateService(dbContext);
-        var reply = await service.BuildReplyAsync("/preview 兄弟");
-
-        Assert.Contains("賽前預覽", reply);
-        Assert.Contains("中信兄弟 |", reply);
-        Assert.Contains("主場對 富邦悍將", reply);
-    }
-
-    [Fact]
     public async Task ResultReply_ShowsFinalGamesForToday()
     {
         await using var dbContext = CreateDbContext();
@@ -411,36 +358,6 @@ public class CommandReplyServiceTests
 
         Assert.Contains("新聞提醒已關閉", reply);
         Assert.False(await dbContext.TelegramChatSubscriptions.Select(x => x.EnableNewsPush).SingleAsync());
-    }
-
-    [Fact]
-    public async Task LiveReply_ShowsInProgressGames()
-    {
-        await using var dbContext = CreateDbContext();
-        var today = GetTaipeiToday();
-
-        dbContext.Games.Add(new GameInfo
-        {
-            GameDate = today,
-            StartTime = new TimeOnly(18, 35),
-            AwayTeamCode = "RA",
-            HomeTeamCode = "WD",
-            AwayScore = 3,
-            HomeScore = 2,
-            Status = "Live",
-            InningText = "7局上",
-            Venue = "天母",
-            LastUpdatedTime = DateTimeOffset.UtcNow
-        });
-
-        await dbContext.SaveChangesAsync();
-
-        var service = CreateService(dbContext);
-        var reply = await service.BuildReplyAsync("/live");
-
-        Assert.Contains("即時比分", reply);
-        Assert.Contains("樂天桃猿 vs 味全龍", reply);
-        Assert.Contains("進行中，7局上", reply);
     }
 
     [Fact]

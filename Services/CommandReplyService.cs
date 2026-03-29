@@ -44,19 +44,9 @@ public class CommandReplyService(
             return await BuildNotifyReplyAsync(chatId, notifyScope, notifyEnabled, cancellationToken);
         }
 
-        if (IsPreviewCommand(normalizedCommand, out var previewTeamInput))
-        {
-            return await BuildPreviewReplyAsync(previewTeamInput, cancellationToken);
-        }
-
         if (IsNextGameCommand(normalizedCommand, out var nextTeamInput))
         {
             return await BuildNextCommandReplyAsync(chatId, nextTeamInput, cancellationToken);
-        }
-
-        if (IsLiveCommand(normalizedCommand))
-        {
-            return await BuildLiveReplyAsync(cancellationToken);
         }
 
         if (IsResultCommand(normalizedCommand))
@@ -158,6 +148,7 @@ public class CommandReplyService(
         return replyBuilder.ToString().TrimEnd();
     }
 
+    // Currently not used
     private async Task<string> BuildTodayBestReplyAsync(CancellationToken cancellationToken)
     {
         var recommendation = await cpblInsightService.GetTodayBestGameAsync(cancellationToken);
@@ -177,7 +168,7 @@ public class CommandReplyService(
             replyBuilder.AppendLine($"- {reason}");
         }
 
-        replyBuilder.AppendLine("如果你還想繼續查，可以直接輸入：/next 兄弟 / /live / 有什麼最新新聞");
+        replyBuilder.AppendLine("如果你還想繼續查，可以直接輸入：/next 兄弟 / /result / 有什麼最新新聞");
         return replyBuilder.ToString().TrimEnd();
     }
 
@@ -242,62 +233,6 @@ public class CommandReplyService(
         replyBuilder.AppendLine($"地點: {nextGame.Venue ?? "待公告"}");
         replyBuilder.AppendLine($"狀態: {BuildLocalizedStatus(nextGame)}");
         return replyBuilder.ToString().TrimEnd();
-    }
-
-    private async Task<string> BuildLiveReplyAsync(CancellationToken cancellationToken)
-    {
-        var today = GetTaipeiToday();
-        await TryRefreshGameDateAsync(today, cancellationToken);
-
-        var liveGames = await dbContext.Games
-            .Where(game =>
-                game.GameDate == today &&
-                (game.Status == "Live" || !string.IsNullOrWhiteSpace(game.InningText)))
-            .OrderBy(game => game.StartTime)
-            .ToListAsync(cancellationToken);
-
-        if (liveGames.Count == 0)
-        {
-            return $"即時比分\n{today:yyyy/MM/dd}\n目前沒有進行中的比賽。";
-        }
-
-        var replyBuilder = new StringBuilder();
-        replyBuilder.AppendLine($"即時比分 | {today:yyyy/MM/dd}");
-
-        for (var index = 0; index < liveGames.Count; index++)
-        {
-            var game = liveGames[index];
-            var awayName = CpblTeamCatalog.GetDisplayName(game.AwayTeamCode);
-            var homeName = CpblTeamCatalog.GetDisplayName(game.HomeTeamCode);
-
-            replyBuilder.AppendLine($"{index + 1}. {awayName} vs {homeName}");
-            replyBuilder.AppendLine($"   狀態: {BuildLocalizedStatus(game)}");
-
-            if (game.AwayScore.HasValue && game.HomeScore.HasValue)
-            {
-                replyBuilder.AppendLine($"   比分: {awayName} {game.AwayScore} : {game.HomeScore} {homeName}");
-            }
-
-            replyBuilder.AppendLine($"   地點: {game.Venue ?? "待公告"}");
-        }
-
-        return replyBuilder.ToString().TrimEnd();
-    }
-
-    private async Task<string> BuildPreviewReplyAsync(string? teamInput, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(teamInput))
-        {
-            return await BuildScheduleReplyAsync(0, "今日對戰", cancellationToken);
-        }
-
-        if (!TryResolveTeamCode(teamInput, out var teamCode))
-        {
-            return BuildUnknownTeamReply("賽前預覽", teamInput);
-        }
-
-        var teamScheduleReply = await BuildTeamScheduleReplyAsync(teamCode, 0, cancellationToken);
-        return $"賽前預覽\n{teamScheduleReply}";
     }
 
     private async Task<string> BuildResultReplyAsync(CancellationToken cancellationToken)
@@ -960,48 +895,6 @@ public class CommandReplyService(
         }
     }
 
-    private static bool IsLiveCommand(string normalizedCommand)
-    {
-        return normalizedCommand.Equals("/live", StringComparison.OrdinalIgnoreCase) ||
-               normalizedCommand.Equals("live", StringComparison.OrdinalIgnoreCase) ||
-               normalizedCommand.Contains("正在打", StringComparison.Ordinal) ||
-               normalizedCommand.Contains("進行中", StringComparison.Ordinal) ||
-               normalizedCommand.Contains("即時比分", StringComparison.Ordinal);
-    }
-
-    private static bool IsPreviewCommand(string normalizedCommand, out string? teamInput)
-    {
-        teamInput = null;
-
-        if (normalizedCommand.Equals("/preview", StringComparison.OrdinalIgnoreCase) ||
-            normalizedCommand.Equals("/game", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (normalizedCommand.StartsWith("/preview ", StringComparison.OrdinalIgnoreCase))
-        {
-            teamInput = normalizedCommand["/preview ".Length..].Trim();
-            return true;
-        }
-
-        if (normalizedCommand.StartsWith("/game ", StringComparison.OrdinalIgnoreCase))
-        {
-            teamInput = normalizedCommand["/game ".Length..].Trim();
-            return true;
-        }
-
-        if (normalizedCommand.Contains("對戰", StringComparison.Ordinal) ||
-            normalizedCommand.Contains("賽前", StringComparison.Ordinal) ||
-            normalizedCommand.Contains("預覽", StringComparison.Ordinal))
-        {
-            teamInput = normalizedCommand;
-            return true;
-        }
-
-        return false;
-    }
-
     private static bool IsResultCommand(string normalizedCommand)
     {
         return normalizedCommand.Equals("/result", StringComparison.OrdinalIgnoreCase) ||
@@ -1238,18 +1131,15 @@ public class CommandReplyService(
     {
         return """
 你可以直接輸入指令：
-- /today：今天賽程
+- /today：今天賽程、包含進行中比賽戰況
 - /tomorrow：明天賽程
-- /live：現在正在打的比賽
-- /team 兄弟：球隊近況摘要
-- /preview：看今天對戰
-- /preview 兄弟：看某隊今天的對戰資訊
-- /next 兄弟：這隊下一場比賽
 - /yesterday：昨天已完賽結果
 - /result：今天已完賽結果
 - /standings：目前排名
 - /follow 兄弟：設定你想追的隊伍
 - /following：查看目前追蹤
+- /team 兄弟：球隊近況摘要
+- /next 兄弟：這隊下一場比賽
 - /notify：查看提醒狀態
 - /notify game on：開啟比賽提醒
 - /recap：看今天打完的重點
@@ -1260,8 +1150,6 @@ public class CommandReplyService(
 // "如果不想記指令，也可以直接打中文：
 // - 想看今天賽程：今天有什麼比賽
 // - 想看明天賽程：明天有什麼比賽
-// - 想看即時比分：現在有哪場在打
-// - 想看賽前對戰：/preview
 // - 想查某隊下一場：兄弟下一場什麼時候
 // - 想看昨天賽果：/yesterday
 // - 想看今天賽果：/result
