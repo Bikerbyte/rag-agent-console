@@ -4,72 +4,118 @@
     ViewData["Title"] = "Telegram";
 }
 
-<div class="page-header">
+<section class="page-header">
     <div>
-        <p class="eyebrow">Admin</p>
+        <p class="eyebrow">Bot 設定</p>
         <h1>Telegram bot</h1>
-        <p class="page-copy">Check whether the bot is configured, learn the small set of core commands, and verify that chats are being recorded correctly.</p>
+        <p class="page-copy">檢查設定、連線與最近偵測到的聊天</p>
     </div>
-</div>
+</section>
 
-<div class="content-grid">
-    <section class="panel">
-        <h2 class="h4 mb-3">Bot status</h2>
-        <p><strong>Enabled:</strong> @(Model.BotEnabled ? "Yes" : "No")</p>
-        <p><strong>Bot token configured:</strong> @(Model.HasBotToken ? "Yes" : "No")</p>
-        <p><strong>Status:</strong> @Model.BotStatusMessage</p>
+<section class="content-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">狀態</span>
+                <h2 class="panel-title">Bot 狀態</h2>
+                <p class="panel-subtitle">先看能不能正常連線</p>
+            </div>
+        </div>
+
+        <div class="mini-grid">
+            <div class="mini-stat">
+                <span>啟用</span>
+                <strong>@(Model.BotEnabled ? "是" : "否")</strong>
+            </div>
+            <div class="mini-stat">
+                <span>Token</span>
+                <strong>@(Model.HasBotToken ? "已設定" : "未設定")</strong>
+            </div>
+            <div class="mini-stat">
+                <span>連線</span>
+                <strong>@Model.BotStatusMessage</strong>
+            </div>
+        </div>
 
         @if (Model.BotProfile is not null)
         {
-            <hr />
-            <p><strong>Bot name:</strong> @Model.BotProfile.FirstName</p>
-            <p><strong>Username:</strong> @@@Model.BotProfile.Username</p>
-            <p><strong>Can join groups:</strong> @(Model.BotProfile.CanJoinGroups == true ? "Yes" : "No / Unknown")</p>
+            <div class="detail-stack">
+                <div class="detail-row">
+                    <strong>Bot 名稱</strong>
+                    <p class="muted-line">@Model.BotProfile.FirstName</p>
+                </div>
+                <div class="detail-row">
+                    <strong>帳號</strong>
+                    <p class="muted-line">@("@")@Model.BotProfile.Username</p>
+                </div>
+                <div class="detail-row">
+                    <strong>可加入群組</strong>
+                    <p class="muted-line">@(Model.BotProfile.CanJoinGroups == true ? "是" : "否 / 未知")</p>
+                </div>
+            </div>
         }
-    </section>
+    </article>
 
-    <section class="panel">
-        <h2 class="h4 mb-3">Onboarding steps</h2>
-        <ol>
-            <li>Use <code>BotFather</code> in Telegram to create a bot and copy the token.</li>
-            <li>Set secrets: <code>dotnet user-secrets set "TelegramBot:Enabled" "true"</code> and <code>dotnet user-secrets set "TelegramBot:BotToken" "your-bot-token"</code>.</li>
-            <li>Start the app with <code>Run-Local.cmd</code> or <code>dotnet run</code>.</li>
-            <li>Open Telegram and try <code>/today</code>, <code>/today_best</code>, <code>/team 兄弟</code>, <code>/follow 樂天</code>, or <code>/recap</code>.</li>
-            <li>The inline buttons are intentionally small now: today, today_best, my_follow, news, recap, help.</li>
-            <li>After the first message arrives, the chat should appear below and in the Telegram Chats admin page.</li>
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">設定流程</span>
+                <h2 class="panel-title">快速開始</h2>
+                <p class="panel-subtitle">照這幾步即可</p>
+            </div>
+        </div>
+
+        <ol class="panel-list">
+            <li>用 <code>BotFather</code> 建立 bot 並取得 token</li>
+            <li>設定 <code>TelegramBot:Enabled</code> 與 <code>TelegramBot:BotToken</code></li>
+            <li>用 <code>Run-Local.cmd</code> 或 <code>dotnet run</code> 啟動站台</li>
+            <li>測試 <code>/today</code>、<code>/today_best</code>、<code>/team 兄弟</code>、<code>/follow 樂天</code>、<code>/recap</code></li>
+            <li>收到第一則訊息後，聊天會出現在下方與聊天設定頁</li>
         </ol>
-    </section>
-</div>
+    </article>
+</section>
 
 <section class="panel mt-4">
-    <h2 class="h4 mb-3">Recent chats detected by the bot</h2>
+    <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">聊天紀錄</span>
+                <h2 class="panel-title">最近偵測到的聊天</h2>
+                <p class="panel-subtitle">bot 最近有看到哪些聊天</p>
+            </div>
+        </div>
 
     @if (Model.RecentChats.Count == 0)
     {
-        <p class="mb-0">目前還沒有記錄到任何 Telegram chat，先傳一則訊息給 bot 就可以了。</p>
+        <div class="empty-state">
+            <p class="empty-copy">目前還沒有偵測到聊天，先傳一則訊息給 bot</p>
+        </div>
     }
     else
     {
-        <table class="table admin-table mb-0">
-            <thead>
-                <tr>
-                    <th>Chat Title</th>
-                    <th>Chat Id</th>
-                    <th>Tracked Team</th>
-                    <th>Updated</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var chat in Model.RecentChats)
-            {
-                <tr>
-                    <td>@chat.ChatTitle</td>
-                    <td><code>@chat.ChatId</code></td>
-                    <td>@Model.GetFollowedTeamLabel(chat)</td>
-                    <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                </tr>
-            }
-            </tbody>
-        </table>
+        <div class="table-section">
+            <table class="table admin-table">
+                <thead>
+                    <tr>
+                        <th>聊天名稱</th>
+                        <th>聊天 ID</th>
+                        <th>關注球隊</th>
+                        <th>更新時間</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var chat in Model.RecentChats)
+                {
+                    <tr>
+                        <td>
+                            <span class="table-title">@chat.ChatTitle</span>
+                        </td>
+                        <td><code>@chat.ChatId</code></td>
+                        <td>@Model.GetFollowedTeamLabel(chat)</td>
+                        <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
     }
 </section>

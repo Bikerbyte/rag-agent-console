@@ -180,7 +180,7 @@ public class TelegramPollingBackgroundService(
 
     private static async Task<string?> TrySendFallbackReplyAsync(ITelegramBotClient telegramBotClient, string chatId, CancellationToken cancellationToken)
     {
-        var fallbackMessage = "剛剛整理資料時發生錯誤，我們已經記錄下來。請稍後再試一次。";
+        var fallbackMessage = "剛剛整理資料時發生錯誤，我們已經記錄下來請稍後再試一次";
         var fallbackResult = await telegramBotClient.SendTextMessageAsync(chatId, fallbackMessage, cancellationToken);
         return fallbackResult.IsSuccess ? "Fallback reply sent after command failure." : fallbackResult.ErrorMessage;
     }

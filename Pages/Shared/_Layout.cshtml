@@ -1,58 +1,84 @@
+@{
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? string.Empty;
+}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CPBL Telegram Assistant</title>
+    <title>@ViewData["Title"] - CPBL Telegram 助手</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CPBLLineBotCloud.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light border-bottom box-shadow mb-3 app-nav">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">CPBL Telegram Assistant</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Telegram/Index">Telegram</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Games/Index">Games</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/News/Index">News</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Groups/Index">Chats</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Logs/Index">Logs</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="app-brand" asp-area="" asp-page="/Index">
+                <span class="app-brand-mark">CPBL</span>
+                <span class="app-brand-copy">
+                    <strong>Telegram 助手</strong>
+                    <span>賽程、聊天設定、同步作業與 bot 狀態管理台</span>
+                </span>
+            </a>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - CPBL Telegram Assistant
+            <nav class="app-nav" aria-label="Primary">
+                <a class="app-nav-link @(currentPage == "/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Index">
+                    <span class="app-nav-eyebrow">總覽</span>
+                    <strong>首頁</strong>
+                </a>
+                <a class="app-nav-link @(currentPage == "/Telegram/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Telegram/Index">
+                    <span class="app-nav-eyebrow">Bot</span>
+                    <strong>Telegram</strong>
+                </a>
+                <a class="app-nav-link @(currentPage == "/Games/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Games/Index">
+                    <span class="app-nav-eyebrow">賽程</span>
+                    <strong>比賽</strong>
+                </a>
+                <a class="app-nav-link @(currentPage == "/News/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/News/Index">
+                    <span class="app-nav-eyebrow">內容</span>
+                    <strong>新聞</strong>
+                </a>
+                <a class="app-nav-link @(currentPage == "/Groups/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Groups/Index">
+                    <span class="app-nav-eyebrow">推播</span>
+                    <strong>聊天設定</strong>
+                </a>
+                <a class="app-nav-link @(currentPage == "/Logs/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Logs/Index">
+                    <span class="app-nav-eyebrow">紀錄</span>
+                    <strong>紀錄</strong>
+                </a>
+            </nav>
+
+            <section class="sidebar-note">
+                <p class="sidebar-note-label">目前重點</p>
+                @* <p class="sidebar-note-text">先把 bot 維持穩定，再把日常操作做得清楚好讀</p> *@
+            </section>
+        </aside>
+
+        <div class="app-main">
+            <header class="app-topbar">
+                <div>
+                    <p class="topbar-label">CPBL Bot Console</p>
+                    <h1 class="topbar-title">@ViewData["Title"]</h1>
+                </div>
+                <div class="topbar-meta">
+                    <span class="topbar-chip">ASP.NET Core Razor Pages</span>
+                    <span class="topbar-chip">Telegram 管理台</span>
+                </div>
+            </header>
+
+            <main role="main" class="app-content">
+                @RenderBody()
+            </main>
+
+            <footer class="app-footer">
+                <span>CPBL Telegram 助手</span>
+            </footer>
         </div>
-    </footer>
+    </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

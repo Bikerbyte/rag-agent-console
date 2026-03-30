@@ -46,7 +46,7 @@ public class IndexModel(ApplicationDbContext dbContext, ICpblGameSyncService cpb
     public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)
     {
         var count = await cpblGameSyncService.SyncAsync(cancellationToken);
-        StatusMessage = $"已完成賽程同步，更新 {count} 筆官方比賽資料。";
+        StatusMessage = $"已完成賽程同步，更新 {count} 筆官方比賽資料";
         return RedirectToPage();
     }
 

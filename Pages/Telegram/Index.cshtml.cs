@@ -31,18 +31,18 @@ public class IndexModel(
             {
                 BotProfile = await telegramBotClient.GetMeAsync();
                 BotStatusMessage = BotProfile is null
-                    ? "Bot token 已經設定，但 getMe 沒有回傳有效的 bot profile。"
-                    : "Telegram bot 目前可正常連線。";
+                    ? "Bot token 已經設定，但 getMe 沒有回傳有效的 bot profile"
+                    : "Telegram bot 目前可正常連線";
             }
             catch (Exception exception)
             {
                 logger.LogWarning(exception, "Failed to query Telegram getMe.");
-                BotStatusMessage = "Telegram getMe 失敗，請檢查 bot token 與網路連線。";
+                BotStatusMessage = "Telegram getMe 失敗，請檢查 bot token 與網路連線";
             }
         }
         else
         {
-            BotStatusMessage = "Telegram bot 尚未啟用，先把 bot token 加進 user-secrets。";
+            BotStatusMessage = "Telegram bot 尚未啟用，先把 bot token 加進 user-secrets";
         }
 
         RecentChats = await dbContext.TelegramChatSubscriptions

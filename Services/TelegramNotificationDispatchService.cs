@@ -345,7 +345,7 @@ public class TelegramNotificationDispatchService(
             return $"你追蹤的 {teamName} 今天已完賽: {BuildCompactFinalLine(latestGame)}";
         }
 
-        return $"你追蹤的 {teamName} 今天沒有排到比賽。";
+        return $"你追蹤的 {teamName} 今天沒有排到比賽";
     }
 
     private static string BuildNewsPushBody(NewsInfo news, string? followedTeamCode)
@@ -465,7 +465,7 @@ public class TelegramNotificationDispatchService(
             (game.HomeTeamCode == trackedTeamCode && game.HomeScore > game.AwayScore) ||
             (game.AwayTeamCode == trackedTeamCode && game.AwayScore > game.HomeScore);
 
-        return didWin ? $"{teamName} 收下這場比賽。" : $"{teamName} 這場沒能拿下。";
+        return didWin ? $"{teamName} 收下這場比賽" : $"{teamName} 這場沒能拿下";
     }
 
     private static bool IsTrackedTeamGame(GameInfo game, string teamCode)

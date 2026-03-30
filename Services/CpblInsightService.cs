@@ -185,7 +185,7 @@ public class CpblInsightService(
 
         if (items.Count == 0)
         {
-            items.Add("今天暫時沒有可整理的賽事或新聞資料，稍晚再試一次。");
+            items.Add("今天暫時沒有可整理的賽事或新聞資料，稍晚再試一次");
         }
 
         return new CpblDailyFocus
@@ -261,8 +261,8 @@ public class CpblInsightService(
                 };
 
                 standingsReason = rankGap <= 1
-                    ? "兩隊目前排名咬得很近，這場對戰的體感張力比較高。"
-                    : "這場會影響近期排名節奏，還是有觀察價值。";
+                    ? "兩隊目前排名咬得很近，這場對戰的體感張力比較高"
+                    : "這場會影響近期排名節奏，還是有觀察價值";
             }
 
             var rivalryKey = $"{game.AwayTeamCode}__{game.HomeTeamCode}";
@@ -271,12 +271,12 @@ public class CpblInsightService(
 
             var reasons = new List<string>();
             reasons.Add(combinedFormScore >= 17m
-                ? "兩隊最近都不是冷手，近期戰績有支撐。"
-                : "至少有一隊近期狀態不錯，值得觀察。");
+                ? "兩隊最近都不是冷手，近期戰績有支撐"
+                : "至少有一隊近期狀態不錯，值得觀察");
 
             reasons.Add(competitionScore >= 14m
-                ? "近況接近，這場比較像有機會一路咬到後段。"
-                : "兩隊近況差距稍大，但比賽內容仍有話題。");
+                ? "近況接近，這場比較像有機會一路咬到後段"
+                : "兩隊近況差距稍大，但比賽內容仍有話題");
 
             if (!string.IsNullOrWhiteSpace(standingsReason))
             {
@@ -285,7 +285,7 @@ public class CpblInsightService(
 
             if (rivalryBonus > 0)
             {
-                reasons.Add("這組對戰本來就比較有話題性，拿來追很合理。");
+                reasons.Add("這組對戰本來就比較有話題性，拿來追很合理");
             }
 
             scoredGames.Add((game, score, reasons.Take(3).ToList()));
@@ -409,7 +409,7 @@ public class CpblInsightService(
         var confidence = runGap >= 1.8m ? "偏高" : runGap >= 1.0m ? "中等" : "接近五五波";
         var insight =
             $"{CpblTeamCatalog.GetDisplayName(awayTeamCode)}近 {awayGames.Count} 戰場均得 {awayOffense:F1}、失 {awayDefense:F1}；" +
-            $"{CpblTeamCatalog.GetDisplayName(homeTeamCode)}近 {homeGames.Count} 戰場均得 {homeOffense:F1}、失 {homeDefense:F1}。";
+            $"{CpblTeamCatalog.GetDisplayName(homeTeamCode)}近 {homeGames.Count} 戰場均得 {homeOffense:F1}、失 {homeDefense:F1}";
 
         return new CpblScorePrediction
         {
@@ -465,7 +465,7 @@ public class CpblInsightService(
     {
         if (games.Count == 0)
         {
-            return "近期走勢暫時沒有樣本。";
+            return "近期走勢暫時沒有樣本";
         }
 
         var trendMarks = games
@@ -485,11 +485,11 @@ public class CpblInsightService(
 
         if (game.AwayScore.HasValue && game.HomeScore.HasValue)
         {
-            return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{status}，地點 {venue}。";
+            return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{status}，地點 {venue}";
         }
 
         var startTime = game.StartTime?.ToString("HH:mm") ?? "--:--";
-        return $"{awayName} 對 {homeName}，{startTime} 開打，{status}，地點 {venue}。";
+        return $"{awayName} 對 {homeName}，{startTime} 開打，{status}，地點 {venue}";
     }
 
     private static string BuildUpcomingGameLine(GameInfo game)
@@ -500,7 +500,7 @@ public class CpblInsightService(
             ? $"{game.GameDate:MM/dd} {game.StartTime:HH:mm}"
             : $"{game.GameDate:MM/dd} 待公告";
 
-        return $"{awayName} vs {homeName}，{startDateTime}，{game.Venue ?? "場地待公告"}。";
+        return $"{awayName} vs {homeName}，{startDateTime}，{game.Venue ?? "場地待公告"}";
     }
 
     private static int GetRunsScored(GameInfo game, string teamCode)

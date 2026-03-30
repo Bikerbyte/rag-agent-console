@@ -104,8 +104,8 @@ public class CommandReplyServiceTests
                     VenueText = "台南",
                     Reasons =
                     [
-                        "兩隊最近都不是冷手，近期戰績有支撐。",
-                        "近況接近，這場比較像有機會一路咬到後段。"
+                        "兩隊最近都不是冷手，近期戰績有支撐",
+                        "近況接近，這場比較像有機會一路咬到後段"
                     ]
                 }
             });

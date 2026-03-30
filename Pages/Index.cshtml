@@ -1,84 +1,137 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "首頁";
 }
 
-<div class="dashboard-hero">
-    <div>
-        <p class="eyebrow">CPBL Telegram Assistant</p>
-        <h1>Small side project for CPBL schedules, team summaries, tracked-team reminders, and quick recap messages inside Telegram.</h1>
-        <p class="page-copy">The goal is simple: make the bot feel like a helpful baseball assistant instead of just dumping official tables into chat.</p>
+<section class="dashboard-hero">
+    <div class="hero-grid">
+        <div>
+            <p class="eyebrow">CPBL Bot 管理介面</p>
+            <h1 class="display-title">中華職棒 Telegram 即時資訊機器人</h1>
+            @* <p class="dashboard-copy">首頁只保留日常最常看的狀態</p> *@
+
+            <div class="hero-actions">
+                <a class="btn btn-primary" asp-page="/Groups/Index">管理聊天設定</a>
+                <a class="btn btn-outline-secondary" asp-page="/Logs/Index">查看最近紀錄</a>
+            </div>
+        </div>
+
+        <div class="hero-rail">
+            <section class="data-card">
+                <span class="metric-label">最近賽程同步</span>
+                <p class="metric-note">@Model.LatestGameSyncText</p>
+            </section>
+            <section class="data-card">
+                <span class="metric-label">最近新聞同步</span>
+                <p class="metric-note">@Model.LatestNewsSyncText</p>
+            </section>
+            <section class="data-card">
+                <span class="metric-label">最近回覆</span>
+                <p class="metric-note">@Model.LatestReplyText</p>
+            </section>
+        </div>
     </div>
-</div>
+</section>
 
-<div class="stats-grid">
-    <section class="stat-card">
-        <span class="stat-label">Teams</span>
+<section class="stats-grid">
+    <article class="stat-card">
+        <span class="metric-label">球隊</span>
         <strong class="stat-value">@Model.TeamCount</strong>
-    </section>
-    <section class="stat-card">
-        <span class="stat-label">Today's Games</span>
+        <p class="stat-note">目前已建立的球隊資料</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">今日比賽</span>
         <strong class="stat-value">@Model.TodayGameCount</strong>
-    </section>
-    <section class="stat-card">
-        <span class="stat-label">News Items</span>
+        <p class="stat-note">今天可供查詢與推播的比賽數</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">新聞</span>
         <strong class="stat-value">@Model.NewsCount</strong>
-    </section>
-    <section class="stat-card">
-        <span class="stat-label">Telegram Chats</span>
+        <p class="stat-note">目前已同步的新聞筆數</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">聊天數</span>
         <strong class="stat-value">@Model.ChatCount</strong>
-    </section>
-    <section class="stat-card">
-        <span class="stat-label">Push Logs</span>
+        <p class="stat-note">已建立推播設定的聊天數</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">推播紀錄</span>
         <strong class="stat-value">@Model.PushLogCount</strong>
-    </section>
-    <section class="stat-card">
-        <span class="stat-label">Sync Logs</span>
+        <p class="stat-note">目前保留的推播與回覆紀錄</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">同步紀錄</span>
         <strong class="stat-value">@Model.SyncLogCount</strong>
-    </section>
-</div>
+        <p class="stat-note">目前保留的同步作業紀錄</p>
+    </article>
+</section>
 
-<div class="content-grid">
-    <section class="panel">
-        <h2>Runtime</h2>
-        <ul class="plain-list">
-            <li>PID: <code>@Model.CurrentProcessId</code></li>
-            <li>Started: @Model.ProcessStartTime.ToString("yyyy-MM-dd HH:mm:ss")</li>
-            <li>Environment: @Model.EnvironmentName</li>
-            <li>Current URL: <code>@Model.CurrentBaseUrl</code></li>
-            <li>Telegram bot: @(Model.BotEnabled ? "Enabled" : "Disabled") / Token @(Model.HasBotToken ? "Configured" : "Missing")</li>
-        </ul>
-    </section>
-    <section class="panel">
-        <h2>Local operation</h2>
-        <ul class="plain-list">
-            <li>Use <code>Run-Local.cmd</code> to start the site with a visible console window.</li>
-            <li>Use <code>Status-Local.cmd</code> to check which PID is listening on the default port.</li>
-            <li>Use <code>Stop-Local.cmd</code> to force-stop the local site when a port is still occupied.</li>
-        </ul>
-    </section>
-</div>
+<section class="content-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">執行資訊</span>
+                <h2 class="panel-title">執行狀態</h2>
+                <p class="panel-subtitle">本機檢查用</p>
+            </div>
+        </div>
 
-<div class="content-grid mt-4">
-    <section class="panel">
-        <h2>Latest sync</h2>
-        <ul class="plain-list">
-            <li>Schedule: @Model.LatestGameSyncText</li>
-            <li>News: @Model.LatestNewsSyncText</li>
-        </ul>
-    </section>
-    <section class="panel">
-        <h2>Latest reply</h2>
-        <p class="mb-0">@Model.LatestReplyText</p>
-    </section>
-</div>
+        <div class="mini-grid">
+            <div class="mini-stat">
+                <span>程序 ID</span>
+                <strong>@Model.CurrentProcessId</strong>
+            </div>
+            <div class="mini-stat">
+                <span>啟動時間</span>
+                <strong>@Model.ProcessStartTime.ToString("yyyy-MM-dd HH:mm:ss")</strong>
+            </div>
+            <div class="mini-stat">
+                <span>環境</span>
+                <strong>@Model.EnvironmentName</strong>
+            </div>
+            <div class="mini-stat">
+                <span>網址</span>
+                <strong>@Model.CurrentBaseUrl</strong>
+            </div>
+        </div>
 
-<section class="panel mt-4">
-    <h2>Bot flow</h2>
-    <ul class="plain-list">
-        <li>Main commands: <code>/today</code>, <code>/today_best</code>, <code>/team 兄弟</code>, <code>/follow 兄弟</code>, <code>/my_follow</code>, <code>/recap</code>.</li>
-        <li>Natural language also works, for example <code>今天有什麼比賽</code>, <code>統一今天有沒有打</code>, <code>樂天近況</code>, <code>最新新聞</code>.</li>
-        <li>The bot is neutral by default and only switches to a team-first view after that chat chooses a tracked team.</li>
+        <div class="detail-stack">
+            <div class="detail-row">
+                <strong>Bot 狀態</strong>
+                <p class="muted-line">Telegram bot @(Model.BotEnabled ? "已啟用" : "未啟用")，Token @(Model.HasBotToken ? "已設定" : "未設定")</p>
+            </div>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">本機操作</span>
+                <h2 class="panel-title">常用指令</h2>
+                <p class="panel-subtitle">開發使用</p>
+            </div>
+        </div>
+
+        <ul class="panel-list">
+            <li><code>Run-Local.cmd</code> 啟動站台與 console</li>
+            <li><code>Status-Local.cmd</code> 檢查目前占用 port 的程序</li>
+            <li><code>Stop-Local.cmd</code> 關掉卡住的本機程序</li>
+        </ul>
+    </article>
+</section>
+
+<section class="callout-panel mt-4">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">互動方式</span>
+            <h2 class="panel-title">目前互動方式</h2>
+            <p class="panel-subtitle">預設中立，聊天可指定關注球隊</p>
+        </div>
+    </div>
+
+    <ul class="panel-list">
+        <li>主要指令：<code>/today</code>、<code>/today_best</code>、<code>/team 兄弟</code>、<code>/follow 兄弟</code>、<code>/my_follow</code>、<code>/recap</code></li>
+        <li>也支援自然語句查今天比賽、球隊近況與最新新聞</li>
     </ul>
 </section>

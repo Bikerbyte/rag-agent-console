@@ -1,16 +1,16 @@
 @page
 @model CPBLLineBotCloud.Pages.Groups.IndexModel
 @{
-    ViewData["Title"] = "Telegram Chats";
+    ViewData["Title"] = "聊天設定";
 }
 
-<div class="page-header">
+<section class="page-header">
     <div>
-        <p class="eyebrow">Admin</p>
-        <h1>Telegram chats</h1>
-        <p class="page-copy">Manage which chats receive daily summary, news, and which team should be treated as that chat's tracked team.</p>
+        <p class="eyebrow">推播設定</p>
+        <h1>Telegram 聊天設定</h1>
+        <p class="page-copy">管理聊天、推播與關注球隊</p>
     </div>
-</div>
+</section>
 
 @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
 {
@@ -19,105 +19,160 @@
     </div>
 }
 
-<section class="panel mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h4 mb-0">@(Model.IsEditMode ? "Edit Telegram chat" : "Add Telegram chat")</h2>
-        @if (Model.IsEditMode)
-        {
-            <form method="post" asp-page-handler="Reset">
-                <button type="submit" class="btn btn-outline-secondary">New chat</button>
-            </form>
-        }
-    </div>
-
-    <form method="post" asp-page-handler="Save">
-        <input type="hidden" asp-for="Input.TelegramChatSubscriptionId" />
-
-        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-
-        <div class="row g-3 mb-3">
-            <div class="col-md-6">
-                <label asp-for="Input.ChatTitle" class="form-label"></label>
-                <input asp-for="Input.ChatTitle" class="form-control" />
-                <span asp-validation-for="Input.ChatTitle" class="text-danger"></span>
+<section class="content-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">編輯</span>
+                <h2 class="panel-title">@(Model.IsEditMode ? "編輯聊天" : "新增聊天")</h2>
             </div>
-            <div class="col-md-6">
-                <label asp-for="Input.ChatId" class="form-label"></label>
-                <input asp-for="Input.ChatId" class="form-control" />
-                <span asp-validation-for="Input.ChatId" class="text-danger"></span>
+
+            @if (Model.IsEditMode)
+            {
+                <div class="page-actions">
+                    <form method="post" asp-page-handler="Reset">
+                        <button type="submit" class="btn btn-outline-secondary">新增聊天</button>
+                    </form>
+                </div>
+            }
+        </div>
+
+        <form method="post" asp-page-handler="Save">
+            <input type="hidden" asp-for="Input.TelegramChatSubscriptionId" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="Input.ChatTitle" class="form-label">聊天名稱</label>
+                    <input asp-for="Input.ChatTitle" class="form-control" />
+                    <span asp-validation-for="Input.ChatTitle" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.ChatId" class="form-label">聊天 ID</label>
+                    <input asp-for="Input.ChatId" class="form-control" />
+                    <span asp-validation-for="Input.ChatId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="form-check mt-2">
+                        <input asp-for="Input.EnableSchedulePush" class="form-check-input" />
+                        <label asp-for="Input.EnableSchedulePush" class="form-check-label">啟用賽程推播</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check mt-2">
+                        <input asp-for="Input.EnableNewsPush" class="form-check-input" />
+                        <label asp-for="Input.EnableNewsPush" class="form-check-label">啟用新聞推播</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Input.FollowedTeamCode" class="form-label">關注球隊</label>
+                    <select asp-for="Input.FollowedTeamCode" class="form-select">
+                        @foreach (var team in Model.TeamOptions)
+                        {
+                            <option value="@team.Value">@team.Label</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <p class="form-hint mb-3">
+                可選擇是否推送賽程、新聞，以及這個聊天優先關注的球隊
+            </p>
+
+            <button type="submit" class="btn btn-primary">@(Model.IsEditMode ? "儲存變更" : "建立聊天")</button>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">說明</span>
+                <h2 class="panel-title">使用方式</h2>
+                <p class="panel-subtitle">簡單就好</p>
             </div>
         </div>
 
-        <div class="row g-3 mb-3">
-            <div class="col-md-4">
-                <div class="form-check">
-                    <input asp-for="Input.EnableSchedulePush" class="form-check-input" />
-                    <label asp-for="Input.EnableSchedulePush" class="form-check-label"></label>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="form-check">
-                    <input asp-for="Input.EnableNewsPush" class="form-check-input" />
-                    <label asp-for="Input.EnableNewsPush" class="form-check-label"></label>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <label asp-for="Input.FollowedTeamCode" class="form-label">Tracked team</label>
-                <select asp-for="Input.FollowedTeamCode" class="form-select">
-                    @foreach (var team in Model.TeamOptions)
-                    {
-                        <option value="@team.Value">@team.Label</option>
-                    }
-                </select>
-            </div>
-        </div>
-
-        <p class="text-muted small">
-            <code>Daily / Final Push</code> sends the daily summary and final score alerts.
-            <code>News Push</code> sends newly synced CPBL news.
-            <code>Tracked team</code> only changes which team the chat gets prioritized updates for. Leave it blank to stay neutral.
-        </p>
-
-        <button type="submit" class="btn btn-primary">@(Model.IsEditMode ? "Save changes" : "Create chat")</button>
-    </form>
+        <ul class="panel-list">
+            <li>如果只想收賽程和新聞，可以不設定關注球隊</li>
+            <li>家庭群組只看單一球隊時，再指定關注球隊即可</li>
+            <li>聊天 ID 以 bot 第一次收到訊息後的資料為準</li>
+        </ul>
+    </article>
 </section>
 
-<section class="panel">
-    <h2 class="h4 mb-3">Configured Telegram chats</h2>
+<section class="panel mt-4">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">清單</span>
+                <h2 class="panel-title">已設定聊天</h2>
+                <p class="panel-subtitle">目前推播目標一覽</p>
+            </div>
+        </div>
 
-    <table class="table admin-table">
-        <thead>
-            <tr>
-                <th>Chat</th>
-                <th>Daily / Final Push</th>
-                <th>News Push</th>
-                <th>Tracked Team</th>
-                <th>Updated</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var chat in Model.Subscriptions)
-        {
-            <tr>
-                <td>
-                    <strong>@chat.ChatTitle</strong>
-                    <div class="muted-line">@chat.ChatId</div>
-                </td>
-                <td>@(chat.EnableSchedulePush ? "Enabled" : "Disabled")</td>
-                <td>@(chat.EnableNewsPush ? "Enabled" : "Disabled")</td>
-                <td>@(string.IsNullOrWhiteSpace(chat.FollowedTeamCode) ? "Neutral" : CPBLLineBotCloud.Models.CpblTeamCatalog.GetDisplayName(chat.FollowedTeamCode))</td>
-                <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                <td class="text-end">
-                    <form method="post" asp-page-handler="Edit">
-                        <input type="hidden" name="id" value="@chat.TelegramChatSubscriptionId" />
-                        <button type="submit" class="btn btn-sm btn-outline-primary">Edit</button>
-                    </form>
-                </td>
-            </tr>
-        }
-        </tbody>
-    </table>
+    <div class="table-section">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>Chat</th>
+                    <th>賽程推播</th>
+                    <th>新聞推播</th>
+                    <th>關注球隊</th>
+                    <th>更新時間</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Subscriptions.Count == 0)
+            {
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <p class="empty-copy">目前還沒有聊天設定，先讓 bot 收到一則訊息再來建立即可</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var chat in Model.Subscriptions)
+                {
+                    var trackedTeam = string.IsNullOrWhiteSpace(chat.FollowedTeamCode)
+                        ? "未設定"
+                        : CPBLLineBotCloud.Models.CpblTeamCatalog.GetDisplayName(chat.FollowedTeamCode);
+
+                    <tr>
+                        <td>
+                            <span class="table-title">@chat.ChatTitle</span>
+                            <p class="table-copy">@chat.ChatId</p>
+                        </td>
+                        <td>
+                            <span class="status-pill @(chat.EnableSchedulePush ? "is-success" : "is-neutral")">
+                                @(chat.EnableSchedulePush ? "啟用" : "停用")
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-pill @(chat.EnableNewsPush ? "is-success" : "is-neutral")">
+                                @(chat.EnableNewsPush ? "啟用" : "停用")
+                            </span>
+                        </td>
+                        <td>@trackedTeam</td>
+                        <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="Edit">
+                                <input type="hidden" name="id" value="@chat.TelegramChatSubscriptionId" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary">編輯</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
 </section>
 
 @section Scripts {

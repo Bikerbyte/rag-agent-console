@@ -21,9 +21,9 @@ public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOpti
     public string CurrentBaseUrl { get; private set; } = string.Empty;
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
-    public string LatestGameSyncText { get; private set; } = "還沒有賽程同步紀錄。";
-    public string LatestNewsSyncText { get; private set; } = "還沒有新聞同步紀錄。";
-    public string LatestReplyText { get; private set; } = "還沒有 bot 回覆紀錄。";
+    public string LatestGameSyncText { get; private set; } = "還沒有賽程同步紀錄";
+    public string LatestNewsSyncText { get; private set; } = "還沒有新聞同步紀錄";
+    public string LatestReplyText { get; private set; } = "還沒有 bot 回覆紀錄";
 
     public async Task OnGetAsync()
     {
