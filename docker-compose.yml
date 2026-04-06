@@ -19,7 +19,7 @@ services:
       TelegramBot__WebhookPath: ${TELEGRAM_BOT_WEBHOOK_PATH:-/api/telegram/webhook}
       TelegramBot__WebhookUrl: ${TELEGRAM_BOT_WEBHOOK_URL:-}
       TelegramBot__WebhookSecretToken: ${TELEGRAM_BOT_WEBHOOK_SECRET_TOKEN:-}
-      AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-docker-node}
+      AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-auto}
       AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-true}
       AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-true}
       AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-true}

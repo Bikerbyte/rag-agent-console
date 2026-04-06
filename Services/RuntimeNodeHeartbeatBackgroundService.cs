@@ -30,7 +30,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
                 using var scope = scopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var now = DateTimeOffset.UtcNow;
-                var instanceName = runtimeOptions.Value.InstanceName;
+                var instanceName = runtimeOptions.Value.GetEffectiveInstanceName();
 
                 var heartbeat = await dbContext.RuntimeNodeHeartbeats
                     .FirstOrDefaultAsync(item => item.InstanceName == instanceName, stoppingToken);
@@ -72,7 +72,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
             }
             catch (Exception exception)
             {
-                logger.LogWarning(exception, "Runtime node heartbeat update failed.");
+                logger.LogWarning(exception, "Runtime node heartbeat update failed. Check whether AppRuntime:InstanceName is unique across nodes.");
             }
 
             await Task.Delay(HeartbeatInterval, stoppingToken);

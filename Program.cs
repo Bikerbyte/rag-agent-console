@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 var applicationStartedAt = DateTimeOffset.Now;
 var appRuntimeOptions = builder.Configuration.GetSection(AppRuntimeOptions.SectionName).Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
+appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
 // 這裡刻意保持可讀性，避免把 startup 都藏進 extension 後反而不容易維護。
@@ -24,6 +25,10 @@ builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(builder.Configuration.GetSection(AppRuntimeOptions.SectionName));
+builder.Services.PostConfigure<AppRuntimeOptions>(options =>
+{
+    options.InstanceName = options.GetEffectiveInstanceName();
+});
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 
