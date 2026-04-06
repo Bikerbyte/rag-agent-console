@@ -176,6 +176,8 @@ public partial class CpblGameSyncService(
             var localGameDateTime = preExeDate.HasValue
                 ? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(preExeDate.Value.UtcDateTime, "Taipei Standard Time")
                 : new DateTimeOffset(targetDate.Year, targetDate.Month, targetDate.Day, 18, 35, 0, TimeSpan.Zero);
+            var rawStatus = BuildStatusText(gameElement);
+            var inningText = BuildInningText(gameElement);
 
             var awayTeamName = GetString(gameElement, "VisitingTeamName");
             var homeTeamName = GetString(gameElement, "HomeTeamName");
@@ -188,11 +190,18 @@ public partial class CpblGameSyncService(
                 HomeTeamCode = MapTeamCode(homeTeamName),
                 AwayScore = GetNullableInt(gameElement, "VisitingTotalScore") ?? GetNullableInt(gameElement, "VisitingScore"),
                 HomeScore = GetNullableInt(gameElement, "HomeTotalScore") ?? GetNullableInt(gameElement, "HomeScore"),
-                Status = BuildStatusText(gameElement),
-                InningText = BuildInningText(gameElement),
+                Status = rawStatus,
+                InningText = inningText,
                 Venue = GetString(gameElement, "FieldAbbe"),
                 LastUpdatedTime = DateTimeOffset.UtcNow
             });
+            var latestGame = results[^1];
+            latestGame.Status = CpblGameStatusHelper.NormalizeStoredStatus(
+                rawStatus,
+                latestGame.GameDate,
+                latestGame.StartTime,
+                latestGame.InningText,
+                DateTimeOffset.UtcNow);
         }
 
         return results;

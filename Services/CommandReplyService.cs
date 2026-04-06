@@ -1011,32 +1011,7 @@ public class CommandReplyService(
 
     private static string BuildLocalizedStatus(GameInfo game)
     {
-        var taipeiNow = GetTaipeiNow();
-        var taipeiToday = DateOnly.FromDateTime(taipeiNow);
-        var taipeiCurrentTime = TimeOnly.FromDateTime(taipeiNow);
-
-        if (game.GameDate > taipeiToday)
-        {
-            return "尚未開打";
-        }
-
-        if (game.GameDate == taipeiToday &&
-            string.Equals(game.Status, "Live", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(game.InningText) &&
-            game.StartTime.HasValue &&
-            game.StartTime.Value > taipeiCurrentTime.AddMinutes(5))
-        {
-            return "尚未開打";
-        }
-
-        return game.Status switch
-        {
-            "Live" when !string.IsNullOrWhiteSpace(game.InningText) => $"進行中，{game.InningText}",
-            "Live" => "進行中",
-            "Final" => "終場",
-            "Suspended" => "暫停或延賽",
-            _ => "尚未開打"
-        };
+        return CpblGameStatusHelper.BuildLocalizedStatus(game, DateTimeOffset.UtcNow);
     }
 
     private static bool IsTeamWin(GameInfo game, string teamCode)

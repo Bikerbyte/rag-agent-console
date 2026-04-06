@@ -22,23 +22,23 @@ public class IndexModel(ApplicationDbContext dbContext, ICpblGameSyncService cpb
             .ToListAsync();
 
         Games = gameRecords
-            .Select(game => new GameRowViewModel
+            .Select(game =>
             {
-                GameDate = game.GameDate,
-                StartTime = game.StartTime,
-                Matchup = $"{CpblTeamCatalog.GetDisplayName(game.AwayTeamCode)} vs {CpblTeamCatalog.GetDisplayName(game.HomeTeamCode)}",
-                Status = game.Status switch
+                var localizedStatus = CpblGameStatusHelper.BuildLocalizedStatus(game, DateTimeOffset.UtcNow);
+
+                return new GameRowViewModel
                 {
-                    "Live" => string.IsNullOrWhiteSpace(game.InningText) ? "進行中" : $"進行中 | {game.InningText}",
-                    "Final" => "終場",
-                    "Suspended" => "暫停或延賽",
-                    _ => "尚未開打"
-                },
-                Score = game.AwayScore.HasValue && game.HomeScore.HasValue
-                    ? $"{CpblTeamCatalog.GetDisplayName(game.AwayTeamCode)} {game.AwayScore} : {game.HomeScore} {CpblTeamCatalog.GetDisplayName(game.HomeTeamCode)}"
-                    : "待開打",
-                Venue = string.IsNullOrWhiteSpace(game.Venue) ? "待公告" : game.Venue,
-                LastUpdatedTime = game.LastUpdatedTime
+                    GameDate = game.GameDate,
+                    StartTime = game.StartTime,
+                    Matchup = $"{CpblTeamCatalog.GetDisplayName(game.AwayTeamCode)} vs {CpblTeamCatalog.GetDisplayName(game.HomeTeamCode)}",
+                    Status = localizedStatus,
+                    Score = game.AwayScore.HasValue && game.HomeScore.HasValue &&
+                            !string.Equals(localizedStatus, "尚未開打", StringComparison.Ordinal)
+                        ? $"{CpblTeamCatalog.GetDisplayName(game.AwayTeamCode)} {game.AwayScore} : {game.HomeScore} {CpblTeamCatalog.GetDisplayName(game.HomeTeamCode)}"
+                        : "待開打",
+                    Venue = string.IsNullOrWhiteSpace(game.Venue) ? "待公告" : game.Venue,
+                    LastUpdatedTime = game.LastUpdatedTime
+                };
             })
             .ToList();
     }

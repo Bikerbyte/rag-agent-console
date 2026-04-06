@@ -211,6 +211,8 @@ public partial class CpblOfficialDataClient(
             var localDateTime = ParseLocalGameTime(gameElement, targetDate);
             var awayTeamName = DecodeHtmlText(GetJsonString(gameElement, "VisitingTeamName")) ?? "未知客隊";
             var homeTeamName = DecodeHtmlText(GetJsonString(gameElement, "HomeTeamName")) ?? "未知主隊";
+            var rawStatus = BuildGameStatus(gameElement);
+            var inningText = BuildInningText(gameElement);
 
             results.Add(new CpblOfficialGameSnapshot
             {
@@ -222,8 +224,8 @@ public partial class CpblOfficialDataClient(
                 HomeTeamName = homeTeamName,
                 AwayScore = GetNullableJsonInt(gameElement, "VisitingTotalScore") ?? GetNullableJsonInt(gameElement, "VisitingScore"),
                 HomeScore = GetNullableJsonInt(gameElement, "HomeTotalScore") ?? GetNullableJsonInt(gameElement, "HomeScore"),
-                Status = BuildGameStatus(gameElement),
-                InningText = BuildInningText(gameElement),
+                Status = rawStatus,
+                InningText = inningText,
                 Venue = DecodeHtmlText(GetJsonString(gameElement, "FieldAbbe")),
                 VodUrl = DecodeHtmlText(GetJsonString(gameElement, "VodUrl")),
                 LiveUrl = DecodeHtmlText(GetJsonString(gameElement, "LiveUrl")),
@@ -238,6 +240,13 @@ public partial class CpblOfficialDataClient(
                 HomeLosses = GetNullableJsonInt(gameElement, "HomeGameResultLCnt"),
                 HomeTies = GetNullableJsonInt(gameElement, "HomeGameResultTCnt")
             });
+            var latestGame = results[^1];
+            latestGame.Status = CpblGameStatusHelper.NormalizeStoredStatus(
+                rawStatus,
+                latestGame.GameDate,
+                latestGame.StartTime,
+                latestGame.InningText,
+                DateTimeOffset.UtcNow);
         }
 
         return results;
