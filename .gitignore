@@ -2,6 +2,7 @@ bin/
 obj/
 .vs/
 .vscode/
+.codex-temp/
 .idea/
 .dotnet/
 App_Data/

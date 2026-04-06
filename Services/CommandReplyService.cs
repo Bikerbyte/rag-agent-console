@@ -1165,7 +1165,7 @@ public class CommandReplyService(
     {
         var cleanedValue = rawValue
             .Replace('，', ' ')
-            .Replace('', ' ')
+            .Replace('　', ' ')
             .Replace('、', ' ')
             .Replace('：', ' ')
             .Replace(':', ' ')
