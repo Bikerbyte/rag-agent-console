@@ -6,6 +6,9 @@ public class PushLog
 {
     public int PushLogId { get; set; }
 
+    [MaxLength(128)]
+    public string? InstanceName { get; set; }
+
     [MaxLength(32)]
     public required string PushType { get; set; }
 

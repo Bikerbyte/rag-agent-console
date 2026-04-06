@@ -15,6 +15,7 @@ public partial class CpblGameSyncService(
     ApplicationDbContext dbContext,
     IHttpClientFactory httpClientFactory,
     IOptions<DataSourceOptions> dataSourceOptions,
+    IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<CpblGameSyncService> logger) : ICpblGameSyncService
 {
     private static readonly TimeSpan FreshnessWindow = TimeSpan.FromMinutes(5);
@@ -75,6 +76,7 @@ public partial class CpblGameSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "CpblGameSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,
@@ -93,6 +95,7 @@ public partial class CpblGameSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "CpblGameSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,

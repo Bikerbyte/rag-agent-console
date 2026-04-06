@@ -9,7 +9,7 @@
         <div>
             <p class="eyebrow">CPBL Bot 管理介面</p>
             <h1 class="display-title">中華職棒 Telegram 即時資訊助手</h1>
-            <p class="dashboard-copy">把日常查賽程、追球隊、看推播紀錄這幾件事收斂成一個可以自己維護、也方便 demo 的 side project。</p>
+            <p class="dashboard-copy">把日常查賽程、追球隊、看推播紀錄這幾件事收斂成一個可以自己維護，也方便 demo 的 side project。</p>
 
             <div class="hero-actions">
                 <a class="btn btn-primary" asp-page="/Groups/Index">管理聊天設定</a>
@@ -29,6 +29,10 @@
             <section class="data-card">
                 <span class="metric-label">最近回覆</span>
                 <p class="metric-note">@Model.LatestReplyText</p>
+            </section>
+            <section class="data-card">
+                <span class="metric-label">節點狀態</span>
+                <p class="metric-note">@Model.RuntimeSummaryText</p>
             </section>
         </div>
     </div>
@@ -65,6 +69,16 @@
         <strong class="stat-value">@Model.SyncLogCount</strong>
         <p class="stat-note">目前保留的同步作業紀錄</p>
     </article>
+    <article class="stat-card">
+        <span class="metric-label">線上節點</span>
+        <strong class="stat-value">@Model.ActiveNodeCount</strong>
+        <p class="stat-note">45 秒內有心跳的節點數</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">Update Queue</span>
+        <strong class="stat-value">@Model.PendingTelegramUpdateCount</strong>
+        <p class="stat-note">目前待處理或處理中的 Telegram update</p>
+    </article>
 </section>
 
 <section class="content-grid">
@@ -94,6 +108,10 @@
                 <span>網址</span>
                 <strong>@Model.CurrentBaseUrl</strong>
             </div>
+            <div class="mini-stat">
+                <span>節點</span>
+                <strong>@Model.InstanceName</strong>
+            </div>
         </div>
 
         <div class="detail-stack">
@@ -117,6 +135,7 @@
             <li><code>Run-Local.cmd</code> 啟動站台與 console</li>
             <li><code>Status-Local.cmd</code> 檢查目前占用 port 的程序</li>
             <li><code>Stop-Local.cmd</code> 關掉卡住的本機程序</li>
+            <li><a asp-page="/Runtime/Index">Runtime 頁面</a> 可以看多節點心跳與 update queue</li>
         </ul>
     </article>
 </section>

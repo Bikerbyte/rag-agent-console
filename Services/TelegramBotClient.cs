@@ -43,6 +43,39 @@ public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOption
         return false;
     }
 
+    public async Task<bool> SetWebhookAsync(string webhookUrl, string? secretToken = null, bool dropPendingUpdates = false, CancellationToken cancellationToken = default)
+    {
+        var telegramBotOptions = options.Value;
+
+        if (!telegramBotOptions.Enabled || string.IsNullOrWhiteSpace(telegramBotOptions.BotToken))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(webhookUrl))
+        {
+            logger.LogWarning("Telegram setWebhook skipped because webhookUrl is empty.");
+            return false;
+        }
+
+        var request = new TelegramSetWebhookRequest
+        {
+            Url = webhookUrl,
+            SecretToken = string.IsNullOrWhiteSpace(secretToken) ? null : secretToken,
+            DropPendingUpdates = dropPendingUpdates
+        };
+
+        var response = await httpClient.PostAsJsonAsync($"/bot{telegramBotOptions.BotToken}/setWebhook", request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogWarning("Telegram setWebhook failed. StatusCode={StatusCode}, Body={Body}", response.StatusCode, body);
+        return false;
+    }
+
     public async Task<IReadOnlyList<TelegramUpdate>> GetUpdatesAsync(long? offset, CancellationToken cancellationToken = default)
     {
         var telegramBotOptions = options.Value;

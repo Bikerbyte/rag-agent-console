@@ -7,7 +7,10 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Pages;
 
-public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOptions> telegramBotOptions) : PageModel
+public class IndexModel(
+    ApplicationDbContext dbContext,
+    IOptions<TelegramBotOptions> telegramBotOptions,
+    IOptions<AppRuntimeOptions> appRuntimeOptions) : PageModel
 {
     public int TeamCount { get; private set; }
     public int TodayGameCount { get; private set; }
@@ -15,19 +18,24 @@ public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOpti
     public int ChatCount { get; private set; }
     public int PushLogCount { get; private set; }
     public int SyncLogCount { get; private set; }
+    public int ActiveNodeCount { get; private set; }
+    public int PendingTelegramUpdateCount { get; private set; }
     public int CurrentProcessId { get; private set; }
     public DateTime ProcessStartTime { get; private set; }
     public string EnvironmentName { get; private set; } = string.Empty;
     public string CurrentBaseUrl { get; private set; } = string.Empty;
+    public string InstanceName { get; private set; } = string.Empty;
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
     public string LatestGameSyncText { get; private set; } = "還沒有賽程同步紀錄";
     public string LatestNewsSyncText { get; private set; } = "還沒有新聞同步紀錄";
     public string LatestReplyText { get; private set; } = "還沒有 bot 回覆紀錄";
+    public string RuntimeSummaryText { get; private set; } = "還沒有節點狀態資料";
 
     public async Task OnGetAsync()
     {
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Taipei Standard Time"));
+        var activeThreshold = DateTimeOffset.UtcNow.AddSeconds(-45);
 
         TeamCount = await dbContext.Teams.CountAsync();
         TodayGameCount = await dbContext.Games.CountAsync(game => game.GameDate == today);
@@ -35,6 +43,8 @@ public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOpti
         ChatCount = await dbContext.TelegramChatSubscriptions.CountAsync();
         PushLogCount = await dbContext.PushLogs.CountAsync();
         SyncLogCount = await dbContext.SyncJobLogs.CountAsync();
+        ActiveNodeCount = await dbContext.RuntimeNodeHeartbeats.CountAsync(item => item.LastSeenTime >= activeThreshold);
+        PendingTelegramUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
 
         var latestGameSync = await dbContext.SyncJobLogs
             .Where(log => log.JobName == "CpblGameSync")
@@ -54,6 +64,7 @@ public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOpti
         ProcessStartTime = Process.GetCurrentProcess().StartTime;
         EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
         CurrentBaseUrl = $"{Request.Scheme}://{Request.Host}";
+        InstanceName = appRuntimeOptions.Value.InstanceName;
         BotEnabled = telegramBotOptions.Value.Enabled;
         HasBotToken = !string.IsNullOrWhiteSpace(telegramBotOptions.Value.BotToken);
 
@@ -71,5 +82,7 @@ public class IndexModel(ApplicationDbContext dbContext, IOptions<TelegramBotOpti
         {
             LatestReplyText = $"{latestReply.CreatedTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestReply.MessageTitle} | {(latestReply.IsSuccess ? "成功" : latestReply.ErrorMessage)}";
         }
+
+        RuntimeSummaryText = $"{InstanceName} | 線上節點 {ActiveNodeCount} 台 | Update queue 待處理 {PendingTelegramUpdateCount} 筆";
     }
 }

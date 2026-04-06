@@ -15,6 +15,7 @@ public partial class BaseballNewsSyncService(
     ApplicationDbContext dbContext,
     IHttpClientFactory httpClientFactory,
     IOptions<DataSourceOptions> dataSourceOptions,
+    IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<BaseballNewsSyncService> logger) : IBaseballNewsSyncService
 {
     private static readonly TimeSpan FreshnessWindow = TimeSpan.FromMinutes(15);
@@ -66,6 +67,7 @@ public partial class BaseballNewsSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "BaseballNewsSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,
@@ -84,6 +86,7 @@ public partial class BaseballNewsSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "BaseballNewsSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,

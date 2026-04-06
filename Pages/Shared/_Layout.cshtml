@@ -1,5 +1,9 @@
+﻿@using CPBLLineBotCloud.Models
+@using Microsoft.Extensions.Options
+@inject IOptions<AppRuntimeOptions> AppRuntimeOptions
 @{
     var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? string.Empty;
+    var currentInstanceName = AppRuntimeOptions.Value.InstanceName;
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -50,11 +54,15 @@
                     <span class="app-nav-eyebrow">紀錄</span>
                     <strong>紀錄</strong>
                 </a>
+                <a class="app-nav-link @(currentPage == "/Runtime/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Runtime/Index">
+                    <span class="app-nav-eyebrow">多節點</span>
+                    <strong>Runtime</strong>
+                </a>
             </nav>
 
             <section class="sidebar-note">
                 <p class="sidebar-note-label">目前重點</p>
-                <p class="sidebar-note-text">先把 bot 維持穩定，讓日常查球、看 log、調群組設定都能一眼看懂。</p>
+                <p class="sidebar-note-text">先把 bot 維持穩定，讓日常查球、看 log、調群組設定和看多節點狀態都能一眼看懂。</p>
             </section>
         </aside>
 
@@ -65,6 +73,7 @@
                     <h1 class="topbar-title">@ViewData["Title"]</h1>
                 </div>
                 <div class="topbar-meta">
+                    <span class="topbar-chip">Node: @currentInstanceName</span>
                     <span class="topbar-chip">ASP.NET Core Razor Pages</span>
                     <span class="topbar-chip">CPBL Data Sync</span>
                     <span class="topbar-chip">Telegram Delivery</span>

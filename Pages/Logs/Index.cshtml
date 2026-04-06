@@ -8,7 +8,7 @@
     <div>
         <p class="eyebrow">運行紀錄</p>
         <h1>最近紀錄</h1>
-        <p class="page-copy">快速看最近的推播與同步狀態</p>
+        <p class="page-copy">快速看最近的推播與同步狀態，也順手確認是哪個節點執行的。</p>
     </div>
 </section>
 
@@ -27,6 +27,7 @@
                 <thead>
                     <tr>
                         <th>時間</th>
+                        <th>節點</th>
                         <th>類型</th>
                         <th>聊天</th>
                         <th>訊息</th>
@@ -37,7 +38,7 @@
                 @if (Model.PushLogs.Count == 0)
                 {
                     <tr>
-                        <td colspan="5">
+                        <td colspan="6">
                             <div class="empty-state">
                                 <p class="empty-copy">目前還沒有推播紀錄</p>
                             </div>
@@ -50,6 +51,7 @@
                     {
                         <tr>
                             <td>@log.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@(log.InstanceName ?? "-")</td>
                             <td>@log.PushType</td>
                             <td><code>@log.TargetGroupId</code></td>
                             <td>
@@ -86,6 +88,7 @@
                 <thead>
                     <tr>
                         <th>工作</th>
+                        <th>節點</th>
                         <th>開始</th>
                         <th>結束</th>
                         <th>結果</th>
@@ -96,7 +99,7 @@
                 @if (Model.SyncJobLogs.Count == 0)
                 {
                     <tr>
-                        <td colspan="5">
+                        <td colspan="6">
                             <div class="empty-state">
                                 <p class="empty-copy">目前還沒有同步紀錄</p>
                             </div>
@@ -109,6 +112,7 @@
                     {
                         <tr>
                             <td>@log.JobName</td>
+                            <td>@(log.InstanceName ?? "-")</td>
                             <td>@log.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                             <td>@log.EndTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                             <td>

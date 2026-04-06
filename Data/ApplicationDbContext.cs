@@ -11,7 +11,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<TeamInfo> Teams => Set<TeamInfo>();
     public DbSet<GameInfo> Games => Set<GameInfo>();
     public DbSet<NewsInfo> NewsItems => Set<NewsInfo>();
+    public DbSet<RuntimeNodeHeartbeat> RuntimeNodeHeartbeats => Set<RuntimeNodeHeartbeat>();
     public DbSet<TelegramChatSubscription> TelegramChatSubscriptions => Set<TelegramChatSubscription>();
+    public DbSet<TelegramUpdateInbox> TelegramUpdateInboxes => Set<TelegramUpdateInbox>();
     public DbSet<PushLog> PushLogs => Set<PushLog>();
     public DbSet<SyncJobLog> SyncJobLogs => Set<SyncJobLog>();
 
@@ -27,6 +29,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // 每個 Telegram chat 只保留一筆訂閱設定，後續管理和推播判斷會簡單很多。
         modelBuilder.Entity<TelegramChatSubscription>()
             .HasIndex(chatSubscription => chatSubscription.ChatId)
+            .IsUnique();
+
+        // 同一筆 Telegram update 只需要收一次，避免 webhook 重送或多節點重複入列。
+        modelBuilder.Entity<TelegramUpdateInbox>()
+            .HasIndex(updateInbox => updateInbox.UpdateId)
+            .IsUnique();
+
+        // 後台要集中顯示節點狀態，所以 instance name 也保持唯一。
+        modelBuilder.Entity<RuntimeNodeHeartbeat>()
+            .HasIndex(heartbeat => heartbeat.InstanceName)
             .IsUnique();
     }
 }

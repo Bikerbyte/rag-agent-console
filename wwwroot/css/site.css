@@ -513,6 +513,11 @@ p {
   color: #8b3626;
 }
 
+.status-pill.is-warning {
+  background: rgba(201, 139, 44, 0.18);
+  color: #8a5a12;
+}
+
 .status-pill.is-neutral {
   background: rgba(24, 36, 44, 0.08);
   color: var(--text-soft);
