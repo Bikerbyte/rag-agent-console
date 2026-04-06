@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
-var applicationStartedAt = DateTimeOffset.Now;
+var applicationStartedAt = DateTimeOffset.UtcNow;
 var appRuntimeOptions = builder.Configuration.GetSection(AppRuntimeOptions.SectionName).Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();

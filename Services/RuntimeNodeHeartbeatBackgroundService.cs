@@ -16,7 +16,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
     ILogger<RuntimeNodeHeartbeatBackgroundService> logger) : BackgroundService
 {
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(15);
-    private readonly DateTimeOffset processStartedTime = DateTimeOffset.Now;
+    private readonly DateTimeOffset processStartedTime = DateTimeOffset.UtcNow;
     private readonly string appVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,7 +72,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
             }
             catch (Exception exception)
             {
-                logger.LogWarning(exception, "Runtime node heartbeat update failed. Check whether AppRuntime:InstanceName is unique across nodes.");
+                logger.LogWarning(exception, "Runtime node heartbeat update failed. Check whether stored runtime timestamps are UTC and AppRuntime:InstanceName is unique across nodes.");
             }
 
             await Task.Delay(HeartbeatInterval, stoppingToken);
