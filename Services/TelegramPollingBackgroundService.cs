@@ -5,6 +5,10 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 用 long polling 持續接收 Telegram update 的背景工作。
+/// 適合本機開發或 webhook 還沒完整接好時先使用。
+/// </summary>
 public class TelegramPollingBackgroundService(
     IServiceScopeFactory scopeFactory,
     ITelegramBotClient telegramBotClient,
@@ -16,6 +20,7 @@ public class TelegramPollingBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 這裡故意保持簡單和耐用，Telegram 或本地回覆流程出錯就留到下一輪再試。
         while (!stoppingToken.IsCancellationRequested)
         {
             var telegramBotOptions = options.Value;
@@ -30,6 +35,7 @@ public class TelegramPollingBackgroundService(
             {
                 if (!_webhookResetCompleted)
                 {
+                    // long polling 和 webhook 不應該同時搶同一批 update。
                     await telegramBotClient.DeleteWebhookAsync(stoppingToken);
                     _webhookResetCompleted = true;
                     logger.LogInformation("Telegram webhook reset for long polling mode.");
@@ -86,6 +92,7 @@ public class TelegramPollingBackgroundService(
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var commandReplyService = scope.ServiceProvider.GetRequiredService<ICommandReplyService>();
 
+        // 只要 chat 曾經對 bot 講過話，就先建立一筆訂閱資料，後面管理頁才接得上。
         await UpsertChatSubscriptionAsync(dbContext, chat, cancellationToken);
 
         try

@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// Telegram 文字指令的主要路由入口。
+/// 把回覆組裝集中在同一個 service，比較容易追邏輯、維護，也方便 demo。
+/// </summary>
 public class CommandReplyService(
     ApplicationDbContext dbContext,
     ICpblGameSyncService cpblGameSyncService,
@@ -14,6 +18,9 @@ public class CommandReplyService(
     ICpblInsightService cpblInsightService,
     ILogger<CommandReplyService> logger) : ICommandReplyService
 {
+    /// <summary>
+    /// 解析單一指令並回傳可直接送出的 Telegram 回覆內容。
+    /// </summary>
     public async Task<string> BuildReplyAsync(string commandText, string? chatId = null, CancellationToken cancellationToken = default)
     {
         var normalizedCommand = NormalizeCommand(commandText);
@@ -24,6 +31,7 @@ public class CommandReplyService(
 
         logger.LogInformation("Building command reply for text: {CommandText}", normalizedCommand);
 
+        // 追蹤與通知設定要先處理，因為它們會直接改變 chat 目前的狀態。
         if (IsFollowCommand(normalizedCommand, out var teamInput))
         {
             return await BuildFollowReplyAsync(chatId, teamInput, cancellationToken);
@@ -104,6 +112,7 @@ public class CommandReplyService(
             return BuildHelpReply();
         }
 
+        // 無法辨識的輸入直接回 help，比直接失敗更適合群組互動情境。
         return BuildHelpReply();
     }
 
@@ -148,7 +157,7 @@ public class CommandReplyService(
         return replyBuilder.ToString().TrimEnd();
     }
 
-    // Currently not used
+    // 目前沒有直接用到，先保留這段能力
     private async Task<string> BuildTodayBestReplyAsync(CancellationToken cancellationToken)
     {
         var recommendation = await cpblInsightService.GetTodayBestGameAsync(cancellationToken);

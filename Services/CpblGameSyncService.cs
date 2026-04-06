@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 將官方 CPBL 賽程整理成 <see cref="GameInfo"/>，供指令回覆、管理頁面與推播流程共用。
+/// </summary>
 public partial class CpblGameSyncService(
     ApplicationDbContext dbContext,
     IHttpClientFactory httpClientFactory,
@@ -28,6 +31,7 @@ public partial class CpblGameSyncService(
     {
         var startedAt = DateTimeOffset.UtcNow;
 
+        // 短時間內如果多個流程都來抓同一天，這裡先擋掉重複同步，避免一直打官方站。
         if (await HasRecentSuccessfulSyncAsync(targetDate, cancellationToken))
         {
             logger.LogInformation("Skipping CPBL game sync because a recent successful sync already exists for {TargetDate}.", targetDate);
@@ -115,6 +119,7 @@ public partial class CpblGameSyncService(
     {
         using var httpClient = httpClientFactory.CreateClient();
 
+        // 官方賽程 API 需要先拿首頁上的 anti-forgery token 才能正常呼叫。
         var homePageResponse = await httpClient.GetStringAsync(dataSourceOptions.CpblScheduleBaseUrl, cancellationToken);
         var antiForgeryToken = ExtractAntiForgeryToken(homePageResponse);
 
@@ -192,6 +197,7 @@ public partial class CpblGameSyncService(
 
     private async Task EnsureTeamDirectoryAsync(CancellationToken cancellationToken)
     {
+        // 先把基本球隊資料補齊，後面管理頁和訊息組裝才不會缺顯示名稱。
         foreach (var team in OfficialTeams.Values)
         {
             var exists = await dbContext.Teams.AnyAsync(existingTeam => existingTeam.TeamCode == team.TeamCode, cancellationToken);

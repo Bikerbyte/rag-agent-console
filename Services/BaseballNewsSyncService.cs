@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 將 CPBL 官方網站的新聞同步到本機新聞資料表。
+/// </summary>
 public partial class BaseballNewsSyncService(
     ApplicationDbContext dbContext,
     IHttpClientFactory httpClientFactory,
@@ -21,6 +24,7 @@ public partial class BaseballNewsSyncService(
     {
         var startedAt = DateTimeOffset.UtcNow;
 
+        // 真實同步開始後，就把 demo seed 資料清掉，避免畫面混在一起。
         var demoRecords = await dbContext.NewsItems
             .Where(news => news.SourceName == "Local Demo Feed")
             .ToListAsync(cancellationToken);
@@ -110,6 +114,7 @@ public partial class BaseballNewsSyncService(
         using var httpClient = httpClientFactory.CreateClient();
         var html = await httpClient.GetStringAsync(dataSourceOptions.BaseballNewsBaseUrl, cancellationToken);
 
+        // 這段解析集中放在這裡即可，官方列表頁結構單純，用 regex 先處理是務實做法。
         var results = new List<NewsInfo>();
 
         foreach (Match match in NewsItemRegex().Matches(html))

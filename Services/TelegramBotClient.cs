@@ -4,6 +4,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 只封裝這個專案實際有用到的 Telegram Bot API 呼叫。
+/// </summary>
 public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOptions> options, ILogger<TelegramBotClient> logger) : ITelegramBotClient
 {
     public async Task<TelegramBotProfile?> GetMeAsync(CancellationToken cancellationToken = default)
@@ -78,6 +81,7 @@ public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOption
         {
             ChatId = chatId,
             Text = messageText,
+            // 預設帶一組簡單按鈕，群組裡要重開常用指令時會比較方便。
             ReplyMarkup = BuildDefaultInlineKeyboard()
         };
 

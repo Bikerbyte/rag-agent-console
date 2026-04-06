@@ -3,6 +3,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 定期執行 Telegram 排程推播判斷的背景工作迴圈。
+/// </summary>
 public class TelegramNotificationBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<PushNotificationOptions> pushOptions,
@@ -10,6 +13,7 @@ public class TelegramNotificationBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 稍微等一下再跑，讓 migration 和 seed data 先完成。
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)

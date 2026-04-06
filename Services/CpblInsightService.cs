@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 整理同步後的賽程資料與官方即時查詢，產出較實用的摘要與推薦內容。
+/// </summary>
 public class CpblInsightService(
     ApplicationDbContext dbContext,
     ICpblOfficialDataClient officialDataClient,
@@ -40,6 +43,7 @@ public class CpblInsightService(
         var normalizedTeamCode = teamCode.ToUpperInvariant();
         var today = GetTaipeiToday();
 
+        // 這裡多抓幾天，近期戰績、上一場、下一場都能共用同一批本機資料。
         for (var offset = -8; offset <= 2; offset++)
         {
             try
@@ -125,6 +129,7 @@ public class CpblInsightService(
     {
         var today = GetTaipeiToday();
 
+        // 每日摘要理論上只看今天附近，但前後都補抓一下，比較能吃到延後更新。
         for (var offset = -1; offset <= 1; offset++)
         {
             try
@@ -199,6 +204,7 @@ public class CpblInsightService(
     {
         var today = GetTaipeiToday();
 
+        // 今日推薦會參考近況，所以先把前幾天的資料補齊再算。
         for (var offset = -5; offset <= 0; offset++)
         {
             try

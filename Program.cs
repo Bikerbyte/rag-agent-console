@@ -8,11 +8,13 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 var applicationStartedAt = DateTimeOffset.Now;
 
-// Pre-Build
+// Pre-Build / 前置設定
+// 這裡刻意保持可讀性，避免把 startup 都藏進 extension 後反而不容易維護。
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
+// Add Service Area - 共用平台服務
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys")));
 
@@ -22,6 +24,7 @@ builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSec
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 
+// Add Service Area - 資料庫
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -41,6 +44,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(defaultConnection);
 });
 
+// Add Service Area - 對外 HTTP Client
 builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((serviceProvider, httpClient) =>
 {
     var telegramBotOptions = serviceProvider.GetRequiredService<IOptions<TelegramBotOptions>>().Value;
@@ -49,7 +53,7 @@ builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((servicePr
 });
 builder.Services.AddHttpClient();
 
-// Add Service Area
+// Add Service Area - 應用服務
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<ICpblGameSyncService, CpblGameSyncService>();
 builder.Services.AddScoped<IBaseballNewsSyncService, BaseballNewsSyncService>();
@@ -64,7 +68,8 @@ builder.Services.AddHostedService<TelegramNotificationBackgroundService>();
 
 var app = builder.Build();
 
-// Data Prep
+// Data Prep / 資料準備
+// 在第一個 request 進來前，先把本機資料夾和 seed data 準備好。
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data", "DataProtectionKeys"));
 
 using (var scope = app.Services.CreateScope())
@@ -83,7 +88,7 @@ using (var scope = app.Services.CreateScope())
     await DemoDataSeeder.SeedAsync(dbContext);
 }
 
-// Razor Build
+// Razor Build / 啟動管線
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -95,6 +100,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
+// 本機診斷用 endpoint
 app.MapGet("/api/telegram/health", (IOptions<TelegramBotOptions> options) => Results.Ok(new
 {
     Provider = "Telegram",
@@ -110,6 +116,7 @@ app.MapGet("/api/runtime", (IHostEnvironment environment) => Results.Ok(new
     Urls = app.Urls
 }));
 
+// 啟動時輸出一段 banner，方便看本機 console 或 App Service log。
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     var addressText = app.Urls.Count == 0 ? "No bound URLs detected." : string.Join(", ", app.Urls);
@@ -120,7 +127,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
     }
     catch
     {
-        // Best effort only for interactive console sessions.
+        // 只有互動式 console 才需要設定標題，失敗就略過。
     }
 
     app.Logger.LogInformation("============================================================");

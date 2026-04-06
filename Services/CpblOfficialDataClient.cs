@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 負責讀取 CPBL 官方頁面與 AJAX endpoint，並整理成 app 內比較好用的 DTO。
+/// </summary>
 public partial class CpblOfficialDataClient(
     IHttpClientFactory httpClientFactory,
     IMemoryCache memoryCache,
@@ -28,6 +31,7 @@ public partial class CpblOfficialDataClient(
             "cpbl-home-standings",
             async cacheEntry =>
             {
+                // 排名資料不用秒級更新，這裡稍微 cache 一下，指令回覆會順很多。
                 cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
                 return await GetStandingsCoreAsync(cancellationToken);
             });
@@ -171,6 +175,7 @@ public partial class CpblOfficialDataClient(
 
     private async Task<IReadOnlyList<CpblOfficialGameSnapshot>> GetGamesCoreAsync(DateOnly targetDate, CancellationToken cancellationToken)
     {
+        // 官方 detail endpoint 依賴首頁當下發出的 token，先抓首頁再打 API。
         var homePageHtml = await GetHtmlAsync(GetCandidateBaseUrls(), cancellationToken);
         var antiForgeryToken = ExtractHomePageToken(homePageHtml);
 
@@ -244,6 +249,7 @@ public partial class CpblOfficialDataClient(
             $"cpbl-official-games:{targetDate:yyyyMMdd}",
             async cacheEntry =>
             {
+                // 比賽狀態變動比排名快，這裡的 cache 時間要刻意短一點。
                 cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2);
                 return await GetGamesCoreAsync(targetDate, cancellationToken);
             });

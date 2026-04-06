@@ -6,6 +6,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 依照排程推播規則，為各個已訂閱的 chat 決定要送哪些 Telegram 訊息。
+/// </summary>
 public class TelegramNotificationDispatchService(
     ApplicationDbContext dbContext,
     ICpblInsightService cpblInsightService,
@@ -18,6 +21,7 @@ public class TelegramNotificationDispatchService(
 
     public async Task ProcessPendingNotificationsAsync(CancellationToken cancellationToken = default)
     {
+        // 同一輪 worker 會處理多種 push，但每一種都靠 PushLog 自己做重送判斷。
         var options = pushOptions.Value;
         if (!options.Enabled)
         {
@@ -98,6 +102,7 @@ public class TelegramNotificationDispatchService(
         PushNotificationOptions options,
         CancellationToken cancellationToken)
     {
+        // 新聞推播要看一段回溯時間，因為同步和推播 worker 不一定剛好同一分鐘執行。
         var cutoff = taipeiNow.AddHours(-Math.Max(1, options.NewsLookbackHours)).ToUniversalTime();
 
         var pendingNews = await dbContext.NewsItems
@@ -147,6 +152,7 @@ public class TelegramNotificationDispatchService(
         PushNotificationOptions options,
         CancellationToken cancellationToken)
     {
+        // 開賽提醒是近時間提醒，不是拿來做長期賽程通知。
         var leadMinutes = Math.Max(5, options.GameStartLeadMinutes);
         var today = DateOnly.FromDateTime(taipeiNow.DateTime);
 
@@ -245,6 +251,7 @@ public class TelegramNotificationDispatchService(
         DateTimeOffset taipeiNow,
         CancellationToken cancellationToken)
     {
+        // 只有比分真的有變動才送 live push，避免每輪 worker 都吵一次群組。
         var today = DateOnly.FromDateTime(taipeiNow.DateTime);
         var liveGames = await dbContext.Games
             .Where(game =>

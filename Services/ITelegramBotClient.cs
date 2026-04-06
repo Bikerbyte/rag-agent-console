@@ -1,5 +1,8 @@
-﻿namespace CPBLLineBotCloud.Services;
+namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 給 polling、回覆與排程推播共用的 Telegram Bot API 輕量封裝。
+/// </summary>
 public interface ITelegramBotClient
 {
     Task<CPBLLineBotCloud.Models.TelegramBotProfile?> GetMeAsync(CancellationToken cancellationToken = default);
