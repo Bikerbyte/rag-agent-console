@@ -70,6 +70,7 @@ builder.Services.AddScoped<ICpblInsightService, CpblInsightService>();
 builder.Services.AddScoped<ITelegramPushService, TelegramPushService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, TelegramNotificationDispatchService>();
 builder.Services.AddScoped<ICommandReplyService, CommandReplyService>();
+builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
 builder.Services.AddHostedService<RuntimeNodeHeartbeatBackgroundService>();
@@ -198,6 +199,10 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     StartedAt = applicationStartedAt,
     Runtime = new
     {
+        runtimeOptions.Value.EnableLeadershipLease,
+        runtimeOptions.Value.LeaseDurationSeconds,
+        runtimeOptions.Value.LeaseRenewIntervalSeconds,
+        runtimeOptions.Value.LeaseAcquireRetrySeconds,
         runtimeOptions.Value.EnableTelegramWebhookIngress,
         runtimeOptions.Value.EnableTelegramPollingWorker,
         runtimeOptions.Value.EnableTelegramUpdateQueueWorker,
@@ -227,7 +232,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => WebhookIngress: {EnableTelegramWebhookIngress}, Polling: {EnableTelegramPollingWorker}, UpdateQueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        "Runtime => LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s), WebhookIngress: {EnableTelegramWebhookIngress}, Polling: {EnableTelegramPollingWorker}, UpdateQueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        appRuntimeOptions.EnableLeadershipLease,
+        appRuntimeOptions.LeaseDurationSeconds,
+        appRuntimeOptions.LeaseRenewIntervalSeconds,
+        appRuntimeOptions.LeaseAcquireRetrySeconds,
         appRuntimeOptions.EnableTelegramWebhookIngress,
         appRuntimeOptions.EnableTelegramPollingWorker,
         appRuntimeOptions.EnableTelegramUpdateQueueWorker,

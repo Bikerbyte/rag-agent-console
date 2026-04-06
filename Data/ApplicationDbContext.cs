@@ -11,6 +11,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<TeamInfo> Teams => Set<TeamInfo>();
     public DbSet<GameInfo> Games => Set<GameInfo>();
     public DbSet<NewsInfo> NewsItems => Set<NewsInfo>();
+    public DbSet<RuntimeLeadershipLease> RuntimeLeadershipLeases => Set<RuntimeLeadershipLease>();
     public DbSet<RuntimeNodeHeartbeat> RuntimeNodeHeartbeats => Set<RuntimeNodeHeartbeat>();
     public DbSet<TelegramChatSubscription> TelegramChatSubscriptions => Set<TelegramChatSubscription>();
     public DbSet<TelegramUpdateInbox> TelegramUpdateInboxes => Set<TelegramUpdateInbox>();
@@ -40,5 +41,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<RuntimeNodeHeartbeat>()
             .HasIndex(heartbeat => heartbeat.InstanceName)
             .IsUnique();
+
+        // 每種 scheduled job 的租約名稱只保留一筆，讓多節點只會有一個有效持有者。
+        modelBuilder.Entity<RuntimeLeadershipLease>()
+            .HasKey(lease => lease.LeaseName);
     }
 }

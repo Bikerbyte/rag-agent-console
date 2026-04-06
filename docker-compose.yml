@@ -20,6 +20,10 @@ services:
       TelegramBot__WebhookUrl: ${TELEGRAM_BOT_WEBHOOK_URL:-}
       TelegramBot__WebhookSecretToken: ${TELEGRAM_BOT_WEBHOOK_SECRET_TOKEN:-}
       AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-auto}
+      AppRuntime__EnableLeadershipLease: ${APP_RUNTIME_ENABLE_LEADERSHIP_LEASE:-true}
+      AppRuntime__LeaseDurationSeconds: ${APP_RUNTIME_LEASE_DURATION_SECONDS:-45}
+      AppRuntime__LeaseRenewIntervalSeconds: ${APP_RUNTIME_LEASE_RENEW_INTERVAL_SECONDS:-15}
+      AppRuntime__LeaseAcquireRetrySeconds: ${APP_RUNTIME_LEASE_ACQUIRE_RETRY_SECONDS:-10}
       AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-true}
       AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-true}
       AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-true}

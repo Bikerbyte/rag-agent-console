@@ -1,9 +1,7 @@
 # CPBL Telegram Assistant
 
 一個以 **ASP.NET Core** 開發的 Telegram Bot，主要用來整理與推送 **CPBL 中華職棒** 的比賽資訊。  
-使用者可以直接在 Telegram 查詢今天賽程、即時比分、戰績排名、球隊近況，也可以追蹤喜歡的球隊，接收開賽、終場與新聞通知。
-
-![System Architecture](docs/architecture/system-architecture.png)
+使用者可以直接在 Telegram 查詢今日賽程、即時比分、戰績排名、球隊近況，也可以追蹤喜歡的球隊，接收開賽、終場與新聞通知。
 
 ---
 
@@ -18,12 +16,13 @@
 - 接收開賽、終場、新聞等通知
 - 查看最新中職新聞
 - 以簡短文字整理當日比賽重點
+- 透過 Razor Pages 後台管理訂閱、log、runtime node 與 leadership lease 狀態
 
 ---
 
 ## 主要指令
 
-- `/today`：今天賽程，若有進行中的比賽也會一起顯示
+- `/today`：今天賽程
 - `/tomorrow`：明天賽程
 - `/yesterday`：昨天已完賽結果
 - `/result`：今天已完賽結果
@@ -37,46 +36,40 @@
 - `/recap`：查看今日賽事重點整理
 - `/news`：查看最新新聞
 
-另外也支援部分較自然的口語查詢，不一定只能輸入固定指令。
-
 ---
 
 ## 系統架構
 
-整體上這個專案不是做成多服務分散式系統，而是維持在一個比較容易理解與維護的 **monolith**：
+目前這個專案維持 **same codebase, multi-node deployment by runtime roles** 的設計：
 
-- **Telegram Users / Groups**  
-  使用者透過 Telegram 與 bot 互動，查詢比賽資訊或接收主動通知。
+- 同一份 ASP.NET Core 程式可部署到單台或多台 VM
+- `Webhook ingress` 可以多台同時開啟
+- `Telegram update queue worker` 維持多節點協作 claim batch
+- `scheduled jobs` 則改成 **lease-based single-active execution**
 
-- **Telegram Bot Platform**  
-  作為 bot 對外的訊息入口，接收使用者指令並回傳系統整理後的內容。
+也就是說：
 
-- **ASP.NET Core Monolith**  
-  核心應用本體，集中處理：
-  - Telegram 指令解析
-  - CPBL 資料同步
-  - 通知排程
-  - 文字整理與回覆格式化
-  - Razor Pages 管理後台
+- `OfficialDataSyncBackgroundService`
+- `TelegramNotificationBackgroundService`
 
-- **PostgreSQL**  
-  用來保存比賽資料、新聞、訂閱狀態與系統紀錄。
+這兩種排程型工作可以在多台節點上都具備執行資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若持有者掛掉，租約過期後其他節點可自動接手。
 
-- **CPBL Official Source**  
-  作為賽程、比分、排名與新聞的外部資料來源。
+### PostgreSQL 目前負責保存
 
-這樣的做法不是為了把技術堆得很滿，而是因為目前專案規模下，**單一應用 + 明確分層** 會比過早拆服務更實際。
+- 業務資料：球隊、賽程、新聞、群組訂閱
+- queue 狀態：`TelegramUpdateInbox`
+- runtime node 心跳：`RuntimeNodeHeartbeats`
+- leadership lease 狀態：`RuntimeLeadershipLeases`
+- push / sync logs
 
----
+### 後台目前可看到
 
-## Demo
+- 線上 node 清單
+- 各節點 runtime role
+- leadership lease 目前持有者
+- queue 收件與處理流向
 
-### 互動視窗
-![Telegram demo](docs/demo/image.png)
-![Telegram demo](docs/demo/image-1.png)
-
-### 即時戰況更新
-![Telegram demo](docs/demo/realtime_update.png)
+多節點架構說明可參考 [docs/Scalable_Multi_Node_Architecture.zh-TW.md](docs/Scalable_Multi_Node_Architecture.zh-TW.md)。
 
 ---
 
@@ -86,25 +79,8 @@
 - **UI / Admin**：Razor Pages
 - **Database**：PostgreSQL
 - **Bot Platform**：Telegram Bot API
-- **Deployment**：Docker
+- **Deployment**：Docker / Ubuntu VM
 - **Data Source**：CPBL 官方資料
-
----
-
-## 專案重點
-
-### Telegram 作為互動入口
-和一般網站不同，這個專案把 Telegram 當成主要操作介面。  
-使用者不需要進網站查資料，只要在聊天室裡下指令，就可以快速拿到今天賽程、即時比分或球隊近況。
-
-### 把原始資料整理成比較適合閱讀的內容
-比起只把資料原封不動貼出來，這個 bot 會把 CPBL 原始資料整理成比較適合 Telegram 閱讀的格式，包含摘要、重點資訊與簡短 recap。
-
-### 主動通知而不是只有被動查詢
-除了查詢功能，也支援追蹤球隊與通知開關，讓系統可以主動推送開賽、終場與新聞等內容。
-
-### 後台與 Bot 共用同一套系統
-管理後台與 bot 核心邏輯放在同一個 ASP.NET Core 應用中，方便一起維護與除錯，也比較適合目前 side project 的規模。
 
 ---
 
@@ -119,22 +95,24 @@ cd Baseball_Bot
 
 ### 2. 設定資料庫連線
 
-PostgreSQL：
-
 ```powershell
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=cpbl_telegram_assistant;Username=postgres;Password=your-password"
 ```
 
 ### 3. 設定 Telegram Bot
 
-先把 bot token 放進 user-secrets：
-
 ```powershell
 dotnet user-secrets set "TelegramBot:Enabled" "true"
 dotnet user-secrets set "TelegramBot:BotToken" "your-bot-token"
 ```
 
-### 4. 執行專案
+### 4. 套用 migration
+
+```bash
+dotnet ef database update
+```
+
+### 5. 執行專案
 
 ```bash
 dotnet run
@@ -142,11 +120,31 @@ dotnet run
 
 ---
 
-## 資料庫用途
+## 多節點部署備註
 
-保存以下資料，提供 bot 與後台管理使用：
+`AppRuntime` 目前同時負責：
 
-- 比賽相關資料
-- 新聞資料
-- 使用者 / 群組訂閱設定
-- 通知與操作紀錄
+- runtime role 開關
+- leadership lease 設定
+- node instance name
+
+常用設定包含：
+
+- `AppRuntime__InstanceName`
+- `AppRuntime__EnableLeadershipLease`
+- `AppRuntime__LeaseDurationSeconds`
+- `AppRuntime__LeaseRenewIntervalSeconds`
+- `AppRuntime__LeaseAcquireRetrySeconds`
+- `AppRuntime__EnableTelegramWebhookIngress`
+- `AppRuntime__EnableTelegramUpdateQueueWorker`
+- `AppRuntime__EnableOfficialDataSyncWorker`
+- `AppRuntime__EnableNotificationWorker`
+
+實務上可以讓多台節點都開：
+
+- `Webhook ingress`
+- `Update queue worker`
+- `Official sync worker`
+- `Notification worker`
+
+然後交由 leadership lease 決定哪台節點真正執行 scheduled jobs，而不是靠固定 primary node。

@@ -27,4 +27,20 @@ public static class AppRuntimeOptionsExtensions
             ? $"node-{Environment.ProcessId}"
             : machineName;
     }
+
+    public static TimeSpan GetLeadershipLeaseDuration(this AppRuntimeOptions options)
+    {
+        return TimeSpan.FromSeconds(Math.Max(15, options.LeaseDurationSeconds));
+    }
+
+    public static TimeSpan GetLeadershipLeaseRenewInterval(this AppRuntimeOptions options)
+    {
+        var renewIntervalSeconds = Math.Max(5, options.LeaseRenewIntervalSeconds);
+        return TimeSpan.FromSeconds(Math.Min(renewIntervalSeconds, (int)options.GetLeadershipLeaseDuration().TotalSeconds));
+    }
+
+    public static TimeSpan GetLeadershipLeaseAcquireRetryInterval(this AppRuntimeOptions options)
+    {
+        return TimeSpan.FromSeconds(Math.Max(3, options.LeaseAcquireRetrySeconds));
+    }
 }
