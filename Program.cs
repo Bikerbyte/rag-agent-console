@@ -212,6 +212,33 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     Urls = app.Urls
 }));
 
+app.MapGet("/api/runtime/leases", async (ApplicationDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var now = DateTimeOffset.UtcNow;
+    var leases = await dbContext.RuntimeLeadershipLeases
+        .OrderBy(item => item.LeaseName)
+        .Select(item => new
+        {
+            item.LeaseName,
+            item.OwnerInstanceName,
+            item.AcquiredAt,
+            item.RenewedAt,
+            item.ExpiresAt,
+            IsActive = item.ExpiresAt > now,
+            ExpiresInSeconds = item.ExpiresAt <= now
+                ? 0
+                : Math.Max(0, (int)Math.Round((item.ExpiresAt - now).TotalSeconds))
+        })
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(new
+    {
+        ServerTime = now,
+        Count = leases.Count,
+        Leases = leases
+    });
+});
+
 // 啟動時輸出一段 banner，方便看本機 console 或 App Service log。
 app.Lifetime.ApplicationStarted.Register(() =>
 {

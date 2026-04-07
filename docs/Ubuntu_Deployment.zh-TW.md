@@ -18,6 +18,9 @@
 - `deploy/ubuntu/cpbl-telegram-assistant.single-node.env.example`
 - `deploy/ubuntu/cpbl-telegram-assistant.primary.env.example`
 - `deploy/ubuntu/cpbl-telegram-assistant.scale-node.env.example`
+- `deploy/ubuntu/check-runtime.sh`
+- `deploy/ubuntu/check-leases.sh`
+- `deploy/ubuntu/check-webhook.sh`
 - `deploy/nginx/cpbl-telegram-assistant.conf`
 
 ---
@@ -178,6 +181,32 @@ curl http://127.0.0.1:5050/api/telegram/health
 - leadership lease 是否有 owner
 - queue 是否有正常流動
 
+### 6. 跑驗證腳本
+
+本機 loopback 驗證：
+
+```bash
+bash deploy/ubuntu/check-runtime.sh
+bash deploy/ubuntu/check-leases.sh
+bash deploy/ubuntu/check-webhook.sh
+```
+
+如果你要直接打公開網址：
+
+```bash
+bash deploy/ubuntu/check-runtime.sh https://bot.example.com
+bash deploy/ubuntu/check-leases.sh https://bot.example.com
+bash deploy/ubuntu/check-webhook.sh https://bot.example.com
+```
+
+`check-webhook.sh` 會先看本機 `/api/telegram/health`，再用 env 檔裡的 bot token 去呼叫 Telegram `getWebhookInfo`，確認：
+
+- bot 是否啟用
+- webhook mode 是否開啟
+- Telegram 端實際 webhook URL 是什麼
+- pending update 數量
+- 最近 webhook 錯誤
+
 ---
 
 ## 常見操作
@@ -205,6 +234,14 @@ sudo systemctl stop cpbl-telegram-assistant
 
 ```bash
 sudo cat /etc/cpbl-telegram-assistant/cpbl-telegram-assistant.env
+```
+
+### 快速驗證部署是否正常
+
+```bash
+curl http://127.0.0.1:5050/api/runtime
+curl http://127.0.0.1:5050/api/runtime/leases
+curl http://127.0.0.1:5050/api/telegram/health
 ```
 
 ---

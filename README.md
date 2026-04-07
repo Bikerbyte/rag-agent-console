@@ -150,3 +150,4 @@ dotnet run
 然後交由 leadership lease 決定哪台節點真正執行 scheduled jobs，而不是靠固定 primary node。
 
 Ubuntu VM 的實際部署方式可參考 [docs/Ubuntu_Deployment.zh-TW.md](docs/Ubuntu_Deployment.zh-TW.md)。
+部署後也可以直接用 `deploy/ubuntu/check-runtime.sh`、`deploy/ubuntu/check-leases.sh`、`deploy/ubuntu/check-webhook.sh` 做驗證。
