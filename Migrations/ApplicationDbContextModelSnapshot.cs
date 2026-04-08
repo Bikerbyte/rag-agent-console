@@ -140,6 +140,10 @@ namespace CPBLLineBotCloud.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("character varying(400)");
 
+                    b.Property<string>("InstanceName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<bool>("IsSuccess")
                         .HasColumnType("boolean");
 
@@ -163,6 +167,88 @@ namespace CPBLLineBotCloud.Migrations
                     b.ToTable("PushLogs");
                 });
 
+            modelBuilder.Entity("CPBLLineBotCloud.Models.RuntimeLeadershipLease", b =>
+                {
+                    b.Property<string>("LeaseName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("AcquiredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwnerInstanceName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("RenewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LeaseName");
+
+                    b.ToTable("RuntimeLeadershipLeases");
+                });
+
+            modelBuilder.Entity("CPBLLineBotCloud.Models.RuntimeNodeHeartbeat", b =>
+                {
+                    b.Property<int>("RuntimeNodeHeartbeatId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RuntimeNodeHeartbeatId"));
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EnvironmentName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("InstanceName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("LastSeenTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MachineName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ProcessId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ProcessStartedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RoleSummary")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("RuntimeNodeHeartbeatId");
+
+                    b.HasIndex("InstanceName")
+                        .IsUnique();
+
+                    b.ToTable("RuntimeNodeHeartbeats");
+                });
+
             modelBuilder.Entity("CPBLLineBotCloud.Models.SyncJobLog", b =>
                 {
                     b.Property<int>("SyncJobLogId")
@@ -173,6 +259,10 @@ namespace CPBLLineBotCloud.Migrations
 
                     b.Property<DateTimeOffset?>("EndTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InstanceName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<bool>("IsSuccess")
                         .HasColumnType("boolean");
@@ -265,6 +355,69 @@ namespace CPBLLineBotCloud.Migrations
                         .IsUnique();
 
                     b.ToTable("TelegramChatSubscriptions");
+                });
+
+            modelBuilder.Entity("CPBLLineBotCloud.Models.TelegramUpdateInbox", b =>
+                {
+                    b.Property<int>("TelegramUpdateInboxId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TelegramUpdateInboxId"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("EnqueuedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IngressNode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("LastUpdatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ProcessedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProcessingNode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ProcessingStartedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("UpdateId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TelegramUpdateInboxId");
+
+                    b.HasIndex("UpdateId")
+                        .IsUnique();
+
+                    b.ToTable("TelegramUpdateInboxes");
                 });
 #pragma warning restore 612, 618
         }

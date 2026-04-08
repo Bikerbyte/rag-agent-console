@@ -1,0 +1,200 @@
+@page
+@model CPBLLineBotCloud.Pages.Runtime.IndexModel
+@{
+    ViewData["Title"] = "Runtime";
+}
+
+<section class="page-header">
+    <div>
+        <p class="eyebrow">多節點運行</p>
+        <h1>Runtime</h1>
+        <p class="page-copy">集中看目前有哪些節點在線上、各自扮演什麼角色、誰正在持有 scheduled job 租約，以及最近 update queue 的流向。</p>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">節點</span>
+            <h2 class="panel-title">目前節點</h2>
+            <p class="panel-subtitle">心跳超過 45 秒未更新時，先標記為疑似離線。</p>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>節點</th>
+                    <th>狀態</th>
+                    <th>角色</th>
+                    <th>Leader For</th>
+                    <th>機器</th>
+                    <th>環境</th>
+                    <th>Process</th>
+                    <th>啟動時間</th>
+                    <th>最後心跳</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Nodes.Count == 0)
+            {
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <p class="empty-copy">目前還沒有節點心跳資料，等站台啟動約 15 秒後再看一次。</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var node in Model.Nodes)
+                {
+                    <tr>
+                        <td>
+                            <span class="table-title">@node.InstanceName</span>
+                            @if (!string.IsNullOrWhiteSpace(node.AppVersion))
+                            {
+                                <p class="table-copy">Version @node.AppVersion</p>
+                            }
+                        </td>
+                        <td>
+                            <span class="status-pill @(node.StatusText == "線上中" ? "is-success" : "is-warning")">
+                                @node.StatusText
+                            </span>
+                        </td>
+                        <td>@node.RoleSummary</td>
+                        <td>@node.CurrentLeases</td>
+                        <td>@node.MachineName</td>
+                        <td>@node.EnvironmentName</td>
+                        <td>@node.ProcessId</td>
+                        <td>@node.ProcessStartedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@node.LastSeenTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">Leadership</span>
+            <h2 class="panel-title">Leadership Leases</h2>
+            <p class="panel-subtitle">scheduled jobs 透過資料庫租約維持 single-active 執行，這裡可以看目前由哪台節點持有。</p>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>LeaseName</th>
+                    <th>OwnerInstanceName</th>
+                    <th>AcquiredAt</th>
+                    <th>RenewedAt</th>
+                    <th>ExpiresAt</th>
+                    <th>IsActive</th>
+                    <th>ExpiresInSeconds</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.LeadershipLeases.Count == 0)
+            {
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <p class="empty-copy">目前還沒有 leadership lease 資料，等 scheduled worker 啟動後再看一次。</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var lease in Model.LeadershipLeases)
+                {
+                    <tr>
+                        <td><span class="table-title">@lease.LeaseName</span></td>
+                        <td>@lease.OwnerInstanceName</td>
+                        <td>@lease.AcquiredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@lease.RenewedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@lease.ExpiresAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>
+                            <span class="status-pill @(lease.IsActive ? "is-success" : "is-warning")">
+                                @(lease.IsActive ? "Active" : "Expired")
+                            </span>
+                        </td>
+                        <td>@lease.ExpiresInSeconds</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">Queue</span>
+            <h2 class="panel-title">最近 Update Inbox</h2>
+            <p class="panel-subtitle">確認哪台節點收件、哪台節點處理，以及目前狀態。</p>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>UpdateId</th>
+                    <th>來源</th>
+                    <th>狀態</th>
+                    <th>Ingress Node</th>
+                    <th>Processing Node</th>
+                    <th>嘗試次數</th>
+                    <th>最後更新</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.RecentInboxItems.Count == 0)
+            {
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <p class="empty-copy">目前還沒有 Telegram update queue 紀錄。</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model.RecentInboxItems)
+                {
+                    <tr>
+                        <td><code>@item.UpdateId</code></td>
+                        <td>@item.SourceType</td>
+                        <td>
+                            <span class="status-pill @(item.Status == "Processed" ? "is-success" : item.Status == "Failed" ? "is-danger" : "is-warning")">
+                                @item.Status
+                            </span>
+                        </td>
+                        <td>@(item.IngressNode ?? "-")</td>
+                        <td>@(item.ProcessingNode ?? "-")</td>
+                        <td>@item.AttemptCount</td>
+                        <td>
+                            @item.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                            @if (!string.IsNullOrWhiteSpace(item.LastError))
+                            {
+                                <p class="table-copy">@item.LastError</p>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

@@ -4,6 +4,9 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 只封裝這個專案實際有用到的 Telegram Bot API 呼叫。
+/// </summary>
 public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOptions> options, ILogger<TelegramBotClient> logger) : ITelegramBotClient
 {
     public async Task<TelegramBotProfile?> GetMeAsync(CancellationToken cancellationToken = default)
@@ -37,6 +40,39 @@ public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOption
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         logger.LogWarning("Telegram deleteWebhook failed. StatusCode={StatusCode}, Body={Body}", response.StatusCode, body);
+        return false;
+    }
+
+    public async Task<bool> SetWebhookAsync(string webhookUrl, string? secretToken = null, bool dropPendingUpdates = false, CancellationToken cancellationToken = default)
+    {
+        var telegramBotOptions = options.Value;
+
+        if (!telegramBotOptions.Enabled || string.IsNullOrWhiteSpace(telegramBotOptions.BotToken))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(webhookUrl))
+        {
+            logger.LogWarning("Telegram setWebhook skipped because webhookUrl is empty.");
+            return false;
+        }
+
+        var request = new TelegramSetWebhookRequest
+        {
+            Url = webhookUrl,
+            SecretToken = string.IsNullOrWhiteSpace(secretToken) ? null : secretToken,
+            DropPendingUpdates = dropPendingUpdates
+        };
+
+        var response = await httpClient.PostAsJsonAsync($"/bot{telegramBotOptions.BotToken}/setWebhook", request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogWarning("Telegram setWebhook failed. StatusCode={StatusCode}, Body={Body}", response.StatusCode, body);
         return false;
     }
 
@@ -78,6 +114,7 @@ public class TelegramBotClient(HttpClient httpClient, IOptions<TelegramBotOption
         {
             ChatId = chatId,
             Text = messageText,
+            // 預設帶一組簡單按鈕，群組裡要重開常用指令時會比較方便。
             ReplyMarkup = BuildDefaultInlineKeyboard()
         };
 

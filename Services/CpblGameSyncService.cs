@@ -8,10 +8,14 @@ using Microsoft.Extensions.Options;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 將官方 CPBL 賽程整理成 <see cref="GameInfo"/>，供指令回覆、管理頁面與推播流程共用。
+/// </summary>
 public partial class CpblGameSyncService(
     ApplicationDbContext dbContext,
     IHttpClientFactory httpClientFactory,
     IOptions<DataSourceOptions> dataSourceOptions,
+    IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<CpblGameSyncService> logger) : ICpblGameSyncService
 {
     private static readonly TimeSpan FreshnessWindow = TimeSpan.FromMinutes(5);
@@ -28,6 +32,7 @@ public partial class CpblGameSyncService(
     {
         var startedAt = DateTimeOffset.UtcNow;
 
+        // 短時間內如果多個流程都來抓同一天，這裡先擋掉重複同步，避免一直打官方站。
         if (await HasRecentSuccessfulSyncAsync(targetDate, cancellationToken))
         {
             logger.LogInformation("Skipping CPBL game sync because a recent successful sync already exists for {TargetDate}.", targetDate);
@@ -71,6 +76,7 @@ public partial class CpblGameSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "CpblGameSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,
@@ -89,6 +95,7 @@ public partial class CpblGameSyncService(
 
             dbContext.SyncJobLogs.Add(new SyncJobLog
             {
+                InstanceName = runtimeOptions.Value.InstanceName,
                 JobName = "CpblGameSync",
                 StartTime = startedAt,
                 EndTime = DateTimeOffset.UtcNow,
@@ -115,6 +122,7 @@ public partial class CpblGameSyncService(
     {
         using var httpClient = httpClientFactory.CreateClient();
 
+        // 官方賽程 API 需要先拿首頁上的 anti-forgery token 才能正常呼叫。
         var homePageResponse = await httpClient.GetStringAsync(dataSourceOptions.CpblScheduleBaseUrl, cancellationToken);
         var antiForgeryToken = ExtractAntiForgeryToken(homePageResponse);
 
@@ -168,6 +176,8 @@ public partial class CpblGameSyncService(
             var localGameDateTime = preExeDate.HasValue
                 ? TimeZoneInfo.ConvertTimeBySystemTimeZoneId(preExeDate.Value.UtcDateTime, "Taipei Standard Time")
                 : new DateTimeOffset(targetDate.Year, targetDate.Month, targetDate.Day, 18, 35, 0, TimeSpan.Zero);
+            var rawStatus = BuildStatusText(gameElement);
+            var inningText = BuildInningText(gameElement);
 
             var awayTeamName = GetString(gameElement, "VisitingTeamName");
             var homeTeamName = GetString(gameElement, "HomeTeamName");
@@ -180,11 +190,18 @@ public partial class CpblGameSyncService(
                 HomeTeamCode = MapTeamCode(homeTeamName),
                 AwayScore = GetNullableInt(gameElement, "VisitingTotalScore") ?? GetNullableInt(gameElement, "VisitingScore"),
                 HomeScore = GetNullableInt(gameElement, "HomeTotalScore") ?? GetNullableInt(gameElement, "HomeScore"),
-                Status = BuildStatusText(gameElement),
-                InningText = BuildInningText(gameElement),
+                Status = rawStatus,
+                InningText = inningText,
                 Venue = GetString(gameElement, "FieldAbbe"),
                 LastUpdatedTime = DateTimeOffset.UtcNow
             });
+            var latestGame = results[^1];
+            latestGame.Status = CpblGameStatusHelper.NormalizeStoredStatus(
+                rawStatus,
+                latestGame.GameDate,
+                latestGame.StartTime,
+                latestGame.InningText,
+                DateTimeOffset.UtcNow);
         }
 
         return results;
@@ -192,6 +209,7 @@ public partial class CpblGameSyncService(
 
     private async Task EnsureTeamDirectoryAsync(CancellationToken cancellationToken)
     {
+        // 先把基本球隊資料補齊，後面管理頁和訊息組裝才不會缺顯示名稱。
         foreach (var team in OfficialTeams.Values)
         {
             var exists = await dbContext.Teams.AnyAsync(existingTeam => existingTeam.TeamCode == team.TeamCode, cancellationToken);

@@ -2,6 +2,7 @@ bin/
 obj/
 .vs/
 .vscode/
+.codex-temp/
 .idea/
 .dotnet/
 App_Data/
@@ -18,6 +19,9 @@ coverage/
 AGENTS.md
 cpbl_telegram_bot_rework_plan.md
 internal_project_notes.md
+Ian_Style_SKILL.md
+Ian_Style_SKILL.zh-TW.md
 
 .fake
 LOCAL_BOT_IMPLEMENTATION_NOTES.md
+Deployment_Architecture_Notes.zh-TW.md

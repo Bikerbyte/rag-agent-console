@@ -2,6 +2,9 @@ using CPBLLineBotCloud.Models;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 以同步資料和官方即時資料為基礎，整理較高層的摘要、推薦與洞察結果。
+/// </summary>
 public interface ICpblInsightService
 {
     Task<CpblPlayerStatsResult?> GetPlayerStatsAsync(string playerName, CancellationToken cancellationToken = default);

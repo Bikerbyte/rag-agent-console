@@ -6,6 +6,9 @@ public class SyncJobLog
 {
     public int SyncJobLogId { get; set; }
 
+    [MaxLength(128)]
+    public string? InstanceName { get; set; }
+
     [MaxLength(64)]
     public required string JobName { get; set; }
 

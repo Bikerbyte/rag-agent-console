@@ -25,7 +25,7 @@ public class IndexModel(ApplicationDbContext dbContext, IBaseballNewsSyncService
     public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)
     {
         var count = await baseballNewsSyncService.SyncAsync(cancellationToken);
-        StatusMessage = $"已完成新聞同步，新增 {count} 筆官方新聞。";
+        StatusMessage = $"已完成新聞同步，新增 {count} 筆官方新聞";
         return RedirectToPage();
     }
 }

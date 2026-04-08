@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// Telegram 文字指令的主要路由入口。
+/// 把回覆組裝集中在同一個 service，比較容易追邏輯、維護，也方便 demo。
+/// </summary>
 public class CommandReplyService(
     ApplicationDbContext dbContext,
     ICpblGameSyncService cpblGameSyncService,
@@ -14,6 +18,9 @@ public class CommandReplyService(
     ICpblInsightService cpblInsightService,
     ILogger<CommandReplyService> logger) : ICommandReplyService
 {
+    /// <summary>
+    /// 解析單一指令並回傳可直接送出的 Telegram 回覆內容。
+    /// </summary>
     public async Task<string> BuildReplyAsync(string commandText, string? chatId = null, CancellationToken cancellationToken = default)
     {
         var normalizedCommand = NormalizeCommand(commandText);
@@ -24,6 +31,7 @@ public class CommandReplyService(
 
         logger.LogInformation("Building command reply for text: {CommandText}", normalizedCommand);
 
+        // 追蹤與通知設定要先處理，因為它們會直接改變 chat 目前的狀態。
         if (IsFollowCommand(normalizedCommand, out var teamInput))
         {
             return await BuildFollowReplyAsync(chatId, teamInput, cancellationToken);
@@ -104,6 +112,7 @@ public class CommandReplyService(
             return BuildHelpReply();
         }
 
+        // 無法辨識的輸入直接回 help，比直接失敗更適合群組互動情境。
         return BuildHelpReply();
     }
 
@@ -119,7 +128,7 @@ public class CommandReplyService(
 
         if (games.Count == 0)
         {
-            return $"{heading}\n{targetDate:yyyy/MM/dd}\n目前沒有賽程，或官方來源尚未提供資料。";
+            return $"{heading}\n{targetDate:yyyy/MM/dd}\n目前沒有賽程，或官方來源尚未提供資料";
         }
 
         var replyBuilder = new StringBuilder();
@@ -148,13 +157,13 @@ public class CommandReplyService(
         return replyBuilder.ToString().TrimEnd();
     }
 
-    // Currently not used
+    // 目前沒有直接用到，先保留這段能力
     private async Task<string> BuildTodayBestReplyAsync(CancellationToken cancellationToken)
     {
         var recommendation = await cpblInsightService.GetTodayBestGameAsync(cancellationToken);
         if (recommendation is null)
         {
-            return "今日最值得看\n今天目前沒有可推薦的比賽，或資料還在同步中。";
+            return "今日最值得看\n今天目前沒有可推薦的比賽，或資料還在同步中";
         }
 
         var replyBuilder = new StringBuilder();
@@ -188,7 +197,7 @@ public class CommandReplyService(
             teamCode = await GetFollowedTeamCodeAsync(chatId, cancellationToken) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(teamCode))
             {
-                return "下一場比賽\n請輸入 /next 兄弟，或先用 /follow 設定你追蹤的球隊。";
+                return "下一場比賽\n請輸入 /next 兄弟，或先用 /follow 設定你追蹤的球隊";
             }
         }
 
@@ -217,7 +226,7 @@ public class CommandReplyService(
         var nextGame = upcomingGames.FirstOrDefault(game => IsUpcomingGame(game, taipeiNow));
         if (nextGame is null)
         {
-            return $"{teamName} 下一場\n目前還找不到接下來的賽程資料。";
+            return $"{teamName} 下一場\n目前還找不到接下來的賽程資料";
         }
 
         var opponentCode = string.Equals(nextGame.HomeTeamCode, teamCode, StringComparison.OrdinalIgnoreCase)
@@ -237,12 +246,12 @@ public class CommandReplyService(
 
     private async Task<string> BuildResultReplyAsync(CancellationToken cancellationToken)
     {
-        return await BuildCompletedGamesReplyAsync(0, "今日賽果", "今天目前還沒有已完賽結果。", cancellationToken);
+        return await BuildCompletedGamesReplyAsync(0, "今日賽果", "今天目前還沒有已完賽結果", cancellationToken);
     }
 
     private async Task<string> BuildYesterdayReplyAsync(CancellationToken cancellationToken)
     {
-        return await BuildCompletedGamesReplyAsync(-1, "昨日賽果", "昨天沒有已完賽結果，或官方來源尚未提供資料。", cancellationToken);
+        return await BuildCompletedGamesReplyAsync(-1, "昨日賽果", "昨天沒有已完賽結果，或官方來源尚未提供資料", cancellationToken);
     }
 
     private async Task<string> BuildCompletedGamesReplyAsync(
@@ -298,7 +307,7 @@ public class CommandReplyService(
 
         if (standings.Count == 0)
         {
-            return "目前排名\n暫時抓不到官方排名資料，稍後再試一次。";
+            return "目前排名\n暫時抓不到官方排名資料，稍後再試一次";
         }
 
         var replyBuilder = new StringBuilder();
@@ -397,7 +406,7 @@ public class CommandReplyService(
 
         if (recentCompletedGames.Count == 0 && nextGame is null)
         {
-            return $"{teamName}\n官方即時資料暫時有點不穩，我這邊也還沒有足夠的已同步資料。";
+            return $"{teamName}\n官方即時資料暫時有點不穩，我這邊也還沒有足夠的已同步資料";
         }
 
         var wins = recentCompletedGames.Count(game => IsTeamWin(game, normalizedTeamCode));
@@ -405,7 +414,7 @@ public class CommandReplyService(
 
         var replyBuilder = new StringBuilder();
         replyBuilder.AppendLine($"{teamName}近況");
-        replyBuilder.AppendLine("官方排名暫時抓不到，先給你目前已同步的資料。");
+        replyBuilder.AppendLine("官方排名暫時抓不到，先給你目前已同步的資料");
 
         if (recentCompletedGames.Count > 0)
         {
@@ -439,7 +448,7 @@ public class CommandReplyService(
 
         if (games.Count == 0)
         {
-            return $"{teamName}\n{targetDate:yyyy/MM/dd} {dayLabel}目前沒有排到比賽。";
+            return $"{teamName}\n{targetDate:yyyy/MM/dd} {dayLabel}目前沒有排到比賽";
         }
 
         var replyBuilder = new StringBuilder();
@@ -482,7 +491,7 @@ public class CommandReplyService(
 
         if (latestNews.Count == 0)
         {
-            return "最新新聞\n目前沒有已同步的新聞資料。";
+            return "最新新聞\n目前沒有已同步的新聞資料";
         }
 
         var replyBuilder = new StringBuilder();
@@ -515,7 +524,7 @@ public class CommandReplyService(
 
         if (finalGames.Count == 0)
         {
-            return "今日 recap\n今天目前還沒有已完賽結果，稍晚再來看一次。";
+            return "今日 recap\n今天目前還沒有已完賽結果，稍晚再來看一次";
         }
 
         var followedTeamCode = await GetFollowedTeamCodeAsync(chatId, cancellationToken);
@@ -544,12 +553,12 @@ public class CommandReplyService(
     {
         if (string.IsNullOrWhiteSpace(chatId))
         {
-            return "追蹤球隊\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+            return "追蹤球隊\n這個功能需要直接在 Telegram 聊天視窗裡使用";
         }
 
         if (!CpblTeamCatalog.TryResolveTeamCode(teamInput, out var teamCode))
         {
-            return $"追蹤球隊\n找不到「{teamInput}」這支球隊。你可以試試：兄弟、統一、樂天、味全、富邦、台鋼。";
+            return $"追蹤球隊\n找不到「{teamInput}」這支球隊你可以試試：兄弟、統一、樂天、味全、富邦、台鋼";
         }
 
         var subscription = await dbContext.TelegramChatSubscriptions
@@ -557,7 +566,7 @@ public class CommandReplyService(
 
         if (subscription is null)
         {
-            return "追蹤球隊\n目前還找不到這個聊天紀錄，請先再傳一次訊息給 bot。";
+            return "追蹤球隊\n目前還找不到這個聊天紀錄，請先再傳一次訊息給 bot";
         }
 
         subscription.FollowedTeamCode = teamCode;
@@ -565,14 +574,14 @@ public class CommandReplyService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var teamName = CpblTeamCatalog.GetDisplayName(teamCode);
-        return $"已開始追蹤 {teamName}\n之後我會優先提醒這隊的開賽、終場，也會先整理相關新聞和 recap。\n你也可以用 /notify 看目前提醒設定。";
+        return $"已開始追蹤 {teamName}\n之後我會優先提醒這隊的開賽、終場，也會先整理相關新聞和 recap\n你也可以用 /notify 看目前提醒設定";
     }
 
     private async Task<string> BuildUnfollowReplyAsync(string? chatId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(chatId))
         {
-            return "取消追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+            return "取消追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用";
         }
 
         var subscription = await dbContext.TelegramChatSubscriptions
@@ -580,7 +589,7 @@ public class CommandReplyService(
 
         if (subscription is null || string.IsNullOrWhiteSpace(subscription.FollowedTeamCode))
         {
-            return "取消追蹤\n你目前還沒有設定追蹤球隊。";
+            return "取消追蹤\n你目前還沒有設定追蹤球隊";
         }
 
         var previousTeamName = CpblTeamCatalog.GetDisplayName(subscription.FollowedTeamCode);
@@ -588,23 +597,23 @@ public class CommandReplyService(
         subscription.LastUpdatedTime = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return $"已取消追蹤 {previousTeamName}\n之後我會回到中立模式，不再優先帶這支球隊的視角。";
+        return $"已取消追蹤 {previousTeamName}\n之後我會回到中立模式，不再優先帶這支球隊的視角";
     }
 
     private async Task<string> BuildMyFollowReplyAsync(string? chatId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(chatId))
         {
-            return "目前追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+            return "目前追蹤\n這個功能需要直接在 Telegram 聊天視窗裡使用";
         }
 
         var followedTeamCode = await GetFollowedTeamCodeAsync(chatId, cancellationToken);
         if (string.IsNullOrWhiteSpace(followedTeamCode))
         {
-            return "目前追蹤\n你目前還沒有設定追蹤球隊，可以輸入 /follow 兄弟 或 /follow 樂天。";
+            return "目前追蹤\n你目前還沒有設定追蹤球隊，可以輸入 /follow 兄弟 或 /follow 樂天";
         }
 
-        return $"目前追蹤\n現在追蹤的是 {CpblTeamCatalog.GetDisplayName(followedTeamCode)}。";
+        return $"目前追蹤\n現在追蹤的是 {CpblTeamCatalog.GetDisplayName(followedTeamCode)}";
     }
 
     private async Task<string> BuildNotifyReplyAsync(
@@ -615,7 +624,7 @@ public class CommandReplyService(
     {
         if (string.IsNullOrWhiteSpace(chatId))
         {
-            return "提醒設定\n這個功能需要直接在 Telegram 聊天視窗裡使用。";
+            return "提醒設定\n這個功能需要直接在 Telegram 聊天視窗裡使用";
         }
 
         var subscription = await dbContext.TelegramChatSubscriptions
@@ -623,7 +632,7 @@ public class CommandReplyService(
 
         if (subscription is null)
         {
-            return "提醒設定\n目前還找不到這個聊天紀錄，請先再傳一次訊息給 bot。";
+            return "提醒設定\n目前還找不到這個聊天紀錄，請先再傳一次訊息給 bot";
         }
 
         if (!notifyEnabled.HasValue)
@@ -656,7 +665,7 @@ public class CommandReplyService(
             _ => "提醒"
         };
         var statusText = notifyEnabled.Value ? "已開啟" : "已關閉";
-        return $"提醒設定\n{scopeText}{statusText}。\n\n{BuildNotifyStatusBody(subscription)}";
+        return $"提醒設定\n{scopeText}{statusText}\n\n{BuildNotifyStatusBody(subscription)}";
     }
 
     private async Task<string?> GetFollowedTeamCodeAsync(string? chatId, CancellationToken cancellationToken)
@@ -952,16 +961,16 @@ public class CommandReplyService(
     {
         if (summary.RecentGamesCount == 0)
         {
-            return "資料還不夠完整，先觀察下一場。";
+            return "資料還不夠完整，先觀察下一場";
         }
 
         var runDiff = summary.RecentRunsScoredAverage - summary.RecentRunsAllowedAverage;
         return (summary.RecentWins, runDiff) switch
         {
-            (>= 4, >= 1.0m) => "近況偏熱，最近攻守都比較順。",
-            (>= 3, >= 0.0m) => "狀態穩定，這段時間沒有明顯失速。",
-            (<= 1, <= -1.0m) => "近況偏冷，得失分內容都還需要回穩。",
-            _ => "起伏比較大，最近還在找節奏。"
+            (>= 4, >= 1.0m) => "近況偏熱，最近攻守都比較順",
+            (>= 3, >= 0.0m) => "狀態穩定，這段時間沒有明顯失速",
+            (<= 1, <= -1.0m) => "近況偏冷，得失分內容都還需要回穩",
+            _ => "起伏比較大，最近還在找節奏"
         };
     }
 
@@ -976,7 +985,7 @@ public class CommandReplyService(
                 ? "比分差拉得比較開"
                 : "中段局數分出高下";
 
-        return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{story}。";
+        return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{story}";
     }
 
     private static string BuildTrackedTeamRecapLine(GameInfo game, string trackedTeamCode)
@@ -984,7 +993,7 @@ public class CommandReplyService(
         var trackedTeamName = CpblTeamCatalog.GetDisplayName(trackedTeamCode);
         var didWin = IsTeamWin(game, trackedTeamCode);
         var tone = didWin ? "收下一勝" : "這場沒能拿下";
-        return $"{BuildCompactScoreLine(game)}，{trackedTeamName}{tone}。";
+        return $"{BuildCompactScoreLine(game)}，{trackedTeamName}{tone}";
     }
 
     private static bool IsTrackedTeamGame(GameInfo game, string teamCode)
@@ -1002,32 +1011,7 @@ public class CommandReplyService(
 
     private static string BuildLocalizedStatus(GameInfo game)
     {
-        var taipeiNow = GetTaipeiNow();
-        var taipeiToday = DateOnly.FromDateTime(taipeiNow);
-        var taipeiCurrentTime = TimeOnly.FromDateTime(taipeiNow);
-
-        if (game.GameDate > taipeiToday)
-        {
-            return "尚未開打";
-        }
-
-        if (game.GameDate == taipeiToday &&
-            string.Equals(game.Status, "Live", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(game.InningText) &&
-            game.StartTime.HasValue &&
-            game.StartTime.Value > taipeiCurrentTime.AddMinutes(5))
-        {
-            return "尚未開打";
-        }
-
-        return game.Status switch
-        {
-            "Live" when !string.IsNullOrWhiteSpace(game.InningText) => $"進行中，{game.InningText}",
-            "Live" => "進行中",
-            "Final" => "終場",
-            "Suspended" => "暫停或延賽",
-            _ => "尚未開打"
-        };
+        return CpblGameStatusHelper.BuildLocalizedStatus(game, DateTimeOffset.UtcNow);
     }
 
     private static bool IsTeamWin(GameInfo game, string teamCode)
@@ -1073,7 +1057,7 @@ public class CommandReplyService(
 
     private static string BuildUnknownTeamReply(string heading, string rawValue)
     {
-        return $"{heading}\n找不到「{rawValue}」這支球隊。你可以試試：兄弟、統一、樂天、味全、富邦、台鋼。";
+        return $"{heading}\n找不到「{rawValue}」這支球隊你可以試試：兄弟、統一、樂天、味全、富邦、台鋼";
     }
 
     private static bool IsUpcomingGame(GameInfo game, DateTime taipeiNow)
@@ -1165,7 +1149,7 @@ public class CommandReplyService(
     {
         var cleanedValue = rawValue
             .Replace('，', ' ')
-            .Replace('。', ' ')
+            .Replace('　', ' ')
             .Replace('、', ' ')
             .Replace('：', ' ')
             .Replace(':', ' ')

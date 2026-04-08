@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CPBLLineBotCloud.Services;
 
+/// <summary>
+/// 整理同步後的賽程資料與官方即時查詢，產出較實用的摘要與推薦內容。
+/// </summary>
 public class CpblInsightService(
     ApplicationDbContext dbContext,
     ICpblOfficialDataClient officialDataClient,
@@ -40,6 +43,7 @@ public class CpblInsightService(
         var normalizedTeamCode = teamCode.ToUpperInvariant();
         var today = GetTaipeiToday();
 
+        // 這裡多抓幾天，近期戰績、上一場、下一場都能共用同一批本機資料。
         for (var offset = -8; offset <= 2; offset++)
         {
             try
@@ -125,6 +129,7 @@ public class CpblInsightService(
     {
         var today = GetTaipeiToday();
 
+        // 每日摘要理論上只看今天附近，但前後都補抓一下，比較能吃到延後更新。
         for (var offset = -1; offset <= 1; offset++)
         {
             try
@@ -185,7 +190,7 @@ public class CpblInsightService(
 
         if (items.Count == 0)
         {
-            items.Add("今天暫時沒有可整理的賽事或新聞資料，稍晚再試一次。");
+            items.Add("今天暫時沒有可整理的賽事或新聞資料，稍晚再試一次");
         }
 
         return new CpblDailyFocus
@@ -199,6 +204,7 @@ public class CpblInsightService(
     {
         var today = GetTaipeiToday();
 
+        // 今日推薦會參考近況，所以先把前幾天的資料補齊再算。
         for (var offset = -5; offset <= 0; offset++)
         {
             try
@@ -261,8 +267,8 @@ public class CpblInsightService(
                 };
 
                 standingsReason = rankGap <= 1
-                    ? "兩隊目前排名咬得很近，這場對戰的體感張力比較高。"
-                    : "這場會影響近期排名節奏，還是有觀察價值。";
+                    ? "兩隊目前排名咬得很近，這場對戰的體感張力比較高"
+                    : "這場會影響近期排名節奏，還是有觀察價值";
             }
 
             var rivalryKey = $"{game.AwayTeamCode}__{game.HomeTeamCode}";
@@ -271,12 +277,12 @@ public class CpblInsightService(
 
             var reasons = new List<string>();
             reasons.Add(combinedFormScore >= 17m
-                ? "兩隊最近都不是冷手，近期戰績有支撐。"
-                : "至少有一隊近期狀態不錯，值得觀察。");
+                ? "兩隊最近都不是冷手，近期戰績有支撐"
+                : "至少有一隊近期狀態不錯，值得觀察");
 
             reasons.Add(competitionScore >= 14m
-                ? "近況接近，這場比較像有機會一路咬到後段。"
-                : "兩隊近況差距稍大，但比賽內容仍有話題。");
+                ? "近況接近，這場比較像有機會一路咬到後段"
+                : "兩隊近況差距稍大，但比賽內容仍有話題");
 
             if (!string.IsNullOrWhiteSpace(standingsReason))
             {
@@ -285,7 +291,7 @@ public class CpblInsightService(
 
             if (rivalryBonus > 0)
             {
-                reasons.Add("這組對戰本來就比較有話題性，拿來追很合理。");
+                reasons.Add("這組對戰本來就比較有話題性，拿來追很合理");
             }
 
             scoredGames.Add((game, score, reasons.Take(3).ToList()));
@@ -409,7 +415,7 @@ public class CpblInsightService(
         var confidence = runGap >= 1.8m ? "偏高" : runGap >= 1.0m ? "中等" : "接近五五波";
         var insight =
             $"{CpblTeamCatalog.GetDisplayName(awayTeamCode)}近 {awayGames.Count} 戰場均得 {awayOffense:F1}、失 {awayDefense:F1}；" +
-            $"{CpblTeamCatalog.GetDisplayName(homeTeamCode)}近 {homeGames.Count} 戰場均得 {homeOffense:F1}、失 {homeDefense:F1}。";
+            $"{CpblTeamCatalog.GetDisplayName(homeTeamCode)}近 {homeGames.Count} 戰場均得 {homeOffense:F1}、失 {homeDefense:F1}";
 
         return new CpblScorePrediction
         {
@@ -465,7 +471,7 @@ public class CpblInsightService(
     {
         if (games.Count == 0)
         {
-            return "近期走勢暫時沒有樣本。";
+            return "近期走勢暫時沒有樣本";
         }
 
         var trendMarks = games
@@ -485,11 +491,11 @@ public class CpblInsightService(
 
         if (game.AwayScore.HasValue && game.HomeScore.HasValue)
         {
-            return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{status}，地點 {venue}。";
+            return $"{awayName} {game.AwayScore}:{game.HomeScore} {homeName}，{status}，地點 {venue}";
         }
 
         var startTime = game.StartTime?.ToString("HH:mm") ?? "--:--";
-        return $"{awayName} 對 {homeName}，{startTime} 開打，{status}，地點 {venue}。";
+        return $"{awayName} 對 {homeName}，{startTime} 開打，{status}，地點 {venue}";
     }
 
     private static string BuildUpcomingGameLine(GameInfo game)
@@ -500,7 +506,7 @@ public class CpblInsightService(
             ? $"{game.GameDate:MM/dd} {game.StartTime:HH:mm}"
             : $"{game.GameDate:MM/dd} 待公告";
 
-        return $"{awayName} vs {homeName}，{startDateTime}，{game.Venue ?? "場地待公告"}。";
+        return $"{awayName} vs {homeName}，{startDateTime}，{game.Venue ?? "場地待公告"}";
     }
 
     private static int GetRunsScored(GameInfo game, string teamCode)
@@ -520,32 +526,7 @@ public class CpblInsightService(
 
     private static string BuildLocalizedStatus(GameInfo game)
     {
-        var taipeiNow = GetTaipeiNow();
-        var taipeiToday = DateOnly.FromDateTime(taipeiNow);
-        var taipeiCurrentTime = TimeOnly.FromDateTime(taipeiNow);
-
-        if (game.GameDate > taipeiToday)
-        {
-            return "尚未開打";
-        }
-
-        if (game.GameDate == taipeiToday &&
-            string.Equals(game.Status, "Live", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(game.InningText) &&
-            game.StartTime.HasValue &&
-            game.StartTime.Value > taipeiCurrentTime.AddMinutes(5))
-        {
-            return "尚未開打";
-        }
-
-        return game.Status switch
-        {
-            "Live" when !string.IsNullOrWhiteSpace(game.InningText) => $"進行中，{game.InningText}",
-            "Live" => "進行中",
-            "Final" => "終場",
-            "Suspended" => "暫停或延賽",
-            _ => "尚未開打"
-        };
+        return CpblGameStatusHelper.BuildLocalizedStatus(game, DateTimeOffset.UtcNow);
     }
 
     private static DateOnly GetTaipeiToday()
