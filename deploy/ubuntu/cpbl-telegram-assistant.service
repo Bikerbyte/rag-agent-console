@@ -1,0 +1,21 @@
+[Unit]
+Description=CPBL Telegram Assistant
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cpbl-telegram-assistant/app
+ExecStart=/usr/bin/dotnet /opt/cpbl-telegram-assistant/app/CPBLLineBotCloud.dll
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+SyslogIdentifier=cpbl-telegram-assistant
+User=www-data
+Group=www-data
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=DOTNET_EnableDiagnostics=0
+EnvironmentFile=/etc/cpbl-telegram-assistant/cpbl-telegram-assistant.env
+
+[Install]
+WantedBy=multi-user.target

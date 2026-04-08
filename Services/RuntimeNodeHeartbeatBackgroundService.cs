@@ -42,7 +42,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
                         InstanceName = instanceName,
                         MachineName = Environment.MachineName,
                         EnvironmentName = hostEnvironment.EnvironmentName,
-                        RoleSummary = BuildRoleSummary(runtimeOptions.Value),
+                        RoleSummary = runtimeOptions.Value.BuildRoleSummary(),
                         Status = "Online",
                         ProcessId = Environment.ProcessId,
                         ProcessStartedTime = processStartedTime,
@@ -56,7 +56,7 @@ public class RuntimeNodeHeartbeatBackgroundService(
                 {
                     heartbeat.MachineName = Environment.MachineName;
                     heartbeat.EnvironmentName = hostEnvironment.EnvironmentName;
-                    heartbeat.RoleSummary = BuildRoleSummary(runtimeOptions.Value);
+                    heartbeat.RoleSummary = runtimeOptions.Value.BuildRoleSummary();
                     heartbeat.Status = "Online";
                     heartbeat.ProcessId = Environment.ProcessId;
                     heartbeat.ProcessStartedTime = processStartedTime;
@@ -79,35 +79,4 @@ public class RuntimeNodeHeartbeatBackgroundService(
         }
     }
 
-    private static string BuildRoleSummary(AppRuntimeOptions options)
-    {
-        var roles = new List<string>();
-
-        if (options.EnableTelegramWebhookIngress)
-        {
-            roles.Add("Webhook");
-        }
-
-        if (options.EnableTelegramPollingWorker)
-        {
-            roles.Add("Polling");
-        }
-
-        if (options.EnableTelegramUpdateQueueWorker)
-        {
-            roles.Add("QueueWorker");
-        }
-
-        if (options.EnableOfficialDataSyncWorker)
-        {
-            roles.Add("OfficialSync");
-        }
-
-        if (options.EnableNotificationWorker)
-        {
-            roles.Add("Notification");
-        }
-
-        return roles.Count == 0 ? "NoActiveRole" : string.Join(" | ", roles);
-    }
 }

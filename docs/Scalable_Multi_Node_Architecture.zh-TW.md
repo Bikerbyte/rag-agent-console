@@ -3,7 +3,7 @@
 這份說明刻意對齊目前 repo 已經落地的版本，不用固定 master node，而是：
 
 - same codebase
-- multi-node deployment by runtime roles
+- multi-node deployment by runtime profiles
 - scheduled jobs use lease-based single-active execution
 
 ---
@@ -12,14 +12,25 @@
 
 ### 1. 同一份程式可部署到多台 VM
 
-每台節點都跑同一份 ASP.NET Core 應用程式，再透過 `AppRuntime` 設定決定：
+每台節點都跑同一份 ASP.NET Core 應用程式，再透過 `AppRuntime` 設定決定要套哪個 profile。
+
+目前建議優先用：
+
+- `Standard`
+- `WorkerOnly`
+- `IngressOnly`
+- `PollingNode`
+
+只有真的要偏離預設時，才再另外覆寫細部 role 開關。
+
+套用 profile 後，系統才會決定：
 
 - 是否啟用 `Webhook ingress`
 - 是否啟用 `Telegram update queue worker`
 - 是否具備 `OfficialDataSync worker` 執行資格
 - 是否具備 `TelegramNotification worker` 執行資格
 
-這是 **role-based deployment**，不是固定 master / worker 拓樸。
+這是 **profile-first deployment**，底層仍然保留 role-based override，但不是固定 master / worker 拓樸。
 
 ### 2. Telegram request 與實際處理拆開
 
@@ -70,65 +81,74 @@
 flowchart LR
     user["1. Telegram Users / Groups"]
     tg["2. Telegram Bot Platform"]
-    edge["3. Public Entry / Nginx / LB"]
+    edge["3. Public Entry<br/>Nginx / Load Balancer"]
 
-    subgraph ingress["4. Ingress Nodes"]
+    subgraph nodes["4. App Nodes（可從 1 台擴到 N 台 VM）"]
         direction LR
-        vmA["Node A<br/>Webhook ingress"]
-        vmB["Node B<br/>Webhook ingress"]
-        vmN["Node N<br/>Webhook ingress"]
+
+        subgraph nodeA["Node A"]
+            direction TB
+            a1["Webhook Ingress"]
+            a2["Queue Worker"]
+            a3["Scheduled Jobs<br/>eligible"]
+        end
+
+        subgraph nodeB["Node B"]
+            direction TB
+            b1["Webhook Ingress"]
+            b2["Queue Worker"]
+            b3["Scheduled Jobs<br/>eligible"]
+        end
+
+        subgraph nodeN["Node N"]
+            direction TB
+            n1["Webhook Ingress"]
+            n2["Queue Worker"]
+            n3["Scheduled Jobs<br/>eligible"]
+        end
     end
 
-    subgraph shared["5. Shared PostgreSQL"]
+    subgraph db["5. Shared PostgreSQL"]
         direction TB
-        inbox["TelegramUpdateInbox<br/>DB-backed queue"]
+        inbox["TelegramUpdateInbox<br/>DB-backed Queue"]
         heartbeat["RuntimeNodeHeartbeats"]
-        lease["RuntimeLeadershipLeases"]
+        leases["RuntimeLeadershipLeases"]
         business["Games / News / Subscriptions / Logs"]
-    end
-
-    subgraph workers["6. Queue Workers"]
-        direction LR
-        qwA["Queue Worker A"]
-        qwB["Queue Worker B"]
-        qwN["Queue Worker N"]
-    end
-
-    subgraph scheduled["7. Scheduled Workers<br/>single-active by lease"]
-        direction TB
-        sync["OfficialDataSyncBackgroundService"]
-        notify["TelegramNotificationBackgroundService"]
     end
 
     user --> tg
     tg --> edge
-    edge --> vmA
-    edge --> vmB
-    edge --> vmN
+    edge --> a1
+    edge --> b1
+    edge --> n1
 
-    vmA --> inbox
-    vmB --> inbox
-    vmN --> inbox
+    a1 --> inbox
+    b1 --> inbox
+    n1 --> inbox
 
-    inbox --> qwA
-    inbox --> qwB
-    inbox --> qwN
+    inbox --> a2
+    inbox --> b2
+    inbox --> n2
 
-    qwA --> business
-    qwB --> business
-    qwN --> business
-    qwA --> tg
-    qwB --> tg
-    qwN --> tg
+    a2 --> business
+    b2 --> business
+    n2 --> business
 
-    sync --> business
-    notify --> business
-    sync -. acquire / renew .-> lease
-    notify -. acquire / renew .-> lease
+    a2 --> tg
+    b2 --> tg
+    n2 --> tg
 
-    vmA -. heartbeat .-> heartbeat
-    vmB -. heartbeat .-> heartbeat
-    vmN -. heartbeat .-> heartbeat
+    a3 -. acquire / renew lease .-> leases
+    b3 -. acquire / renew lease .-> leases
+    n3 -. acquire / renew lease .-> leases
+
+    a3 --> business
+    b3 --> business
+    n3 --> business
+
+    nodeA -. heartbeat .-> heartbeat
+    nodeB -. heartbeat .-> heartbeat
+    nodeN -. heartbeat .-> heartbeat
 ```
 
 ---
@@ -145,7 +165,7 @@ flowchart LR
 
 ### B. Scheduled jobs 路徑
 
-1. 具備 worker 資格的節點嘗試 acquire 或 renew leadership lease  
+1. 具備 scheduled job 資格的節點嘗試 acquire 或 renew leadership lease  
 2. 只有拿到 lease 的節點才會真正跑 sync / notification  
 3. 其他節點保持待命並定期 retry  
 4. 若 leader 掛掉，租約到期後由其他節點 takeover
@@ -156,6 +176,7 @@ flowchart LR
 
 ### 單台模式
 
+- `AppRuntime__Profile=Standard`
 - webhook ingress：開
 - update queue worker：開
 - official sync worker：開
@@ -164,7 +185,11 @@ flowchart LR
 
 ### 多台模式
 
-所有節點都可以開：
+大多數節點都可以直接用：
+
+- `AppRuntime__Profile=Standard`
+
+這個 profile 預設會開：
 
 - webhook ingress
 - update queue worker
@@ -176,6 +201,21 @@ flowchart LR
 
 最後由資料庫 lease 決定誰當前真正執行 scheduled jobs，而不是手動指定固定 primary。
 
+### 特殊節點模式
+
+如果之後要做更明確的拆分，也可以用：
+
+- `WorkerOnly`
+  - 不接 webhook
+  - 只負責 queue worker 與 scheduled jobs
+- `IngressOnly`
+  - 只接 webhook
+  - 不處理 queue 與 scheduled jobs
+- `PollingNode`
+  - 走 polling 鏈路時使用
+- `Custom`
+  - 完全手動指定細部 role
+
 ---
 
 ## 面試時可怎麼描述
@@ -184,5 +224,6 @@ flowchart LR
 
 > 這個專案維持單一 codebase，但支援多節點部署。  
 > Telegram webhook 與 update processing 之間用 DB-backed queue 拆開，讓 ingress 與 queue worker 可以水平擴展。  
+> 節點平常以 runtime profile 決定部署角色，必要時才再用細部 role 開關做 override。  
 > 排程型工作則不是靠固定 master node，而是用 PostgreSQL leadership lease 做 single-active execution。  
 > 所以系統既能擴展 request / queue throughput，也能避免 sync 與通知工作在多節點下重複執行。

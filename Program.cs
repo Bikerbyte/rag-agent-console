@@ -7,8 +7,10 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 var applicationStartedAt = DateTimeOffset.UtcNow;
-var appRuntimeOptions = builder.Configuration.GetSection(AppRuntimeOptions.SectionName).Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
+var appRuntimeSection = builder.Configuration.GetSection(AppRuntimeOptions.SectionName);
+var appRuntimeOptions = appRuntimeSection.Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
+appRuntimeOptions.ApplyRuntimeProfile(appRuntimeSection);
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
@@ -24,9 +26,10 @@ builder.Services.AddDataProtection()
 builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
 builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
-builder.Services.Configure<AppRuntimeOptions>(builder.Configuration.GetSection(AppRuntimeOptions.SectionName));
+builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
 builder.Services.PostConfigure<AppRuntimeOptions>(options =>
 {
+    options.ApplyRuntimeProfile(appRuntimeSection);
     options.InstanceName = options.GetEffectiveInstanceName();
 });
 builder.Services.AddMemoryCache();
@@ -199,6 +202,7 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     StartedAt = applicationStartedAt,
     Runtime = new
     {
+        runtimeOptions.Value.Profile,
         runtimeOptions.Value.EnableLeadershipLease,
         runtimeOptions.Value.LeaseDurationSeconds,
         runtimeOptions.Value.LeaseRenewIntervalSeconds,
@@ -211,6 +215,33 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     },
     Urls = app.Urls
 }));
+
+app.MapGet("/api/runtime/leases", async (ApplicationDbContext dbContext, CancellationToken cancellationToken) =>
+{
+    var now = DateTimeOffset.UtcNow;
+    var leases = await dbContext.RuntimeLeadershipLeases
+        .OrderBy(item => item.LeaseName)
+        .Select(item => new
+        {
+            item.LeaseName,
+            item.OwnerInstanceName,
+            item.AcquiredAt,
+            item.RenewedAt,
+            item.ExpiresAt,
+            IsActive = item.ExpiresAt > now,
+            ExpiresInSeconds = item.ExpiresAt <= now
+                ? 0
+                : Math.Max(0, (int)Math.Round((item.ExpiresAt - now).TotalSeconds))
+        })
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(new
+    {
+        ServerTime = now,
+        Count = leases.Count,
+        Leases = leases
+    });
+});
 
 // 啟動時輸出一段 banner，方便看本機 console 或 App Service log。
 app.Lifetime.ApplicationStarted.Register(() =>
@@ -232,16 +263,13 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s), WebhookIngress: {EnableTelegramWebhookIngress}, Polling: {EnableTelegramPollingWorker}, UpdateQueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        "Runtime => Profile: {Profile}, Roles: {RoleSummary}, LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s)",
+        appRuntimeOptions.Profile,
+        appRuntimeOptions.BuildRoleSummary(),
         appRuntimeOptions.EnableLeadershipLease,
         appRuntimeOptions.LeaseDurationSeconds,
         appRuntimeOptions.LeaseRenewIntervalSeconds,
-        appRuntimeOptions.LeaseAcquireRetrySeconds,
-        appRuntimeOptions.EnableTelegramWebhookIngress,
-        appRuntimeOptions.EnableTelegramPollingWorker,
-        appRuntimeOptions.EnableTelegramUpdateQueueWorker,
-        appRuntimeOptions.EnableOfficialDataSyncWorker,
-        appRuntimeOptions.EnableNotificationWorker);
+        appRuntimeOptions.LeaseAcquireRetrySeconds);
     app.Logger.LogInformation(
         "Telegram => UseWebhookMode: {UseWebhookMode}, WebhookPath: {WebhookPath}",
         telegramBotOptions.UseWebhookMode,
