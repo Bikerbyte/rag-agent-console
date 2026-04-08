@@ -12,6 +12,24 @@ public static class AppRuntimeOptionsExtensions
         "docker-node"
     ];
 
+    public static void ApplyRuntimeProfile(this AppRuntimeOptions options, IConfiguration configuration)
+    {
+        options.Profile = AppRuntimeProfiles.Normalize(options.Profile);
+
+        if (string.Equals(options.Profile, AppRuntimeProfiles.Custom, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var profileDefaults = CreateProfileDefaults(options.Profile);
+
+        ApplyBoolOverrideIfMissing(configuration, nameof(AppRuntimeOptions.EnableTelegramWebhookIngress), profileDefaults.EnableTelegramWebhookIngress, value => options.EnableTelegramWebhookIngress = value);
+        ApplyBoolOverrideIfMissing(configuration, nameof(AppRuntimeOptions.EnableTelegramPollingWorker), profileDefaults.EnableTelegramPollingWorker, value => options.EnableTelegramPollingWorker = value);
+        ApplyBoolOverrideIfMissing(configuration, nameof(AppRuntimeOptions.EnableTelegramUpdateQueueWorker), profileDefaults.EnableTelegramUpdateQueueWorker, value => options.EnableTelegramUpdateQueueWorker = value);
+        ApplyBoolOverrideIfMissing(configuration, nameof(AppRuntimeOptions.EnableOfficialDataSyncWorker), profileDefaults.EnableOfficialDataSyncWorker, value => options.EnableOfficialDataSyncWorker = value);
+        ApplyBoolOverrideIfMissing(configuration, nameof(AppRuntimeOptions.EnableNotificationWorker), profileDefaults.EnableNotificationWorker, value => options.EnableNotificationWorker = value);
+    }
+
     public static string GetEffectiveInstanceName(this AppRuntimeOptions options)
     {
         var configuredInstanceName = options.InstanceName?.Trim();
@@ -42,5 +60,96 @@ public static class AppRuntimeOptionsExtensions
     public static TimeSpan GetLeadershipLeaseAcquireRetryInterval(this AppRuntimeOptions options)
     {
         return TimeSpan.FromSeconds(Math.Max(3, options.LeaseAcquireRetrySeconds));
+    }
+
+    public static string BuildRoleSummary(this AppRuntimeOptions options)
+    {
+        var roles = options.GetEnabledRoles();
+        return roles.Count == 0 ? "NoActiveRole" : string.Join(" | ", roles);
+    }
+
+    public static IReadOnlyList<string> GetEnabledRoles(this AppRuntimeOptions options)
+    {
+        var roles = new List<string>();
+
+        if (options.EnableTelegramWebhookIngress)
+        {
+            roles.Add("Webhook");
+        }
+
+        if (options.EnableTelegramPollingWorker)
+        {
+            roles.Add("Polling");
+        }
+
+        if (options.EnableTelegramUpdateQueueWorker)
+        {
+            roles.Add("QueueWorker");
+        }
+
+        if (options.EnableOfficialDataSyncWorker)
+        {
+            roles.Add("OfficialSync");
+        }
+
+        if (options.EnableNotificationWorker)
+        {
+            roles.Add("Notification");
+        }
+
+        return roles;
+    }
+
+    private static AppRuntimeOptions CreateProfileDefaults(string profile)
+    {
+        return profile switch
+        {
+            AppRuntimeProfiles.WorkerOnly => new AppRuntimeOptions
+            {
+                EnableTelegramWebhookIngress = false,
+                EnableTelegramPollingWorker = false,
+                EnableTelegramUpdateQueueWorker = true,
+                EnableOfficialDataSyncWorker = true,
+                EnableNotificationWorker = true
+            },
+            AppRuntimeProfiles.IngressOnly => new AppRuntimeOptions
+            {
+                EnableTelegramWebhookIngress = true,
+                EnableTelegramPollingWorker = false,
+                EnableTelegramUpdateQueueWorker = false,
+                EnableOfficialDataSyncWorker = false,
+                EnableNotificationWorker = false
+            },
+            AppRuntimeProfiles.PollingNode => new AppRuntimeOptions
+            {
+                EnableTelegramWebhookIngress = false,
+                EnableTelegramPollingWorker = true,
+                EnableTelegramUpdateQueueWorker = true,
+                EnableOfficialDataSyncWorker = true,
+                EnableNotificationWorker = true
+            },
+            _ => new AppRuntimeOptions
+            {
+                EnableTelegramWebhookIngress = true,
+                EnableTelegramPollingWorker = false,
+                EnableTelegramUpdateQueueWorker = true,
+                EnableOfficialDataSyncWorker = true,
+                EnableNotificationWorker = true
+            }
+        };
+    }
+
+    private static void ApplyBoolOverrideIfMissing(
+        IConfiguration configuration,
+        string key,
+        bool profileValue,
+        Action<bool> assign)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration[key]))
+        {
+            return;
+        }
+
+        assign(profileValue);
     }
 }

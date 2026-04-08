@@ -5,7 +5,7 @@
 - 同一份程式可部署到單機或多台 Ubuntu VM
 - 使用 `systemd` 管服務
 - 使用 `Nginx` 做 reverse proxy
-- 用 `.env` 決定每台節點的 runtime role
+- 用 `.env` 決定每台節點的 runtime profile
 - 讓 webhook、queue worker、leadership lease 都能在 VM 上直接驗證
 
 ---
@@ -105,11 +105,9 @@ sudo cp deploy/ubuntu/cpbl-telegram-assistant.scale-node.env.example /etc/cpbl-t
 
 - 所有節點都要指向同一個 PostgreSQL
 - 所有節點都要設定不同的 `AppRuntime__InstanceName`
-- 所有節點都可以開：
-  - `AppRuntime__EnableTelegramWebhookIngress=true`
-  - `AppRuntime__EnableTelegramUpdateQueueWorker=true`
-  - `AppRuntime__EnableOfficialDataSyncWorker=true`
-  - `AppRuntime__EnableNotificationWorker=true`
+- 大多數節點都可以直接設：
+  - `AppRuntime__Profile=Standard`
+- 只有真的要做特殊拆分時，才再額外覆寫細部 role 開關
 - 由 lease 決定哪台節點當前執行 scheduled jobs
 
 這樣即使不是固定 primary，也能自動接手。
@@ -235,6 +233,20 @@ sudo systemctl stop cpbl-telegram-assistant
 ```bash
 sudo cat /etc/cpbl-telegram-assistant/cpbl-telegram-assistant.env
 ```
+
+### 常用 profile
+
+- `Standard`
+  - 推薦給單機與多節點標準部署
+  - 會開 `Webhook ingress + Update queue worker + scheduled jobs eligible`
+- `WorkerOnly`
+  - 不接 webhook，只吃 queue 與排程工作
+- `IngressOnly`
+  - 只接 webhook，不執行 queue 與排程
+- `PollingNode`
+  - 用在 polling 模式
+- `Custom`
+  - 完全手動控制細部 role
 
 ### 快速驗證部署是否正常
 

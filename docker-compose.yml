@@ -19,16 +19,17 @@ services:
       TelegramBot__WebhookPath: ${TELEGRAM_BOT_WEBHOOK_PATH:-/api/telegram/webhook}
       TelegramBot__WebhookUrl: ${TELEGRAM_BOT_WEBHOOK_URL:-}
       TelegramBot__WebhookSecretToken: ${TELEGRAM_BOT_WEBHOOK_SECRET_TOKEN:-}
+      AppRuntime__Profile: ${APP_RUNTIME_PROFILE:-Standard}
       AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-auto}
       AppRuntime__EnableLeadershipLease: ${APP_RUNTIME_ENABLE_LEADERSHIP_LEASE:-true}
       AppRuntime__LeaseDurationSeconds: ${APP_RUNTIME_LEASE_DURATION_SECONDS:-45}
       AppRuntime__LeaseRenewIntervalSeconds: ${APP_RUNTIME_LEASE_RENEW_INTERVAL_SECONDS:-15}
       AppRuntime__LeaseAcquireRetrySeconds: ${APP_RUNTIME_LEASE_ACQUIRE_RETRY_SECONDS:-10}
-      AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-true}
-      AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-true}
-      AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-true}
-      AppRuntime__EnableOfficialDataSyncWorker: ${APP_RUNTIME_ENABLE_OFFICIAL_DATA_SYNC_WORKER:-true}
-      AppRuntime__EnableNotificationWorker: ${APP_RUNTIME_ENABLE_NOTIFICATION_WORKER:-true}
+      AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-}
+      AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-}
+      AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-}
+      AppRuntime__EnableOfficialDataSyncWorker: ${APP_RUNTIME_ENABLE_OFFICIAL_DATA_SYNC_WORKER:-}
+      AppRuntime__EnableNotificationWorker: ${APP_RUNTIME_ENABLE_NOTIFICATION_WORKER:-}
       PushNotifications__EnableGameStartPush: ${ENABLE_GAME_START_PUSH:-true}
       PushNotifications__EnableLiveScorePush: ${ENABLE_LIVE_SCORE_PUSH:-true}
       PushNotifications__GameStartLeadMinutes: ${GAME_START_LEAD_MINUTES:-30}

@@ -7,8 +7,10 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 var applicationStartedAt = DateTimeOffset.UtcNow;
-var appRuntimeOptions = builder.Configuration.GetSection(AppRuntimeOptions.SectionName).Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
+var appRuntimeSection = builder.Configuration.GetSection(AppRuntimeOptions.SectionName);
+var appRuntimeOptions = appRuntimeSection.Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
+appRuntimeOptions.ApplyRuntimeProfile(appRuntimeSection);
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
@@ -24,9 +26,10 @@ builder.Services.AddDataProtection()
 builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
 builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
-builder.Services.Configure<AppRuntimeOptions>(builder.Configuration.GetSection(AppRuntimeOptions.SectionName));
+builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
 builder.Services.PostConfigure<AppRuntimeOptions>(options =>
 {
+    options.ApplyRuntimeProfile(appRuntimeSection);
     options.InstanceName = options.GetEffectiveInstanceName();
 });
 builder.Services.AddMemoryCache();
@@ -199,6 +202,7 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     StartedAt = applicationStartedAt,
     Runtime = new
     {
+        runtimeOptions.Value.Profile,
         runtimeOptions.Value.EnableLeadershipLease,
         runtimeOptions.Value.LeaseDurationSeconds,
         runtimeOptions.Value.LeaseRenewIntervalSeconds,
@@ -259,16 +263,13 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s), WebhookIngress: {EnableTelegramWebhookIngress}, Polling: {EnableTelegramPollingWorker}, UpdateQueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        "Runtime => Profile: {Profile}, Roles: {RoleSummary}, LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s)",
+        appRuntimeOptions.Profile,
+        appRuntimeOptions.BuildRoleSummary(),
         appRuntimeOptions.EnableLeadershipLease,
         appRuntimeOptions.LeaseDurationSeconds,
         appRuntimeOptions.LeaseRenewIntervalSeconds,
-        appRuntimeOptions.LeaseAcquireRetrySeconds,
-        appRuntimeOptions.EnableTelegramWebhookIngress,
-        appRuntimeOptions.EnableTelegramPollingWorker,
-        appRuntimeOptions.EnableTelegramUpdateQueueWorker,
-        appRuntimeOptions.EnableOfficialDataSyncWorker,
-        appRuntimeOptions.EnableNotificationWorker);
+        appRuntimeOptions.LeaseAcquireRetrySeconds);
     app.Logger.LogInformation(
         "Telegram => UseWebhookMode: {UseWebhookMode}, WebhookPath: {WebhookPath}",
         telegramBotOptions.UseWebhookMode,

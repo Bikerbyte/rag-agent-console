@@ -7,6 +7,7 @@ public class AppRuntimeOptions
 {
     public const string SectionName = "AppRuntime";
 
+    public string Profile { get; set; } = AppRuntimeProfiles.Standard;
     public string InstanceName { get; set; } = "local-node";
     public bool EnableLeadershipLease { get; set; } = true;
     public int LeaseDurationSeconds { get; set; } = 45;

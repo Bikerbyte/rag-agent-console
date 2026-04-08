@@ -124,23 +124,52 @@ dotnet run
 
 `AppRuntime` 目前同時負責：
 
+- runtime profile
 - runtime role 開關
 - leadership lease 設定
 - node instance name
 
+建議優先使用：
+
+- `AppRuntime__Profile=Standard`
+
+目前內建的 profile：
+
+- `Standard`
+  - 建議的預設部署模式
+  - `Webhook ingress + Update queue worker + scheduled jobs eligible`
+- `WorkerOnly`
+  - 不接 webhook，只負責 queue 與 scheduled jobs
+- `IngressOnly`
+  - 只收 webhook，不吃 queue、不跑 scheduled jobs
+- `PollingNode`
+  - 走 polling 鏈路時使用
+- `Custom`
+  - 完全改用細部 flag 自行配置
+
 常用設定包含：
 
+- `AppRuntime__Profile`
 - `AppRuntime__InstanceName`
 - `AppRuntime__EnableLeadershipLease`
 - `AppRuntime__LeaseDurationSeconds`
 - `AppRuntime__LeaseRenewIntervalSeconds`
 - `AppRuntime__LeaseAcquireRetrySeconds`
+
+如果你只是跑單機或多台標準節點，通常只要設：
+
+- `AppRuntime__Profile=Standard`
+- `AppRuntime__InstanceName=<unique-node-name>`
+
+只有在真的要偏離 profile 時，才再額外覆寫：
+
 - `AppRuntime__EnableTelegramWebhookIngress`
+- `AppRuntime__EnableTelegramPollingWorker`
 - `AppRuntime__EnableTelegramUpdateQueueWorker`
 - `AppRuntime__EnableOfficialDataSyncWorker`
 - `AppRuntime__EnableNotificationWorker`
 
-實務上可以讓多台節點都開：
+實務上可以讓多台節點都用 `Standard`：
 
 - `Webhook ingress`
 - `Update queue worker`

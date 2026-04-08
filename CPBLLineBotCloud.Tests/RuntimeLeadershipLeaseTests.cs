@@ -100,11 +100,12 @@ public class RuntimeLeadershipLeaseTests
     [Fact]
     public async Task TryAcquireOrRenewAsync_WhenTwoNodesRaceForExpiredLease_OnlyOneSucceeds()
     {
-        await using var connection = CreateOpenConnection();
-        await EnsureCreatedAsync(connection);
+        const string connectionString = "Data Source=runtime-lease-race;Mode=Memory;Cache=Shared";
+        await using var keepAliveConnection = CreateOpenConnection(connectionString);
+        await EnsureCreatedAsync(keepAliveConnection);
         var timeProvider = new MutableTimeProvider(new DateTimeOffset(2026, 4, 6, 12, 0, 0, TimeSpan.Zero));
 
-        await using (var ownerContext = CreateSqliteDbContext(connection))
+        await using (var ownerContext = CreateSqliteDbContext(connectionString))
         {
             var ownerService = CreateLeaseService(ownerContext, timeProvider, "node-a");
             await ownerService.TryAcquireOrRenewAsync("OfficialDataSync");
@@ -117,7 +118,7 @@ public class RuntimeLeadershipLeaseTests
         var contenderTaskA = Task.Run(async () =>
         {
             await startGate.Task;
-            await using var dbContext = CreateSqliteDbContext(connection);
+            await using var dbContext = CreateSqliteDbContext(connectionString);
             var service = CreateLeaseService(dbContext, timeProvider, "node-b");
             return await service.TryAcquireOrRenewAsync("OfficialDataSync");
         });
@@ -125,7 +126,7 @@ public class RuntimeLeadershipLeaseTests
         var contenderTaskB = Task.Run(async () =>
         {
             await startGate.Task;
-            await using var dbContext = CreateSqliteDbContext(connection);
+            await using var dbContext = CreateSqliteDbContext(connectionString);
             var service = CreateLeaseService(dbContext, timeProvider, "node-c");
             return await service.TryAcquireOrRenewAsync("OfficialDataSync");
         });
@@ -237,7 +238,12 @@ public class RuntimeLeadershipLeaseTests
 
     private static SqliteConnection CreateOpenConnection()
     {
-        var connection = new SqliteConnection("Data Source=:memory:");
+        return CreateOpenConnection("Data Source=:memory:");
+    }
+
+    private static SqliteConnection CreateOpenConnection(string connectionString)
+    {
+        var connection = new SqliteConnection(connectionString);
         connection.Open();
         return connection;
     }
@@ -252,6 +258,15 @@ public class RuntimeLeadershipLeaseTests
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(connection)
+            .Options;
+
+        return new ApplicationDbContext(options);
+    }
+
+    private static ApplicationDbContext CreateSqliteDbContext(string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlite(connectionString)
             .Options;
 
         return new ApplicationDbContext(options);
