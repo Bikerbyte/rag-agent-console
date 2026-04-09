@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://127.0.0.1:5050}"
-ENV_FILE="${2:-/etc/cpbl-telegram-assistant/cpbl-telegram-assistant.env}"
+BASE_URL="${1:-http://127.0.0.1}"
+ENV_FILE="${2:-/opt/cpbl/.env}"
 HEALTH_URL="${BASE_URL%/}/api/telegram/health"
 
 read_env_value() {
@@ -32,7 +32,7 @@ import json, sys
 payload = json.loads(sys.stdin.read())
 print("")
 print("Telegram Health")
-for key in ("Provider", "Enabled", "HasBotToken", "UseWebhookMode", "WebhookPath", "EnableTelegramUpdateQueueWorker"):
+for key in ("provider", "enabled", "hasBotToken", "useWebhookMode", "webhookPath", "enableTelegramUpdateQueueWorker"):
     print(f"  {key:28}: {payload.get(key)}")
 ' <<< "${health_json}"
 
@@ -50,7 +50,7 @@ echo "Checking Telegram getWebhookInfo from Bot API..."
 
 webhook_json="$(curl -fsS "https://api.telegram.org/bot${bot_token}/getWebhookInfo")"
 
-python3 -c '
+EXPECTED_WEBHOOK_URL="${expected_webhook_url}" python3 -c '
 import json, os, sys
 payload = json.loads(sys.stdin.read())
 result = payload.get("result", {})
