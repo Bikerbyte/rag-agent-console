@@ -3,6 +3,28 @@
 一個以 **ASP.NET Core** 開發的 Telegram Bot，主要用來整理與推送 **CPBL 中華職棒** 的比賽資訊。  
 使用者可以直接在 Telegram 查詢今日賽程、即時比分、戰績排名、球隊近況，也可以追蹤喜歡的球隊，接收開賽、終場與新聞通知。
 
+此系統採 **多節點彈性部署** 架構：  
+可依照 runtime role 部署到不同節點，並透過 **PostgreSQL-backed queue**、**runtime heartbeat** 與 **leadership lease** 協調多節點行為。
+
+---
+
+## 系統架構
+
+<img width="2012" height="902" alt="CPBL drawio" src="https://github.com/user-attachments/assets/f8ad67ca-00db-49cb-88a0-4968c9bf3217" />
+
+採取 **same codebase, multi-node deployment by runtime roles** 的設計：
+
+- 流量分配機制：具備多節點承接 session 的能力。
+- `Webhook ingress` 可多台同時啟用，用於承接 Telegram update
+- `Telegram update queue worker` 採多節點協作模式，從共享 inbox queue claim batch 後處理
+- `scheduled jobs`（例如官方資料同步、通知排程）則採 **lease-based single-active execution**
+- PostgreSQL 除了保存業務資料，也作為多節點協調的共享狀態層，保存：
+  - Telegram update inbox
+  - runtime node heartbeat
+  - runtime leadership lease
+
+- HA：每台節點都具備執行 `scheduled jobs` 資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若目前持有 lease 的節點離線或未持續續約，其他節點會自動接手。
+
 ---
 
 ## 目前功能
@@ -35,33 +57,6 @@
 - `/notify game on`：開啟比賽提醒
 - `/recap`：查看今日賽事重點整理
 - `/news`：查看最新新聞
-
----
-
-## 系統架構
-
-<img width="2012" height="902" alt="CPBL drawio" src="https://github.com/user-attachments/assets/f8ad67ca-00db-49cb-88a0-4968c9bf3217" />
-
-採取 **same codebase, multi-node deployment by runtime roles** 的設計：
-
-- 同一份 ASP.NET Core 程式可部署到單台或多台 VM
-- `Webhook ingress` 可以多台同時開啟
-- `Telegram update queue worker` 維持多節點協作 claim batch
-- `scheduled jobs` 則改成 **lease-based single-active execution**
-- 支援大量 request 的 load-balance，進行流量分散
-
-這兩種排程型工作可以在多台節點上都具備執行資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若持有者 offline or not responding，租約過期後其他節點可自動接手。
-
----
-
-## 技術組成
-
-- **Backend**：ASP.NET Core
-- **UI / Admin**：Razor Pages
-- **Database**：PostgreSQL
-- **Bot Platform**：Telegram Bot API
-- **Deployment**：Docker / Ubuntu VM
-- **Data Source**：CPBL 官方資料
 
 ---
 
