@@ -40,36 +40,17 @@
 
 ## 系統架構
 
-目前這個專案維持 **same codebase, multi-node deployment by runtime roles** 的設計：
+<img width="2012" height="902" alt="CPBL drawio" src="https://github.com/user-attachments/assets/f8ad67ca-00db-49cb-88a0-4968c9bf3217" />
+
+採取 **same codebase, multi-node deployment by runtime roles** 的設計：
 
 - 同一份 ASP.NET Core 程式可部署到單台或多台 VM
 - `Webhook ingress` 可以多台同時開啟
 - `Telegram update queue worker` 維持多節點協作 claim batch
 - `scheduled jobs` 則改成 **lease-based single-active execution**
+- 支援大量 request 的 load-balance，進行流量分散
 
-也就是說：
-
-- `OfficialDataSyncBackgroundService`
-- `TelegramNotificationBackgroundService`
-
-這兩種排程型工作可以在多台節點上都具備執行資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若持有者掛掉，租約過期後其他節點可自動接手。
-
-### PostgreSQL 目前負責保存
-
-- 業務資料：球隊、賽程、新聞、群組訂閱
-- queue 狀態：`TelegramUpdateInbox`
-- runtime node 心跳：`RuntimeNodeHeartbeats`
-- leadership lease 狀態：`RuntimeLeadershipLeases`
-- push / sync logs
-
-### 後台目前可看到
-
-- 線上 node 清單
-- 各節點 runtime role
-- leadership lease 目前持有者
-- queue 收件與處理流向
-
-多節點架構說明可參考 [docs/Scalable_Multi_Node_Architecture.zh-TW.md](docs/Scalable_Multi_Node_Architecture.zh-TW.md)。
+這兩種排程型工作可以在多台節點上都具備執行資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若持有者 offline or not responding，租約過期後其他節點可自動接手。
 
 ---
 
@@ -112,71 +93,6 @@ dotnet user-secrets set "TelegramBot:BotToken" "your-bot-token"
 dotnet ef database update
 ```
 
-### 5. 執行專案
+### 5. 部署
 
-```bash
-dotnet run
-```
-
----
-
-## 多節點部署備註
-
-`AppRuntime` 目前同時負責：
-
-- runtime profile
-- runtime role 開關
-- leadership lease 設定
-- node instance name
-
-建議優先使用：
-
-- `AppRuntime__Profile=Standard`
-
-目前內建的 profile：
-
-- `Standard`
-  - 建議的預設部署模式
-  - `Webhook ingress + Update queue worker + scheduled jobs eligible`
-- `WorkerOnly`
-  - 不接 webhook，只負責 queue 與 scheduled jobs
-- `IngressOnly`
-  - 只收 webhook，不吃 queue、不跑 scheduled jobs
-- `PollingNode`
-  - 走 polling 鏈路時使用
-- `Custom`
-  - 完全改用細部 flag 自行配置
-
-常用設定包含：
-
-- `AppRuntime__Profile`
-- `AppRuntime__InstanceName`
-- `AppRuntime__EnableLeadershipLease`
-- `AppRuntime__LeaseDurationSeconds`
-- `AppRuntime__LeaseRenewIntervalSeconds`
-- `AppRuntime__LeaseAcquireRetrySeconds`
-
-如果你只是跑單機或多台標準節點，通常只要設：
-
-- `AppRuntime__Profile=Standard`
-- `AppRuntime__InstanceName=<unique-node-name>`
-
-只有在真的要偏離 profile 時，才再額外覆寫：
-
-- `AppRuntime__EnableTelegramWebhookIngress`
-- `AppRuntime__EnableTelegramPollingWorker`
-- `AppRuntime__EnableTelegramUpdateQueueWorker`
-- `AppRuntime__EnableOfficialDataSyncWorker`
-- `AppRuntime__EnableNotificationWorker`
-
-實務上可以讓多台節點都用 `Standard`：
-
-- `Webhook ingress`
-- `Update queue worker`
-- `Official sync worker`
-- `Notification worker`
-
-然後交由 leadership lease 決定哪台節點真正執行 scheduled jobs，而不是靠固定 primary node。
-
-Ubuntu VM 的實際部署方式可參考 [docs/Ubuntu_Deployment.zh-TW.md](docs/Ubuntu_Deployment.zh-TW.md)。
-部署後也可以直接用 `deploy/ubuntu/check-runtime.sh`、`deploy/ubuntu/check-leases.sh`、`deploy/ubuntu/check-webhook.sh` 做驗證。
+實際部署方式參考 [docs/Ubuntu_Deployment.zh-TW.md](docs/Ubuntu_Deployment.zh-TW.md)。
