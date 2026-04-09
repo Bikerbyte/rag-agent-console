@@ -59,6 +59,18 @@
 - `/news`：查看最新新聞
 
 ---
+## Demo
+
+- 追蹤球隊之及時戰況
+<img alt="demo1" src="docs\demo\realtime_update.png" />
+
+- 指令 & 按鈕快捷
+<img alt="demo1" src="docs\demo\news_demo.png" />
+
+- 管理後臺 & 節點查看
+<img alt="demo1" src="docs\demo\dashboard.png" />
+
+---
 
 ## 環境設定
 
