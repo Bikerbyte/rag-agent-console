@@ -1,10 +1,7 @@
 # CPBL Telegram Assistant
 
-一個以 **ASP.NET Core** 開發的 Telegram Bot，主要用來整理與推送 **CPBL 中華職棒** 的比賽資訊。  
+以 **ASP.NET Core** 開發的 Telegram Bot，用來整理與推送 **CPBL 中華職棒** 的比賽資訊。  
 使用者可以直接在 Telegram 查詢今日賽程、即時比分、戰績排名、球隊近況，也可以追蹤喜歡的球隊，接收開賽、終場與新聞通知。
-
-此系統採 **多節點彈性部署** 架構：  
-可依照 runtime role 部署到不同節點，並透過 **PostgreSQL-backed queue**、**runtime heartbeat** 與 **leadership lease** 協調多節點行為。
 
 ---
 
