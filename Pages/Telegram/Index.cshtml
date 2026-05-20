@@ -6,9 +6,9 @@
 
 <section class="page-header">
     <div>
-        <p class="eyebrow">Bot 設定</p>
+        <p class="eyebrow">Bot settings</p>
         <h1>Telegram bot</h1>
-        <p class="page-copy">檢查設定、連線與最近偵測到的聊天</p>
+        <p class="page-copy">檢查 bot 設定、連線狀態與最近偵測到的聊天</p>
     </div>
 </section>
 
@@ -18,7 +18,7 @@
             <div class="panel-title-group">
                 <span class="section-kicker">狀態</span>
                 <h2 class="panel-title">Bot 狀態</h2>
-                <p class="panel-subtitle">先看能不能正常連線</p>
+                <p class="panel-subtitle">先確認 Telegram API 連線正常</p>
             </div>
         </div>
 
@@ -61,28 +61,28 @@
             <div class="panel-title-group">
                 <span class="section-kicker">設定流程</span>
                 <h2 class="panel-title">快速開始</h2>
-                <p class="panel-subtitle">照這幾步即可</p>
+                <p class="panel-subtitle">讓 bot 先能收訊息，再打開通知</p>
             </div>
         </div>
 
         <ol class="panel-list">
             <li>用 <code>BotFather</code> 建立 bot 並取得 token</li>
             <li>設定 <code>TelegramBot:Enabled</code> 與 <code>TelegramBot:BotToken</code></li>
-            <li>用 <code>Run-Local.cmd</code> 或 <code>dotnet run</code> 啟動站台</li>
-            <li>測試 <code>/today</code>、<code>/today_best</code>、<code>/team 兄弟</code>、<code>/follow 樂天</code>、<code>/recap</code></li>
-            <li>收到第一則訊息後，聊天會出現在下方與聊天設定頁</li>
+            <li>用 <code>dotnet run</code> 或 Docker Compose 啟動站台</li>
+            <li>測試 <code>/latest</code>、<code>/critical</code>、<code>/kev</code>、<code>/ask 最近 Fortinet 有哪些風險？</code></li>
+            <li>收到第一則訊息後，聊天會出現在下方與訂閱設定頁</li>
         </ol>
     </article>
 </section>
 
 <section class="panel mt-4">
     <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">聊天紀錄</span>
-                <h2 class="panel-title">最近偵測到的聊天</h2>
-                <p class="panel-subtitle">bot 最近有看到哪些聊天</p>
-            </div>
+        <div class="panel-title-group">
+            <span class="section-kicker">聊天紀錄</span>
+            <h2 class="panel-title">最近偵測到的聊天</h2>
+            <p class="panel-subtitle">bot 最近有看到哪些 Telegram chat</p>
         </div>
+    </div>
 
     @if (Model.RecentChats.Count == 0)
     {
@@ -98,7 +98,8 @@
                     <tr>
                         <th>聊天名稱</th>
                         <th>聊天 ID</th>
-                        <th>關注球隊</th>
+                        <th>弱點通知</th>
+                        <th>弱點關鍵字</th>
                         <th>更新時間</th>
                     </tr>
                 </thead>
@@ -110,7 +111,8 @@
                             <span class="table-title">@chat.ChatTitle</span>
                         </td>
                         <td><code>@chat.ChatId</code></td>
-                        <td>@Model.GetFollowedTeamLabel(chat)</td>
+                        <td>@(chat.EnableAdvisoryPush ? "啟用" : "停用")</td>
+                        <td>@CPBLLineBotCloud.Pages.Telegram.IndexModel.GetAdvisoryWatchlistLabel(chat)</td>
                         <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                     </tr>
                 }

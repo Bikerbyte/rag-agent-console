@@ -86,24 +86,17 @@ public class OfficialDataSyncBackgroundService(
 
     internal static async Task ExecuteSyncOnceAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        var gameSyncService = serviceProvider.GetRequiredService<ICpblGameSyncService>();
-        var newsSyncService = serviceProvider.GetRequiredService<IBaseballNewsSyncService>();
+        var advisorySyncService = serviceProvider.GetRequiredService<ISecurityAdvisorySyncService>();
         var logger = serviceProvider.GetRequiredService<ILogger<OfficialDataSyncBackgroundService>>();
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Taipei Standard Time"));
-
-        var gameCount = 0;
-        // 往前補抓幾天，延後結算或官方晚修正的資料比較不容易漏掉。
-        for (var dayOffset = -4; dayOffset <= 1; dayOffset++)
-        {
-            gameCount += await gameSyncService.SyncDateAsync(today.AddDays(dayOffset), cancellationToken);
-        }
-
-        var newsCount = await newsSyncService.SyncAsync(cancellationToken);
+        var result = await advisorySyncService.SyncAsync(cancellationToken);
 
         logger.LogInformation(
-            "Official data auto sync completed. Games updated: {GameCount}. News added: {NewsCount}.",
-            gameCount,
-            newsCount);
+            "Security advisory auto sync completed. Sources: {SourceCount}. Fetched: {FetchedCount}. Added: {AddedCount}. Updated: {UpdatedCount}. Chunks: {ChunkCount}.",
+            result.SourceCount,
+            result.FetchedCount,
+            result.AddedCount,
+            result.UpdatedCount,
+            result.ChunkCount);
     }
 
     private static TimeSpan BuildDelay(DateTimeOffset now, DateTimeOffset nextRunAt, TimeSpan upperBoundDelay)
