@@ -25,6 +25,7 @@ builder.Services.AddDataProtection()
 
 builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
 builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
+builder.Services.Configure<SecurityAdvisoryOptions>(builder.Configuration.GetSection(SecurityAdvisoryOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
 builder.Services.PostConfigure<AppRuntimeOptions>(options =>
@@ -41,7 +42,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (string.IsNullOrWhiteSpace(defaultConnection))
     {
-        options.UseInMemoryDatabase("cpbl-telegram-assistant");
+        options.UseInMemoryDatabase("security-advisory-bot");
         return;
     }
 
@@ -62,17 +63,29 @@ builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((servicePr
     httpClient.BaseAddress = new Uri(telegramBotOptions.ApiBaseUrl);
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
+builder.Services.AddHttpClient<CisaKevAdvisorySource>(httpClient =>
+{
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient<NvdAdvisorySource>((serviceProvider, httpClient) =>
+{
+    var securityOptions = serviceProvider.GetRequiredService<IOptions<SecurityAdvisoryOptions>>().Value;
+    httpClient.BaseAddress = new Uri(securityOptions.NvdApiBaseUrl);
+    httpClient.Timeout = TimeSpan.FromSeconds(45);
+});
 builder.Services.AddHttpClient();
 
 // Add Service Area - 應用服務
 builder.Services.AddRazorPages();
-builder.Services.AddScoped<ICpblGameSyncService, CpblGameSyncService>();
-builder.Services.AddScoped<IBaseballNewsSyncService, BaseballNewsSyncService>();
-builder.Services.AddScoped<ICpblOfficialDataClient, CpblOfficialDataClient>();
-builder.Services.AddScoped<ICpblInsightService, CpblInsightService>();
 builder.Services.AddScoped<ITelegramPushService, TelegramPushService>();
-builder.Services.AddScoped<ITelegramNotificationDispatchService, TelegramNotificationDispatchService>();
-builder.Services.AddScoped<ICommandReplyService, CommandReplyService>();
+builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<CisaKevAdvisorySource>());
+builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<NvdAdvisorySource>());
+builder.Services.AddScoped<IAdvisoryEmbeddingService, LocalHashAdvisoryEmbeddingService>();
+builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncService>();
+builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
+builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
+builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
+builder.Services.AddScoped<ICommandReplyService, SecurityAdvisoryCommandReplyService>();
 builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
@@ -123,7 +136,6 @@ using (var scope = app.Services.CreateScope())
         await dbContext.Database.EnsureCreatedAsync();
     }
 
-    await DemoDataSeeder.SeedAsync(dbContext);
 }
 
 // Razor Build / 啟動管線
@@ -250,7 +262,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
     try
     {
-        Console.Title = $"CPBL Telegram Assistant | PID {Environment.ProcessId}";
+        Console.Title = $"Security Advisory Bot | PID {Environment.ProcessId}";
     }
     catch
     {
@@ -258,7 +270,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
     }
 
     app.Logger.LogInformation("============================================================");
-    app.Logger.LogInformation("CPBL Telegram Assistant started");
+    app.Logger.LogInformation("Security Advisory Bot started");
     app.Logger.LogInformation("Instance: {InstanceName}", appRuntimeOptions.InstanceName);
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);

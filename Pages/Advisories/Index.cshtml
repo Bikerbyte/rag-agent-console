@@ -1,0 +1,126 @@
+@page
+@model CPBLLineBotCloud.Pages.Advisories.IndexModel
+@{
+    ViewData["Title"] = "Security Advisories";
+}
+
+<section class="page-header">
+    <div>
+        <p class="eyebrow">Security intelligence</p>
+        <h1>Security Advisories</h1>
+        <p class="page-copy">CVE、CISA KEV、RAG chunks 與 Telegram 推播前的資料檢查台</p>
+    </div>
+    <div class="page-actions">
+        <form method="post" asp-page-handler="Sync">
+            <button class="btn btn-primary" type="submit">立即同步</button>
+        </form>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+}
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <span class="metric-label">Advisories</span>
+        <strong class="stat-value">@Model.TotalCount</strong>
+        <p class="stat-note">目前已同步的弱點情報</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">CISA KEV</span>
+        <strong class="stat-value">@Model.KevCount</strong>
+        <p class="stat-note">已知遭利用弱點</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">Critical</span>
+        <strong class="stat-value">@Model.CriticalCount</strong>
+        <p class="stat-note">CVSS 9.0 以上或 Critical</p>
+    </article>
+    <article class="stat-card">
+        <span class="metric-label">RAG chunks</span>
+        <strong class="stat-value">@Model.ChunkCount</strong>
+        <p class="stat-note">可供 /ask 檢索的索引段落</p>
+    </article>
+</section>
+
+<section class="panel mt-4">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">資料清單</span>
+            <h2 class="panel-title">已同步 advisories</h2>
+            <p class="panel-subtitle">先保持資料面清楚，RAG 和通知才會可靠</p>
+        </div>
+        <form class="d-flex gap-2" method="get">
+            <input class="form-control" type="search" name="q" placeholder="搜尋 CVE / vendor / product" value="@Request.Query["q"]" />
+            <button class="btn btn-outline-secondary" type="submit">搜尋</button>
+        </form>
+    </div>
+
+    <div class="table-section">
+        <table class="table admin-table">
+            <thead>
+                <tr>
+                    <th>CVE</th>
+                    <th>風險</th>
+                    <th>影響</th>
+                    <th>摘要</th>
+                    <th>來源</th>
+                    <th>同步時間</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Advisories.Count == 0)
+            {
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <p class="empty-copy">目前沒有符合條件的弱點資料</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var advisory in Model.Advisories)
+                {
+                    var riskParts = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(advisory.Severity))
+                    {
+                        riskParts.Add(advisory.Severity);
+                    }
+                    if (advisory.CvssScore.HasValue)
+                    {
+                        riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
+                    }
+                    if (advisory.IsKnownExploited)
+                    {
+                        riskParts.Add("KEV");
+                    }
+
+                    var affected = string.Join(" / ", new[] { advisory.Vendor, advisory.Product }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+                    <tr>
+                        <td>
+                            <span class="table-title">@(advisory.CveId ?? advisory.ExternalId)</span>
+                            <p class="table-copy">@advisory.Title</p>
+                        </td>
+                        <td>
+                            <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                @(riskParts.Count == 0 ? "未標示" : string.Join(" / ", riskParts))
+                            </span>
+                        </td>
+                        <td>@(string.IsNullOrWhiteSpace(affected) ? "未標示" : affected)</td>
+                        <td>@(advisory.AiSummary ?? advisory.Description)</td>
+                        <td>
+                            <a href="@advisory.SourceUrl" target="_blank" rel="noreferrer">@advisory.SourceName</a>
+                        </td>
+                        <td>@advisory.LastSyncedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

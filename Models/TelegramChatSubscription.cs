@@ -12,11 +12,13 @@ public class TelegramChatSubscription
     [MaxLength(128)]
     public required string ChatTitle { get; set; }
 
-    public bool EnableSchedulePush { get; set; }
-    public bool EnableNewsPush { get; set; }
+    public bool EnableAdvisoryPush { get; set; }
 
-    [MaxLength(16)]
-    public string? FollowedTeamCode { get; set; }
+    [MaxLength(800)]
+    public string? AdvisoryKeywords { get; set; }
+
+    [MaxLength(32)]
+    public string? MinimumSeverity { get; set; }
 
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset LastUpdatedTime { get; set; }

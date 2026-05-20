@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cpbl-telegram-assistant
+    container_name: security-advisory-bot
     depends_on:
       db:
         condition: service_healthy
@@ -30,9 +30,11 @@ services:
       AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-}
       AppRuntime__EnableOfficialDataSyncWorker: ${APP_RUNTIME_ENABLE_OFFICIAL_DATA_SYNC_WORKER:-}
       AppRuntime__EnableNotificationWorker: ${APP_RUNTIME_ENABLE_NOTIFICATION_WORKER:-}
-      PushNotifications__EnableGameStartPush: ${ENABLE_GAME_START_PUSH:-true}
-      PushNotifications__EnableLiveScorePush: ${ENABLE_LIVE_SCORE_PUSH:-true}
-      PushNotifications__GameStartLeadMinutes: ${GAME_START_LEAD_MINUTES:-30}
+      PushNotifications__EnableSecurityAdvisoryPush: ${ENABLE_SECURITY_ADVISORY_PUSH:-true}
+      SecurityAdvisories__EnableCisaKevSource: ${SECURITY_ADVISORIES_ENABLE_CISA_KEV_SOURCE:-true}
+      SecurityAdvisories__EnableNvdSource: ${SECURITY_ADVISORIES_ENABLE_NVD_SOURCE:-true}
+      SecurityAdvisories__NvdLookbackDays: ${SECURITY_ADVISORIES_NVD_LOOKBACK_DAYS:-7}
+      SecurityAdvisories__MaxNvdResultsPerSync: ${SECURITY_ADVISORIES_MAX_NVD_RESULTS_PER_SYNC:-100}
     ports:
       - "${APP_PORT:-8080}:8080"
     volumes:
@@ -41,7 +43,7 @@ services:
 
   db:
     image: postgres:17-alpine
-    container_name: cpbl-postgres
+    container_name: security-advisory-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

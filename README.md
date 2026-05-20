@@ -1,87 +1,145 @@
-# CPBL Telegram Assistant
+# Security Advisory Bot
 
-以 **ASP.NET Core** 開發的 Telegram Bot，用來整理與推送 **CPBL 中華職棒** 的比賽資訊。  
-使用者可以直接在 Telegram 查詢今日賽程、即時比分、戰績排名、球隊近況，也可以追蹤喜歡的球隊，接收開賽、終場與新聞通知。
+一個以 **ASP.NET Core / Razor Pages / EF Core / PostgreSQL / Telegram Bot** 打造的輕量資安情報通知系統。
 
----
+系統會同步公開弱點來源，整理成可查詢的 advisory 資料，建立 lightweight RAG 索引，並依照 Telegram chat 的訂閱規則推送高風險或已知遭利用的弱點。
 
-## 系統架構
+設計目標不是做 Dify clone，也不是做大型 AI workflow platform，而是做一個工程師可以維護、可以 demo、也能放在履歷上說明架構取捨的內部工具型專案。
 
-<img width="2012" height="902" alt="CPBL drawio" src="https://github.com/user-attachments/assets/f8ad67ca-00db-49cb-88a0-4968c9bf3217" />
+## 架構圖
 
-採取 **same codebase, multi-node deployment by runtime roles** 的設計：
+```mermaid
+flowchart LR
+    subgraph Sources["Public Sources"]
+        CISA["CISA KEV JSON"]
+        NVD["NVD CVE API"]
+    end
 
-- 流量分配機制：具備多節點承接 session 的能力。
-- `Webhook ingress` 可多台同時啟用，用於承接 Telegram update
-- `Telegram update queue worker` 採多節點協作模式，從共享 inbox queue claim batch 後處理
-- `scheduled jobs`（例如官方資料同步、通知排程）則採 **lease-based single-active execution**
-- PostgreSQL 除了保存業務資料，也作為多節點協調的共享狀態層，保存：
-  - Telegram update inbox
-  - runtime node heartbeat
-  - runtime leadership lease
+    subgraph App["ASP.NET Core App"]
+        SyncWorker["OfficialDataSyncBackgroundService"]
+        SourceClients["Advisory Sources"]
+        SyncService["SecurityAdvisorySyncService"]
+        Embedding["LocalHashAdvisoryEmbeddingService"]
+        Search["SecurityAdvisorySearchService"]
+        Answer["SecurityAdvisoryAnswerService"]
+        TelegramIngress["Telegram Webhook / Polling"]
+        Command["SecurityAdvisoryCommandReplyService"]
+        PushWorker["TelegramNotificationBackgroundService"]
+        Admin["Razor Pages Admin Console"]
+    end
 
-- HA：每台節點都具備執行 `scheduled jobs` 資格，但同一時間只會有一台節點持有對應 lease 並真正執行；若目前持有 lease 的節點離線或未持續續約，其他節點會自動接手。
+    subgraph Database["PostgreSQL"]
+        Advisories["SecurityAdvisories"]
+        Chunks["SecurityAdvisoryChunks"]
+        Subscriptions["TelegramChatSubscriptions"]
+        Inbox["TelegramUpdateInbox"]
+        Logs["PushLogs / SyncJobLogs"]
+        Runtime["Runtime heartbeat / leadership lease"]
+    end
 
----
+    Telegram["Telegram Group"]
 
-## 目前功能
+    CISA --> SourceClients
+    NVD --> SourceClients
+    SyncWorker --> SyncService
+    SourceClients --> SyncService
+    SyncService --> Advisories
+    SyncService --> Embedding
+    Embedding --> Chunks
 
-- 查今天賽程、明天賽程
-- 查即時比分與對戰狀態
-- 查昨天賽果、今日完賽結果
-- 查目前排名
-- 查指定球隊的近況與下一場比賽
-- 追蹤喜歡的球隊
-- 接收開賽、終場、新聞等通知
-- 查看最新中職新聞
-- 以簡短文字整理當日比賽重點
-- 透過 Razor Pages 後台管理訂閱、log、runtime node 與 leadership lease 狀態
+    Telegram --> TelegramIngress
+    TelegramIngress --> Inbox
+    Inbox --> Command
+    Command --> Search
+    Search --> Chunks
+    Search --> Advisories
+    Command --> Answer
+    Answer --> Telegram
 
----
+    PushWorker --> Subscriptions
+    PushWorker --> Advisories
+    PushWorker --> Telegram
 
-## 主要指令
-
-- `/today`：今天賽程
-- `/tomorrow`：明天賽程
-- `/yesterday`：昨天已完賽結果
-- `/result`：今天已完賽結果
-- `/standings`：目前排名
-- `/follow 兄弟`：追蹤指定球隊
-- `/following`：查看目前追蹤隊伍
-- `/team 兄弟`：查看球隊近況摘要
-- `/next 兄弟`：查看這支球隊下一場比賽
-- `/notify`：查看提醒狀態
-- `/notify game on`：開啟比賽提醒
-- `/recap`：查看今日賽事重點整理
-- `/news`：查看最新新聞
-
----
-## Demo
-
-- 追蹤球隊之及時戰況
-<img alt="demo1" src="docs\demo\realtime_update.png" />
-
-- 指令 & 按鈕快捷
-<img alt="demo1" src="docs\demo\news_demo.png" />
-
-- 管理後臺 & 節點查看
-<img alt="demo1" src="docs\demo\dashboard.png" />
-
----
-
-## 環境設定
-
-### 1. Clone 專案
-
-```bash
-git clone https://github.com/Bikerbyte/Baseball_Bot.git
-cd Baseball_Bot
+    Admin --> Advisories
+    Admin --> Subscriptions
+    Admin --> Logs
+    Admin --> Runtime
 ```
 
-### 2. 設定資料庫連線
+## 主要功能
+
+- 同步 CISA KEV 已知遭利用弱點
+- 同步 NVD 最近更新的 CVE
+- 正規化弱點資料到 `SecurityAdvisory`
+- 產生簡短摘要、風險描述與建議處置方向
+- 建立 `SecurityAdvisoryChunk` 作為 lightweight RAG 檢索資料
+- Telegram 指令查詢最新弱點、Critical 弱點、KEV 弱點
+- Telegram `/ask` 使用 RAG 從已同步資料回答問題
+- Telegram chat 可訂閱關鍵字，例如 `fortinet`, `azure`, `windows`
+- 後台可查看 advisories、RAG chunks、訂閱設定、sync logs、push logs、runtime 狀態
+- 使用 leadership lease 避免多節點部署時重複執行 sync / push job
+
+## Telegram 指令
+
+```text
+/latest
+/latest fortinet
+/critical
+/kev
+/explain CVE-2024-3094
+/ask 最近 Fortinet 有哪些已知遭利用的弱點？
+/subscribe fortinet azure windows
+/unsubscribe fortinet
+/watchlist
+/sync
+```
+
+## RAG 設計
+
+目前 RAG 維持輕量：
+
+```text
+CISA / NVD
+  -> SecurityAdvisory
+  -> SecurityAdvisoryChunk
+  -> local hash embedding
+  -> cosine retrieval
+  -> grounded Telegram answer with source URLs
+```
+
+第一版刻意不直接導入 Dify、LangChain、Weaviate 或 Qdrant。原因是這個專案的重點是 advisory ingestion、通知規則、Telegram UX、後台管理和部署營運，而不是展示一個大型 AI 平台。
+
+後續如果資料量或檢索品質需要提升，可以把 embedding store 換成：
+
+- PostgreSQL + pgvector
+- OpenSearch hybrid search
+- Qdrant / Weaviate
+
+## 技術棧
+
+- .NET / ASP.NET Core
+- Razor Pages
+- EF Core
+- PostgreSQL
+- Telegram Bot API
+- BackgroundService workers
+- Docker / Linux deployment
+- Runtime heartbeat and leadership lease
+
+## 本機執行
+
+### 1. 還原套件
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=cpbl_telegram_assistant;Username=postgres;Password=your-password"
+dotnet restore
+```
+
+### 2. 設定資料庫
+
+沒有 connection string 時，開發環境會使用 in-memory database。若要接 PostgreSQL：
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=security_advisory_bot;Username=postgres;Password=your-password"
 ```
 
 ### 3. 設定 Telegram Bot
@@ -93,10 +151,41 @@ dotnet user-secrets set "TelegramBot:BotToken" "your-bot-token"
 
 ### 4. 套用 migration
 
-```bash
+```powershell
 dotnet ef database update
 ```
 
-### 5. 部署
+### 5. 啟動
 
-實際部署方式參考 [docs/Ubuntu_Deployment.zh-TW.md](docs/Ubuntu_Deployment.zh-TW.md)。
+```powershell
+dotnet run
+```
+
+## Docker / Linux
+
+正式 demo 或部署建議跑在 Linux，原因是 Docker、PostgreSQL、背景 worker 和未來可能加入的 pgvector 都比較自然。
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+常用環境變數：
+
+```text
+TELEGRAM_BOT_ENABLED=true
+TELEGRAM_BOT_TOKEN=
+SECURITY_ADVISORIES_ENABLE_CISA_KEV_SOURCE=true
+SECURITY_ADVISORIES_ENABLE_NVD_SOURCE=true
+SECURITY_ADVISORIES_NVD_LOOKBACK_DAYS=7
+SECURITY_ADVISORIES_MAX_NVD_RESULTS_PER_SYNC=100
+ENABLE_SECURITY_ADVISORY_PUSH=true
+```
+
+## 專案文件
+
+- [Security Advisory RAG Rework](docs/SecurityAdvisoryRag.zh-TW.md)
+
+## 開發備註
+
+專案主線集中在 security advisory sync、lightweight RAG query、Telegram advisory command、push rule 和 Advisories 後台。
