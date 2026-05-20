@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CPBL Telegram Assistant Console
+title Security Advisory Bot Console
 echo ============================================================
-echo CPBL Telegram Assistant
+echo Security Advisory Bot
 echo.
 echo This window stays open so you can always see the running PID
 echo and stop the site cleanly with Ctrl+C.

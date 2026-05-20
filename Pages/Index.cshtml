@@ -7,24 +7,24 @@
 <section class="dashboard-hero">
     <div class="hero-grid">
         <div>
-            <p class="eyebrow">CPBL Bot 管理介面</p>
-            <h1 class="display-title">中華職棒 Telegram 即時資訊助手</h1>
-            <p class="dashboard-copy">把日常查賽程、追球隊、看推播紀錄這幾件事收斂成一個可以自己維護，也方便 demo 的 side project。</p>
+            <p class="eyebrow">Security Advisory Console</p>
+            <h1 class="display-title">CVE intelligence、RAG 查詢與 Telegram 通知</h1>
+            <p class="dashboard-copy">同步公開弱點來源，整理成可追問的 advisory knowledge base，並依照 Telegram 群組的 watchlist 推送高風險情報。</p>
 
             <div class="hero-actions">
-                <a class="btn btn-primary" asp-page="/Groups/Index">管理聊天設定</a>
-                <a class="btn btn-outline-secondary" asp-page="/Logs/Index">查看最近紀錄</a>
+                <a class="btn btn-primary" asp-page="/Advisories/Index">查看 Advisories</a>
+                <a class="btn btn-outline-secondary" asp-page="/Groups/Index">管理 Telegram 訂閱</a>
             </div>
         </div>
 
         <div class="hero-rail">
             <section class="data-card">
-                <span class="metric-label">最近賽程同步</span>
-                <p class="metric-note">@Model.LatestGameSyncText</p>
+                <span class="metric-label">最近弱點同步</span>
+                <p class="metric-note">@Model.LatestAdvisorySyncText</p>
             </section>
             <section class="data-card">
-                <span class="metric-label">最近新聞同步</span>
-                <p class="metric-note">@Model.LatestNewsSyncText</p>
+                <span class="metric-label">RAG 索引</span>
+                <p class="metric-note">@Model.RagIndexText</p>
             </section>
             <section class="data-card">
                 <span class="metric-label">最近回覆</span>
@@ -40,24 +40,24 @@
 
 <section class="stats-grid">
     <article class="stat-card">
-        <span class="metric-label">球隊</span>
-        <strong class="stat-value">@Model.TeamCount</strong>
-        <p class="stat-note">目前已建立的球隊資料</p>
+        <span class="metric-label">Advisories</span>
+        <strong class="stat-value">@Model.AdvisoryCount</strong>
+        <p class="stat-note">目前已同步的弱點情報</p>
     </article>
     <article class="stat-card">
-        <span class="metric-label">今日比賽</span>
-        <strong class="stat-value">@Model.TodayGameCount</strong>
-        <p class="stat-note">今天可供查詢與推播的比賽數</p>
+        <span class="metric-label">CISA KEV</span>
+        <strong class="stat-value">@Model.KnownExploitedCount</strong>
+        <p class="stat-note">已知遭利用弱點</p>
     </article>
     <article class="stat-card">
-        <span class="metric-label">新聞</span>
-        <strong class="stat-value">@Model.NewsCount</strong>
-        <p class="stat-note">目前已同步的新聞筆數</p>
+        <span class="metric-label">RAG chunks</span>
+        <strong class="stat-value">@Model.RagChunkCount</strong>
+        <p class="stat-note">可供 /ask 檢索的段落</p>
     </article>
     <article class="stat-card">
         <span class="metric-label">聊天數</span>
         <strong class="stat-value">@Model.ChatCount</strong>
-        <p class="stat-note">已建立推播設定的聊天數</p>
+        <p class="stat-note">已建立推播設定的 Telegram chat</p>
     </article>
     <article class="stat-card">
         <span class="metric-label">推播紀錄</span>
@@ -77,7 +77,7 @@
     <article class="stat-card">
         <span class="metric-label">Update Queue</span>
         <strong class="stat-value">@Model.PendingTelegramUpdateCount</strong>
-        <p class="stat-note">目前待處理或處理中的 Telegram update</p>
+        <p class="stat-note">待處理或處理中的 Telegram update</p>
     </article>
 </section>
 
@@ -132,10 +132,10 @@
         </div>
 
         <ul class="panel-list">
-            <li><code>Run-Local.cmd</code> 啟動站台與 console</li>
-            <li><code>Status-Local.cmd</code> 檢查目前占用 port 的程序</li>
-            <li><code>Stop-Local.cmd</code> 關掉卡住的本機程序</li>
-            <li><a asp-page="/Runtime/Index">Runtime 頁面</a> 可以看多節點心跳與 update queue</li>
+            <li><code>dotnet run</code> 啟動站台與 background workers</li>
+            <li><code>dotnet ef database update</code> 套用 migrations</li>
+            <li><code>/sync</code> 從 Telegram 手動觸發 advisory 同步</li>
+            <li><a asp-page="/Runtime/Index">Runtime 頁面</a> 可看多節點心跳與 update queue</li>
         </ul>
     </article>
 </section>

@@ -10,7 +10,6 @@ namespace CPBLLineBotCloud.Pages.Groups;
 public class IndexModel(ApplicationDbContext dbContext, ILogger<IndexModel> logger) : PageModel
 {
     public IReadOnlyList<TelegramChatSubscription> Subscriptions { get; private set; } = [];
-    public IReadOnlyList<SelectItem> TeamOptions { get; } = BuildTeamOptions();
 
     [BindProperty]
     public ChatSubscriptionInput Input { get; set; } = new();
@@ -62,9 +61,9 @@ public class IndexModel(ApplicationDbContext dbContext, ILogger<IndexModel> logg
 
         entity.ChatId = Input.ChatId.Trim();
         entity.ChatTitle = Input.ChatTitle.Trim();
-        entity.EnableSchedulePush = Input.EnableSchedulePush;
-        entity.EnableNewsPush = Input.EnableNewsPush;
-        entity.FollowedTeamCode = string.IsNullOrWhiteSpace(Input.FollowedTeamCode) ? null : Input.FollowedTeamCode;
+        entity.EnableAdvisoryPush = Input.EnableAdvisoryPush;
+        entity.AdvisoryKeywords = string.IsNullOrWhiteSpace(Input.AdvisoryKeywords) ? null : Input.AdvisoryKeywords.Trim();
+        entity.MinimumSeverity = string.IsNullOrWhiteSpace(Input.MinimumSeverity) ? null : Input.MinimumSeverity.Trim();
         entity.LastUpdatedTime = now;
 
         await dbContext.SaveChangesAsync();
@@ -110,24 +109,10 @@ public class IndexModel(ApplicationDbContext dbContext, ILogger<IndexModel> logg
             TelegramChatSubscriptionId = entity.TelegramChatSubscriptionId,
             ChatId = entity.ChatId,
             ChatTitle = entity.ChatTitle,
-            EnableSchedulePush = entity.EnableSchedulePush,
-            EnableNewsPush = entity.EnableNewsPush,
-            FollowedTeamCode = entity.FollowedTeamCode
+            EnableAdvisoryPush = entity.EnableAdvisoryPush,
+            AdvisoryKeywords = entity.AdvisoryKeywords,
+            MinimumSeverity = entity.MinimumSeverity
         };
-    }
-
-    private static IReadOnlyList<SelectItem> BuildTeamOptions()
-    {
-        return
-        [
-            new SelectItem(string.Empty, "不預設"),
-            new SelectItem("CT", CpblTeamCatalog.GetDisplayName("CT")),
-            new SelectItem("UL", CpblTeamCatalog.GetDisplayName("UL")),
-            new SelectItem("RA", CpblTeamCatalog.GetDisplayName("RA")),
-            new SelectItem("FG", CpblTeamCatalog.GetDisplayName("FG")),
-            new SelectItem("WD", CpblTeamCatalog.GetDisplayName("WD")),
-            new SelectItem("TS", CpblTeamCatalog.GetDisplayName("TS"))
-        ];
     }
 
     public class ChatSubscriptionInput
@@ -142,10 +127,12 @@ public class IndexModel(ApplicationDbContext dbContext, ILogger<IndexModel> logg
         [StringLength(128)]
         public string ChatTitle { get; set; } = string.Empty;
 
-        public bool EnableSchedulePush { get; set; }
-        public bool EnableNewsPush { get; set; }
-        public string? FollowedTeamCode { get; set; }
-    }
+        public bool EnableAdvisoryPush { get; set; }
 
-    public sealed record SelectItem(string Value, string Label);
+        [StringLength(800)]
+        public string? AdvisoryKeywords { get; set; }
+
+        [StringLength(32)]
+        public string? MinimumSeverity { get; set; }
+    }
 }

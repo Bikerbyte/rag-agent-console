@@ -10,7 +10,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CPBL Telegram 助手</title>
+    <title>@ViewData["Title"] - Security Advisory Bot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
@@ -22,10 +22,10 @@
     <div class="app-shell">
         <aside class="app-sidebar">
             <a class="app-brand" asp-area="" asp-page="/Index">
-                <span class="app-brand-mark">CPBL</span>
+                <span class="app-brand-mark">SEC</span>
                 <span class="app-brand-copy">
-                    <strong>Telegram 助手</strong>
-                    <span>賽程查詢、群組通知、同步作業與 bot 狀態管理台</span>
+                    <strong>Advisory Bot</strong>
+                    <span>CVE sync、RAG 查詢、Telegram 通知與營運管理台</span>
                 </span>
             </a>
 
@@ -38,13 +38,9 @@
                     <span class="app-nav-eyebrow">Bot</span>
                     <strong>Telegram</strong>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Games/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Games/Index">
-                    <span class="app-nav-eyebrow">賽程</span>
-                    <strong>比賽</strong>
-                </a>
-                <a class="app-nav-link @(currentPage == "/News/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/News/Index">
-                    <span class="app-nav-eyebrow">內容</span>
-                    <strong>新聞</strong>
+                <a class="app-nav-link @(currentPage == "/Advisories/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Advisories/Index">
+                    <span class="app-nav-eyebrow">Intel</span>
+                    <strong>Advisories</strong>
                 </a>
                 <a class="app-nav-link @(currentPage == "/Groups/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Groups/Index">
                     <span class="app-nav-eyebrow">推播</span>
@@ -62,20 +58,20 @@
 
             <section class="sidebar-note">
                 <p class="sidebar-note-label">目前重點</p>
-                <p class="sidebar-note-text">先把 bot 維持穩定，讓日常查球、看 log、調群組設定和看多節點狀態都能一眼看懂。</p>
+                <p class="sidebar-note-text">先把弱點同步、RAG 查詢、推播規則和 runtime 狀態做清楚，維持輕量但可 demo。</p>
             </section>
         </aside>
 
         <div class="app-main">
             <header class="app-topbar">
                 <div>
-                    <p class="topbar-label">CPBL Bot Console</p>
+                    <p class="topbar-label">Security Advisory Console</p>
                     <h1 class="topbar-title">@ViewData["Title"]</h1>
                 </div>
                 <div class="topbar-meta">
                     <span class="topbar-chip">Node: @currentInstanceName</span>
                     <span class="topbar-chip">ASP.NET Core Razor Pages</span>
-                    <span class="topbar-chip">CPBL Data Sync</span>
+                    <span class="topbar-chip">CVE / KEV Sync</span>
                     <span class="topbar-chip">Telegram Delivery</span>
                 </div>
             </header>
@@ -85,8 +81,8 @@
             </main>
 
             <footer class="app-footer">
-                <span>CPBL Telegram 助手</span>
-                <span>給日常查球和群組提醒用的實作型 side project</span>
+                <span>Security Advisory Bot</span>
+                <span>輕量 CVE intelligence、RAG 查詢與 Telegram 通知 side project</span>
             </footer>
         </div>
     </div>

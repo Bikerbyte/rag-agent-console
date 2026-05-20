@@ -51,10 +51,6 @@ public class IndexModel(
             .ToListAsync();
     }
 
-    public string GetFollowedTeamLabel(TelegramChatSubscription chat)
-    {
-        return string.IsNullOrWhiteSpace(chat.FollowedTeamCode)
-            ? "Neutral"
-            : CpblTeamCatalog.GetDisplayName(chat.FollowedTeamCode);
-    }
+    public static string GetAdvisoryWatchlistLabel(TelegramChatSubscription chat)
+        => string.IsNullOrWhiteSpace(chat.AdvisoryKeywords) ? "未設定" : chat.AdvisoryKeywords;
 }
