@@ -104,9 +104,7 @@ public class TelegramUpdateProcessingService(
             {
                 ChatId = chatId,
                 ChatTitle = displayName,
-                EnableSchedulePush = true,
-                EnableNewsPush = true,
-                FollowedTeamCode = null,
+                EnableAdvisoryPush = false,
                 CreatedTime = DateTimeOffset.UtcNow,
                 LastUpdatedTime = DateTimeOffset.UtcNow
             });

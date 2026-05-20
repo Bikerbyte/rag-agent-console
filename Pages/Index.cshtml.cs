@@ -12,9 +12,9 @@ public class IndexModel(
     IOptions<TelegramBotOptions> telegramBotOptions,
     IOptions<AppRuntimeOptions> appRuntimeOptions) : PageModel
 {
-    public int TeamCount { get; private set; }
-    public int TodayGameCount { get; private set; }
-    public int NewsCount { get; private set; }
+    public int AdvisoryCount { get; private set; }
+    public int KnownExploitedCount { get; private set; }
+    public int RagChunkCount { get; private set; }
     public int ChatCount { get; private set; }
     public int PushLogCount { get; private set; }
     public int SyncLogCount { get; private set; }
@@ -27,32 +27,26 @@ public class IndexModel(
     public string InstanceName { get; private set; } = string.Empty;
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
-    public string LatestGameSyncText { get; private set; } = "還沒有賽程同步紀錄";
-    public string LatestNewsSyncText { get; private set; } = "還沒有新聞同步紀錄";
+    public string LatestAdvisorySyncText { get; private set; } = "還沒有 security advisory 同步紀錄";
+    public string RagIndexText { get; private set; } = "還沒有 RAG chunk 索引資料";
     public string LatestReplyText { get; private set; } = "還沒有 bot 回覆紀錄";
     public string RuntimeSummaryText { get; private set; } = "還沒有節點狀態資料";
 
     public async Task OnGetAsync()
     {
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTime.UtcNow, "Taipei Standard Time"));
         var activeThreshold = DateTimeOffset.UtcNow.AddSeconds(-45);
 
-        TeamCount = await dbContext.Teams.CountAsync();
-        TodayGameCount = await dbContext.Games.CountAsync(game => game.GameDate == today);
-        NewsCount = await dbContext.NewsItems.CountAsync();
+        AdvisoryCount = await dbContext.SecurityAdvisories.CountAsync();
+        KnownExploitedCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.IsKnownExploited);
+        RagChunkCount = await dbContext.SecurityAdvisoryChunks.CountAsync();
         ChatCount = await dbContext.TelegramChatSubscriptions.CountAsync();
         PushLogCount = await dbContext.PushLogs.CountAsync();
         SyncLogCount = await dbContext.SyncJobLogs.CountAsync();
         ActiveNodeCount = await dbContext.RuntimeNodeHeartbeats.CountAsync(item => item.LastSeenTime >= activeThreshold);
         PendingTelegramUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
 
-        var latestGameSync = await dbContext.SyncJobLogs
-            .Where(log => log.JobName == "CpblGameSync")
-            .OrderByDescending(log => log.StartTime)
-            .FirstOrDefaultAsync();
-
-        var latestNewsSync = await dbContext.SyncJobLogs
-            .Where(log => log.JobName == "BaseballNewsSync")
+        var latestAdvisorySync = await dbContext.SyncJobLogs
+            .Where(log => log.JobName == "SecurityAdvisorySync")
             .OrderByDescending(log => log.StartTime)
             .FirstOrDefaultAsync();
 
@@ -68,15 +62,12 @@ public class IndexModel(
         BotEnabled = telegramBotOptions.Value.Enabled;
         HasBotToken = !string.IsNullOrWhiteSpace(telegramBotOptions.Value.BotToken);
 
-        if (latestGameSync is not null)
+        if (latestAdvisorySync is not null)
         {
-            LatestGameSyncText = $"{latestGameSync.StartTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestGameSync.Message}";
+            LatestAdvisorySyncText = $"{latestAdvisorySync.StartTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestAdvisorySync.Message}";
         }
 
-        if (latestNewsSync is not null)
-        {
-            LatestNewsSyncText = $"{latestNewsSync.StartTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestNewsSync.Message}";
-        }
+        RagIndexText = $"{RagChunkCount} chunks indexed for lightweight RAG retrieval";
 
         if (latestReply is not null)
         {
