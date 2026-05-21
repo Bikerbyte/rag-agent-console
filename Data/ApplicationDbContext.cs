@@ -16,6 +16,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<SyncJobLog> SyncJobLogs => Set<SyncJobLog>();
     public DbSet<SecurityAdvisory> SecurityAdvisories => Set<SecurityAdvisory>();
     public DbSet<SecurityAdvisoryChunk> SecurityAdvisoryChunks => Set<SecurityAdvisoryChunk>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +40,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // 每種 scheduled job 的租約名稱只保留一筆，讓多節點只會有一個有效持有者。
         modelBuilder.Entity<RuntimeLeadershipLease>()
             .HasKey(lease => lease.LeaseName);
+
+        modelBuilder.Entity<AppSetting>()
+            .HasIndex(setting => setting.SettingKey)
+            .IsUnique();
 
         modelBuilder.Entity<SecurityAdvisory>()
             .HasIndex(advisory => new { advisory.SourceName, advisory.ExternalId })

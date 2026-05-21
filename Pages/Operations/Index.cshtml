@@ -1,0 +1,403 @@
+@page
+@model SecurityAdvisoryBot.Pages.Operations.IndexModel
+@{
+    ViewData["Title"] = "Operations";
+}
+
+<section class="page-header compact-header">
+    <div>
+        <p class="eyebrow">Telegram and runtime</p>
+        <h1>Operations</h1>
+        <p class="page-copy">Bot 連線、聊天訂閱、最近同步和 runtime 狀態集中於此，供日常營運與問題排查使用。</p>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+}
+
+<section class="compact-metrics">
+    <article class="metric-strip">
+        <span class="metric-label">Telegram</span>
+        <strong>@(Model.BotEnabled && Model.HasBotToken ? "Ready" : "Needs config")</strong>
+        <p>@Model.BotStatusMessage</p>
+    </article>
+    <article class="metric-strip">
+        <span class="metric-label">Node</span>
+        <strong>@Model.InstanceName</strong>
+        <p>@Model.ActiveNodeCount online node(s)</p>
+    </article>
+    <article class="metric-strip">
+        <span class="metric-label">Update queue</span>
+        <strong>@Model.PendingUpdateCount</strong>
+        <p>pending or processing Telegram updates</p>
+    </article>
+    <article class="metric-strip">
+        <span class="metric-label">AI provider</span>
+        <strong>@Model.AiProviderText</strong>
+        <p>@(Model.IsAiChatEnabled ? "Chat generation enabled" : "Chat generation is not connected")</p>
+    </article>
+</section>
+
+<section class="panel settings-panel">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">Application settings</span>
+            <h2 class="panel-title">Provider, Telegram, sync, and push</h2>
+            <p class="panel-subtitle">這裡儲存的值會覆蓋 appsettings / user-secrets。Secret 只會在輸入新值時更新。</p>
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="SaveSettings" class="settings-form">
+        <section class="settings-section">
+            <div>
+                <h3>AI Provider</h3>
+                <p>控制 Agent 對話模型、embedding provider 和 fallback 行為。</p>
+            </div>
+            <div class="settings-grid">
+                <label class="field-block">
+                    <span>Provider</span>
+                    <select asp-for="SettingsInput.AiProvider" class="form-select">
+                        <option value="Local">Local fallback</option>
+                        <option value="OpenAI">OpenAI</option>
+                        <option value="Ollama">Ollama</option>
+                    </select>
+                </label>
+                <label class="field-check">
+                    <input asp-for="SettingsInput.EnableChatGeneration" class="form-check-input" />
+                    <span>Enable chat generation</span>
+                </label>
+                <label class="field-check">
+                    <input asp-for="SettingsInput.UseLocalFallback" class="form-check-input" />
+                    <span>Use local fallback if provider fails</span>
+                </label>
+                <label class="field-block">
+                    <span>OpenAI base URL</span>
+                    <input asp-for="SettingsInput.OpenAiApiBaseUrl" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>OpenAI API key @(Model.HasOpenAiApiKey ? "(saved)" : "(not set)")</span>
+                    <input asp-for="SettingsInput.OpenAiApiKey" class="form-control" type="password" placeholder="Leave blank to keep current key" autocomplete="off" />
+                </label>
+                <label class="field-block">
+                    <span>Chat model</span>
+                    <input asp-for="SettingsInput.OpenAiChatModel" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Embedding model</span>
+                    <input asp-for="SettingsInput.OpenAiEmbeddingModel" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Ollama base URL</span>
+                    <input asp-for="SettingsInput.OllamaApiBaseUrl" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Ollama chat model</span>
+                    <input asp-for="SettingsInput.OllamaChatModel" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Ollama embedding model</span>
+                    <input asp-for="SettingsInput.OllamaEmbeddingModel" class="form-control" />
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div>
+                <h3>Telegram</h3>
+                <p>設定 bot token、polling / webhook 行為與 Telegram API endpoint。</p>
+            </div>
+            <div class="settings-grid">
+                <label class="field-check">
+                    <input asp-for="SettingsInput.TelegramEnabled" class="form-check-input" />
+                    <span>Enable Telegram bot</span>
+                </label>
+                <label class="field-block">
+                    <span>Bot token @(Model.HasTelegramBotToken ? "(saved)" : "(not set)")</span>
+                    <input asp-for="SettingsInput.TelegramBotToken" class="form-control" type="password" placeholder="Leave blank to keep current token" autocomplete="off" />
+                </label>
+                <label class="field-block">
+                    <span>Telegram API base URL</span>
+                    <input asp-for="SettingsInput.TelegramApiBaseUrl" class="form-control" />
+                </label>
+                <label class="field-check">
+                    <input asp-for="SettingsInput.UseWebhookMode" class="form-check-input" />
+                    <span>Use webhook mode</span>
+                </label>
+                <label class="field-block">
+                    <span>Webhook URL</span>
+                    <input asp-for="SettingsInput.WebhookUrl" class="form-control" placeholder="https://your-domain/api/telegram/webhook" />
+                </label>
+                <label class="field-block">
+                    <span>Webhook path</span>
+                    <input asp-for="SettingsInput.WebhookPath" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Webhook secret token</span>
+                    <input asp-for="SettingsInput.WebhookSecretToken" class="form-control" type="password" placeholder="Leave blank to keep current secret" autocomplete="off" />
+                </label>
+                <label class="field-block">
+                    <span>Polling delay seconds</span>
+                    <input asp-for="SettingsInput.PollingDelaySeconds" class="form-control" type="number" min="1" />
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div>
+                <h3>Jobs and logs</h3>
+                <p>設定同步與推送節奏。背景 worker 的啟停仍依目前 process role，完整切換需重啟。</p>
+            </div>
+            <div class="settings-grid">
+                <label class="field-block">
+                    <span>Auto sync interval minutes</span>
+                    <input asp-for="SettingsInput.AutoSyncIntervalMinutes" class="form-control" type="number" min="5" />
+                </label>
+                <label class="field-check">
+                    <input asp-for="SettingsInput.PushEnabled" class="form-check-input" />
+                    <span>Enable push worker behavior</span>
+                </label>
+                <label class="field-check">
+                    <input asp-for="SettingsInput.SecurityAdvisoryPushEnabled" class="form-check-input" />
+                    <span>Enable security advisory push</span>
+                </label>
+                <label class="field-block">
+                    <span>Push worker interval seconds</span>
+                    <input asp-for="SettingsInput.PushWorkerIntervalSeconds" class="form-control" type="number" min="30" />
+                </label>
+                <label class="field-block">
+                    <span>Advisory lookback hours</span>
+                    <input asp-for="SettingsInput.AdvisoryLookbackHours" class="form-control" type="number" min="1" />
+                </label>
+            </div>
+        </section>
+
+        <div class="form-footer">
+            <p class="form-hint">Secrets are stored in the application database. Use platform secrets for production if this database is shared broadly.</p>
+            <button type="submit" class="btn btn-primary">Save application settings</button>
+        </div>
+    </form>
+</section>
+
+<section class="ops-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Agent runtime</span>
+                <h2 class="panel-title">Agent conversation</h2>
+                <p class="panel-subtitle">不用 Telegram token 也可以先驗證 Agent 對話、RAG retrieval 與上下文接續。</p>
+            </div>
+            <span class="status-pill @(Model.IsAiChatEnabled ? "is-success" : "is-warning")">
+                @(Model.IsAiChatEnabled ? "AI enabled" : "AI not connected")
+            </span>
+        </div>
+
+        @if (!Model.IsAiChatEnabled)
+        {
+            <div class="agent-notice">
+                目前尚未啟用 OpenAI / Ollama 對話模型。一般閒聊會回覆設定提示；CVE、KEV、廠商弱點等問題仍可測試資料檢索流程。
+            </div>
+        }
+
+        <div class="agent-thread" aria-label="Agent conversation history">
+            @if (Model.AgentMessages.Count == 0)
+            {
+                <div class="agent-empty">
+                    <strong>Start a conversation</strong>
+                    <p>試著問：最近 Cisco 有哪些高風險 CVE？或先輸入 hi 檢查 AI provider 狀態。</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var message in Model.AgentMessages)
+                {
+                    <div class="chat-message @(message.Role == "user" ? "is-user" : "is-agent")">
+                        <span>@(message.Role == "user" ? "You" : "Agent")</span>
+                        <pre>@message.Content</pre>
+                    </div>
+                }
+            }
+        </div>
+
+        <form method="post" asp-page-handler="AskAgent" class="compact-form agent-compose">
+            <input type="hidden" asp-for="AgentHistoryJson" />
+            <label asp-for="AgentInput.Message" class="form-label">Message</label>
+            <textarea asp-for="AgentInput.Message" class="form-control" rows="3" placeholder="最近 Cisco 有哪些高風險 CVE？"></textarea>
+            <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+
+        <form method="post" asp-page-handler="ClearAgent">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Clear conversation</button>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Subscription</span>
+                <h2 class="panel-title">@(Model.IsEditMode ? "Edit chat" : "Add chat")</h2>
+            </div>
+
+            @if (Model.IsEditMode)
+            {
+                <form method="post" asp-page-handler="Reset">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">New</button>
+                </form>
+            }
+        </div>
+
+        <form method="post" asp-page-handler="Save" class="compact-form">
+            <input type="hidden" asp-for="Input.TelegramChatSubscriptionId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-row">
+                <div>
+                    <label asp-for="Input.ChatTitle" class="form-label">Chat title</label>
+                    <input asp-for="Input.ChatTitle" class="form-control" />
+                    <span asp-validation-for="Input.ChatTitle" class="text-danger"></span>
+                </div>
+                <div>
+                    <label asp-for="Input.ChatId" class="form-label">Chat ID</label>
+                    <input asp-for="Input.ChatId" class="form-control" />
+                    <span asp-validation-for="Input.ChatId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label asp-for="Input.AdvisoryKeywords" class="form-label">Watchlist</label>
+                    <input asp-for="Input.AdvisoryKeywords" class="form-control" placeholder="fortinet, windows, azure" />
+                    <span asp-validation-for="Input.AdvisoryKeywords" class="text-danger"></span>
+                </div>
+                <div>
+                    <label asp-for="Input.MinimumSeverity" class="form-label">Min severity</label>
+                    <input asp-for="Input.MinimumSeverity" class="form-control" placeholder="Critical" />
+                    <span asp-validation-for="Input.MinimumSeverity" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <div class="form-check">
+                    <input asp-for="Input.EnableAdvisoryPush" class="form-check-input" />
+                    <label asp-for="Input.EnableAdvisoryPush" class="form-check-label">Enable advisory push</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Chats</span>
+                <h2 class="panel-title">Telegram targets</h2>
+                <p class="panel-subtitle">最多顯示 12 筆訂閱目標，保持營運檢視精簡。</p>
+            </div>
+        </div>
+
+        <div class="compact-list">
+            @if (Model.Subscriptions.Count == 0)
+            {
+                <p class="empty-copy">No Telegram chats yet. Send a message to the bot first, or add one manually.</p>
+            }
+            else
+            {
+                @foreach (var chat in Model.Subscriptions)
+                {
+                    <div class="compact-row">
+                        <div>
+                            <span class="table-title">@chat.ChatTitle</span>
+                            <p class="table-copy"><code>@chat.ChatId</code> · @(string.IsNullOrWhiteSpace(chat.AdvisoryKeywords) ? "critical/KEV only" : chat.AdvisoryKeywords)</p>
+                        </div>
+                        <div class="row-actions">
+                            <span class="status-pill @(chat.EnableAdvisoryPush ? "is-success" : "is-neutral")">
+                                @(chat.EnableAdvisoryPush ? "On" : "Off")
+                            </span>
+                            <form method="post" asp-page-handler="Edit">
+                                <input type="hidden" name="id" value="@chat.TelegramChatSubscriptionId" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Edit</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </article>
+</section>
+
+<section class="ops-grid mt-4">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Recent activity</span>
+                <h2 class="panel-title">Push and sync logs</h2>
+            </div>
+        </div>
+
+        <div class="activity-stack">
+            @foreach (var log in Model.PushLogs)
+            {
+                <div class="activity-row">
+                    <span class="status-pill @(log.IsSuccess ? "is-success" : "is-danger")">Push</span>
+                    <div>
+                        <strong>@log.MessageTitle</strong>
+                        <p>@log.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @log.PushType · @(log.IsSuccess ? "success" : log.ErrorMessage)</p>
+                    </div>
+                </div>
+            }
+
+            @foreach (var log in Model.SyncJobLogs)
+            {
+                <div class="activity-row">
+                    <span class="status-pill @(log.IsSuccess ? "is-success" : "is-danger")">Sync</span>
+                    <div>
+                        <strong>@log.JobName</strong>
+                        <p>@log.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @log.Message</p>
+                    </div>
+                </div>
+            }
+
+            @if (Model.PushLogs.Count == 0 && Model.SyncJobLogs.Count == 0)
+            {
+                <p class="empty-copy">No logs yet.</p>
+            }
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Runtime</span>
+                <h2 class="panel-title">Nodes</h2>
+            </div>
+        </div>
+
+        <div class="compact-list">
+            @if (Model.Nodes.Count == 0)
+            {
+                <p class="empty-copy">No node heartbeat yet.</p>
+            }
+            else
+            {
+                @foreach (var node in Model.Nodes)
+                {
+                    <div class="compact-row">
+                        <div>
+                            <span class="table-title">@node.InstanceName</span>
+                            <p class="table-copy">@node.MachineName · @node.RoleSummary</p>
+                        </div>
+                        <div class="row-actions">
+                            <span class="status-pill @(node.StatusText == "Online" ? "is-success" : "is-warning")">@node.StatusText</span>
+                            <span class="table-copy">@node.LastSeenTime.ToLocalTime().ToString("HH:mm:ss")</span>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </article>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

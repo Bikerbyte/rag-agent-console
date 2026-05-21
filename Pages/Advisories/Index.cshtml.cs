@@ -10,10 +10,12 @@ namespace SecurityAdvisoryBot.Pages.Advisories;
 public class IndexModel(ApplicationDbContext dbContext, ISecurityAdvisorySyncService syncService) : PageModel
 {
     public IReadOnlyList<SecurityAdvisory> Advisories { get; private set; } = [];
+    public IReadOnlyList<SecurityAdvisoryChunk> PreviewChunks { get; private set; } = [];
     public int TotalCount { get; private set; }
     public int KevCount { get; private set; }
     public int CriticalCount { get; private set; }
     public int ChunkCount { get; private set; }
+    public int EstimatedTokenCount { get; private set; }
 
     [TempData]
     public string? StatusMessage { get; set; }
@@ -46,13 +48,22 @@ public class IndexModel(ApplicationDbContext dbContext, ISecurityAdvisorySyncSer
 
         Advisories = await query
             .OrderByDescending(advisory => advisory.LastModifiedAt ?? advisory.PublishedAt ?? advisory.LastSyncedTime)
-            .Take(100)
+            .Take(60)
+            .ToListAsync();
+
+        PreviewChunks = await dbContext.SecurityAdvisoryChunks
+            .Include(chunk => chunk.Advisory)
+            .OrderByDescending(chunk => chunk.SecurityAdvisoryChunkId)
+            .Take(5)
             .ToListAsync();
 
         TotalCount = await dbContext.SecurityAdvisories.CountAsync();
         KevCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.IsKnownExploited);
         CriticalCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.CvssScore >= 9 || advisory.Severity == "CRITICAL" || advisory.Severity == "Critical");
         ChunkCount = await dbContext.SecurityAdvisoryChunks.CountAsync();
+        EstimatedTokenCount = await dbContext.SecurityAdvisoryChunks
+            .Select(chunk => chunk.ChunkText.Length / 4)
+            .SumAsync();
     }
 
     public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)

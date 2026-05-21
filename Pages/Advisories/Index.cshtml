@@ -1,126 +1,258 @@
 @page
 @model SecurityAdvisoryBot.Pages.Advisories.IndexModel
 @{
-    ViewData["Title"] = "Security Advisories";
+    ViewData["Title"] = "Knowledge";
+    var activeQuery = Request.Query["q"].ToString();
+    var kevActive = string.Equals(Request.Query["kev"], "true", StringComparison.OrdinalIgnoreCase);
+    var criticalActive = string.Equals(Request.Query["critical"], "true", StringComparison.OrdinalIgnoreCase);
 }
 
-<section class="page-header">
-    <div>
-        <p class="eyebrow">Security intelligence</p>
-        <h1>Security Advisories</h1>
-        <p class="page-copy">CVE、CISA KEV、RAG chunks 與 Telegram 推播前的資料檢查台</p>
-    </div>
-    <div class="page-actions">
-        <form method="post" asp-page-handler="Sync">
-            <button class="btn btn-primary" type="submit">立即同步</button>
-        </form>
-    </div>
-</section>
+<section class="knowledge-shell">
+    <aside class="knowledge-steps" aria-label="Knowledge setup steps">
+        <a class="back-link" asp-page="/Index">← Create Knowledge</a>
 
-@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
-{
-    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
-}
+        <ol class="step-list">
+            <li class="step-item is-done">
+                <span class="step-index">1</span>
+                <span>
+                    <strong>Choose data source</strong>
+                    <small>CISA KEV / NVD CVE</small>
+                </span>
+            </li>
+            <li class="step-item is-active">
+                <span class="step-index">2</span>
+                <span>
+                    <strong>Text Preprocessing and Cleaning</strong>
+                    <small>Chunk, index, retrieval settings</small>
+                </span>
+            </li>
+            <li class="step-item">
+                <span class="step-index">3</span>
+                <span>
+                    <strong>Execute and finish</strong>
+                    <small>Sync and publish to Agent</small>
+                </span>
+            </li>
+        </ol>
 
-<section class="stats-grid">
-    <article class="stat-card">
-        <span class="metric-label">Advisories</span>
-        <strong class="stat-value">@Model.TotalCount</strong>
-        <p class="stat-note">目前已同步的弱點情報</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">CISA KEV</span>
-        <strong class="stat-value">@Model.KevCount</strong>
-        <p class="stat-note">已知遭利用弱點</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">Critical</span>
-        <strong class="stat-value">@Model.CriticalCount</strong>
-        <p class="stat-note">CVSS 9.0 以上或 Critical</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">RAG chunks</span>
-        <strong class="stat-value">@Model.ChunkCount</strong>
-        <p class="stat-note">可供 /ask 檢索的索引段落</p>
-    </article>
-</section>
-
-<section class="panel mt-4">
-    <div class="panel-header">
-        <div class="panel-title-group">
-            <span class="section-kicker">資料清單</span>
-            <h2 class="panel-title">已同步 advisories</h2>
-            <p class="panel-subtitle">先保持資料面清楚，RAG 和通知才會可靠</p>
+        <div class="source-summary">
+            <span class="summary-label">Sources</span>
+            <strong>CISA KEV + NVD</strong>
+            <p>公開弱點資料會被正規化成 advisory，再建立 RAG chunks 給 Telegram Agent 使用。</p>
         </div>
-        <form class="d-flex gap-2" method="get">
-            <input class="form-control" type="search" name="q" placeholder="搜尋 CVE / vendor / product" value="@Request.Query["q"]" />
-            <button class="btn btn-outline-secondary" type="submit">搜尋</button>
-        </form>
-    </div>
+    </aside>
 
-    <div class="table-section">
-        <table class="table admin-table">
-            <thead>
-                <tr>
-                    <th>CVE</th>
-                    <th>風險</th>
-                    <th>影響</th>
-                    <th>摘要</th>
-                    <th>來源</th>
-                    <th>同步時間</th>
-                </tr>
-            </thead>
-            <tbody>
-            @if (Model.Advisories.Count == 0)
-            {
-                <tr>
-                    <td colspan="6">
-                        <div class="empty-state">
-                            <p class="empty-copy">目前沒有符合條件的弱點資料</p>
-                        </div>
-                    </td>
-                </tr>
-            }
-            else
-            {
-                @foreach (var advisory in Model.Advisories)
-                {
-                    var riskParts = new List<string>();
-                    if (!string.IsNullOrWhiteSpace(advisory.Severity))
-                    {
-                        riskParts.Add(advisory.Severity);
-                    }
-                    if (advisory.CvssScore.HasValue)
-                    {
-                        riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
-                    }
-                    if (advisory.IsKnownExploited)
-                    {
-                        riskParts.Add("KEV");
-                    }
+    <main class="knowledge-workspace">
+        @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+        {
+            <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+        }
 
-                    var affected = string.Join(" / ", new[] { advisory.Vendor, advisory.Product }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        <section class="knowledge-main">
+            <div class="knowledge-editor">
+                <div class="editor-heading">
+                    <div>
+                        <p class="eyebrow">Knowledge Base</p>
+                        <h1>Text Preprocessing and Cleaning</h1>
+                        <p>設定弱點資料進入 RAG 前的切分、索引與檢索策略。這些設定會影響 Telegram Agent 回答時能拿到的 context。</p>
+                    </div>
+                    <form method="post" asp-page-handler="Sync">
+                        <button class="btn btn-primary" type="submit">Sync now</button>
+                    </form>
+                </div>
 
-                    <tr>
-                        <td>
-                            <span class="table-title">@(advisory.CveId ?? advisory.ExternalId)</span>
-                            <p class="table-copy">@advisory.Title</p>
-                        </td>
-                        <td>
-                            <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
-                                @(riskParts.Count == 0 ? "未標示" : string.Join(" / ", riskParts))
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Chunk settings</h2>
+                        <p>目前會以單一 advisory 建立可檢索 chunk，保留 CVE、產品、風險、修補建議與來源。</p>
+                    </div>
+
+                    <div class="option-stack">
+                        <label class="dify-option is-selected">
+                            <input type="radio" checked disabled />
+                            <span class="option-icon">A</span>
+                            <span>
+                                <strong>Automatic</strong>
+                                <small>根據 advisory 欄位自動建立 chunk。適合 CISA KEV / NVD 這類結構化來源。</small>
                             </span>
-                        </td>
-                        <td>@(string.IsNullOrWhiteSpace(affected) ? "未標示" : affected)</td>
-                        <td>@(advisory.AiSummary ?? advisory.Description)</td>
-                        <td>
-                            <a href="@advisory.SourceUrl" target="_blank" rel="noreferrer">@advisory.SourceName</a>
-                        </td>
-                        <td>@advisory.LastSyncedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                    </tr>
-                }
-            }
-            </tbody>
-        </table>
-    </div>
+                        </label>
+                        <label class="dify-option is-disabled">
+                            <input type="radio" disabled />
+                            <span class="option-icon">C</span>
+                            <span>
+                                <strong>Custom</strong>
+                                <small>自訂 chunk 長度、欄位權重與 preprocessing rules。保留給後續版本。</small>
+                            </span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Index mode</h2>
+                        <p>正式環境可接 OpenAI / Ollama embedding；沒有 provider 時會使用 local fallback。</p>
+                    </div>
+
+                    <div class="index-grid">
+                        <article class="index-option is-selected">
+                            <div>
+                                <span class="option-icon hot">H</span>
+                                <strong>High Quality</strong>
+                                <span class="recommend-badge">Recommended</span>
+                            </div>
+                            <p>使用 provider embedding 建立索引，讓 Agent 能更準確抓到相關 CVE 與產品脈絡。</p>
+                            <dl>
+                                <dt>Estimation</dt>
+                                <dd>@Model.EstimatedTokenCount.ToString("N0") tokens</dd>
+                            </dl>
+                        </article>
+                        <article class="index-option">
+                            <div>
+                                <span class="option-icon">E</span>
+                                <strong>Economical</strong>
+                            </div>
+                            <p>使用 local hash fallback，不需要 API key，適合本機開發、離線驗證與基礎流程測試。</p>
+                            <dl>
+                                <dt>Cost</dt>
+                                <dd>0 external tokens</dd>
+                            </dl>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Retrieval setting</h2>
+                        <p>Agent 會先從 Knowledge Base 取回 context，再交由 OpenAI / Ollama 或 fallback answer layer 生成回覆。</p>
+                    </div>
+
+                    <div class="retrieval-panel">
+                        <div>
+                            <span class="summary-label">Search strategy</span>
+                            <strong>Hybrid RAG retrieval</strong>
+                            <p>結合 embedding score、CVE ID、vendor/product keyword、KEV 與 Critical 條件進行排序。</p>
+                        </div>
+                        <div class="retrieval-slider" aria-hidden="true">
+                            <span style="width: 72%"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Knowledge data</h2>
+                        <p>搜尋目前已同步的 advisory。清單保持精簡，完整回答會由 Agent 依問題取回相關 chunks。</p>
+                    </div>
+
+                    <form class="knowledge-filter" method="get">
+                        <input class="form-control" type="search" name="q" placeholder="Search CVE / vendor / product" value="@activeQuery" />
+                        <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
+                            <input type="checkbox" name="kev" value="true" checked="@kevActive" />
+                            KEV
+                        </label>
+                        <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
+                            <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
+                            Critical
+                        </label>
+                        <button class="btn btn-outline-secondary" type="submit">Apply</button>
+                    </form>
+
+                    <div class="knowledge-table">
+                        @if (Model.Advisories.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <p class="empty-copy">目前沒有符合條件的弱點資料。可以先同步資料或調整搜尋條件。</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var advisory in Model.Advisories.Take(12))
+                            {
+                                var riskParts = new List<string>();
+                                if (!string.IsNullOrWhiteSpace(advisory.Severity))
+                                {
+                                    riskParts.Add(advisory.Severity);
+                                }
+                                if (advisory.CvssScore.HasValue)
+                                {
+                                    riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
+                                }
+                                if (advisory.IsKnownExploited)
+                                {
+                                    riskParts.Add("KEV");
+                                }
+
+                                <article class="advisory-row">
+                                    <div>
+                                        <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
+                                        <p>@advisory.Title</p>
+                                    </div>
+                                    <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                        @(riskParts.Count == 0 ? "未標示" : string.Join(" / ", riskParts))
+                                    </span>
+                                </article>
+                            }
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <aside class="knowledge-preview" aria-label="Chunk preview">
+                <div class="preview-header">
+                    <strong>Preview</strong>
+                    <span>×</span>
+                </div>
+
+                <div class="preview-stats">
+                    <article>
+                        <span>Advisories</span>
+                        <strong>@Model.TotalCount.ToString("N0")</strong>
+                    </article>
+                    <article>
+                        <span>Chunks</span>
+                        <strong>@Model.ChunkCount.ToString("N0")</strong>
+                    </article>
+                    <article>
+                        <span>KEV</span>
+                        <strong>@Model.KevCount.ToString("N0")</strong>
+                    </article>
+                </div>
+
+                <div class="chunk-stack">
+                    @if (Model.PreviewChunks.Count == 0)
+                    {
+                        <article class="chunk-card">
+                            <div class="chunk-meta">
+                                <span># 000</span>
+                                <span>0 characters</span>
+                            </div>
+                            <p>尚未建立 chunk。按下 Sync now 後會同步 CISA KEV / NVD 並建立 preview。</p>
+                        </article>
+                    }
+                    else
+                    {
+                        @foreach (var chunk in Model.PreviewChunks)
+                        {
+                            <article class="chunk-card">
+                                <div class="chunk-meta">
+                                    <span># @chunk.SecurityAdvisoryChunkId.ToString("000")</span>
+                                    <span>@chunk.ChunkText.Length.ToString("N0") characters</span>
+                                </div>
+                                <strong>@(chunk.Advisory?.CveId ?? chunk.Advisory?.ExternalId ?? chunk.ChunkKind)</strong>
+                                <p>@TrimPreview(chunk.ChunkText)</p>
+                            </article>
+                        }
+                    }
+                </div>
+            </aside>
+        </section>
+    </main>
 </section>
+
+@functions {
+    private static string TrimPreview(string value)
+    {
+        var compact = string.Join(' ', value.Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return compact.Length <= 260 ? compact : compact[..260] + "...";
+    }
+}
