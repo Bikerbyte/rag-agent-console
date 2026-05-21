@@ -1,10 +1,11 @@
 # Security Advisory Bot
 
-一個以 **ASP.NET Core / Razor Pages / EF Core / PostgreSQL / Telegram Bot** 打造的輕量資安情報通知系統。
+以 **ASP.NET Core / Razor Pages / EF Core / PostgreSQL / Telegram Bot** 打造的輕量資安情報通知系統。
 
 系統會同步公開弱點來源，整理成可查詢的 advisory 資料，建立 lightweight RAG 索引，並依照 Telegram chat 的訂閱規則推送高風險或已知遭利用的弱點。
 
-設計目標不是做 Dify clone，也不是做大型 AI workflow platform，而是做一個工程師可以維護、可以 demo、也能放在履歷上說明架構取捨的內部工具型專案。
+Bot 會同步 CISA KEV 和 NVD 的弱點資料，正規化成統一的 SecurityAdvisory 格式，產生摘要和建議處置方向，然後透過 Telegram 讓你查詢或訂閱特定關鍵字的推播通知。
+
 
 ## 架構圖
 
