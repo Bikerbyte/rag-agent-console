@@ -1,11 +1,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["CPBLLineBotCloud.csproj", "./"]
-RUN dotnet restore "./CPBLLineBotCloud.csproj"
+COPY ["SecurityAdvisoryBot.csproj", "./"]
+RUN dotnet restore "./SecurityAdvisoryBot.csproj"
 
 COPY . .
-RUN dotnet publish "./CPBLLineBotCloud.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./SecurityAdvisoryBot.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
@@ -15,4 +15,4 @@ EXPOSE 8080
 
 COPY --from=build /app/publish .
 
-ENTRYPOINT ["dotnet", "CPBLLineBotCloud.dll"]
+ENTRYPOINT ["dotnet", "SecurityAdvisoryBot.dll"]

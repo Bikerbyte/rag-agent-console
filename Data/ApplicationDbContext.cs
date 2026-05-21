@@ -1,7 +1,7 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CPBLLineBotCloud.Data;
+namespace SecurityAdvisoryBot.Data;
 
 /// <summary>
 /// 管理頁面、同步工作與 Telegram 推送紀錄共用的 EF Core DbContext。

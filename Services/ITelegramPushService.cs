@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 負責送出 Telegram 推播，並記錄每次送出的結果。

@@ -1,9 +1,9 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 實際處理 Telegram update 的 service。

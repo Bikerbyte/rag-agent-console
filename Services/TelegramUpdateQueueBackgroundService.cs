@@ -1,8 +1,8 @@
 using System.Text.Json;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 從 Telegram update 佇列取出待處理資料，交給實際的 update processor。

@@ -1,6 +1,6 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 處理 Telegram update，讓 polling 與 webhook 可以共用同一套邏輯。

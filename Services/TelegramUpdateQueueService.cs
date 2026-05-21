@@ -1,10 +1,10 @@
 using System.Text.Json;
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 用資料庫表暫時承接 Telegram update。

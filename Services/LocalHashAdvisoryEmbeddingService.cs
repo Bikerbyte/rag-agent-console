@@ -2,9 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 public partial class LocalHashAdvisoryEmbeddingService(IOptions<SecurityAdvisoryOptions> options) : IAdvisoryEmbeddingService
 {

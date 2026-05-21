@@ -1,7 +1,7 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 定期執行 Telegram 排程推播判斷的背景工作迴圈。

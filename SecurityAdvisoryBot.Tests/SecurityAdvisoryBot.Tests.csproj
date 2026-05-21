@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CPBLLineBotCloud.csproj" />
+    <ProjectReference Include="..\SecurityAdvisoryBot.csproj" />
   </ItemGroup>
 
 </Project>

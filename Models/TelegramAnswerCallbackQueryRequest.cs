@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 public class TelegramAnswerCallbackQueryRequest
 {

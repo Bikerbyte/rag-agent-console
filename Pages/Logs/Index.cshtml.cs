@@ -1,9 +1,9 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace CPBLLineBotCloud.Pages.Logs;
+namespace SecurityAdvisoryBot.Pages.Logs;
 
 public class IndexModel(ApplicationDbContext dbContext) : PageModel
 {

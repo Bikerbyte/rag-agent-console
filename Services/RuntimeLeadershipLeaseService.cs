@@ -1,9 +1,9 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 用資料庫租約控制 scheduled jobs 的單活執行，避免多台節點重複跑同步或通知工作。

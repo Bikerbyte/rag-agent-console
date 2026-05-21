@@ -1,8 +1,8 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
-namespace CPBLLineBotCloud.Tests;
+namespace SecurityAdvisoryBot.Tests;
 
 public class AppRuntimeOptionsExtensionsTests
 {

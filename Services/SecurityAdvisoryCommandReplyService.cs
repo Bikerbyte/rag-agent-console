@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 public partial class SecurityAdvisoryCommandReplyService(
     ApplicationDbContext dbContext,
