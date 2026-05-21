@@ -1,88 +1,71 @@
-# Security Advisory RAG Rework
+# Security Advisory RAG Agent 設計說明
 
-這份文件說明目前 lightweight security advisory intelligence bot 的設計方向。
+這個專案的定位是 **Telegram-first CVE RAG Agent**。
 
-目標不是做 Dify clone，也不是做大型 workflow platform，而是保留現有 ASP.NET Core / EF Core / Telegram / worker / admin console 的工程骨架，換成更適合履歷展示的資安情報場景。
+它不是通用 Agent builder。它是把可替換的 AI provider、RAG retrieval、Telegram Bot API、CVE 資料管線和營運後台組成一個真的能跑的資安弱點助理。
 
-## 核心定位
+## 核心方向
 
-系統負責：
+- 使用者透過 Telegram 以自然語言互動。
+- 主要互動不依賴機器指令；Telegram callback 也送自然語言問題。
+- 模型 provider 可切換 OpenAI API、Ollama local model，或 local deterministic fallback。
+- 資安資料串接由本專案自行實作，避免只停留在提示詞層級。
+- RAG 與回答流程保持可替換，未來可以接 pgvector、Qdrant 或其他 vector store。
 
-- 同步 CVE / security advisory 來源
-- 正規化成 `SecurityAdvisory`
-- 產生簡短摘要與建議處置方向
-- 建立 lightweight RAG chunks
-- 讓 Telegram 使用者用 `/ask` 追問
-- 依照 chat 訂閱關鍵字推送高風險或已遭利用弱點
-- 在 Razor Pages 後台檢查資料、同步紀錄與推播狀態
-
-## 第一版範圍
-
-目前第一刀已接上：
-
-- CISA KEV JSON feed
-- NVD CVE API
-- `SecurityAdvisories` / `SecurityAdvisoryChunks`
-- local hash embedding service
-- RAG search / answer service
-- Telegram commands:
-  - `/latest`
-  - `/critical`
-  - `/kev`
-  - `/explain CVE-2024-3094`
-  - `/ask 最近 Fortinet 有哪些風險？`
-  - `/subscribe fortinet azure windows`
-  - `/watchlist`
-  - `/sync`
-- `Advisories` admin page
-- Telegram subscription fields for advisory push
-
-## RAG 設計取捨
-
-這版刻意不先導入 LangChain、Dify、Qdrant 或 Weaviate。
-
-原因：
-
-- 專案要維持可維護，不要為了展示 RAG 把架構變重
-- 目前資料量用 PostgreSQL + EF Core + local embedding 已經足夠 demo
-- 先把 ingestion、chunk、retrieve、answer 的產品流程做清楚
-- 未來真的需要更高品質搜尋時，再把 embedding store 換成 pgvector 或 OpenSearch
-
-目前的 RAG 是：
+## Agent Flow
 
 ```text
-CISA / NVD
-  -> SecurityAdvisory
-  -> SecurityAdvisoryChunk
-  -> local hash embedding
-  -> cosine retrieval
-  -> grounded Telegram answer with source URLs
+Telegram message
+  -> TelegramUpdateProcessingService
+  -> SecurityAdvisoryAgentService
+  -> RAG retrieval
+  -> OpenAI / Ollama / local answer
+  -> Telegram reply
 ```
 
-## Linux 或 Windows
-
-開發可以繼續在 Windows 上做，因為 .NET、EF Core、Razor Pages 和 Telegram webhook 都能跨平台跑。
-
-正式部署建議偏 Linux：
-
-- Docker / Nginx / PostgreSQL 比較自然
-- 未來如果加 pgvector，也比較接近真實 production stack
-- background worker、health check、log collection 在 Linux VM 或 container 上比較好展示
-- 履歷與面試時比較容易說明雲端部署拓撲
-
-建議維持：
+## 使用者可以直接問
 
 ```text
-Windows: local development
-Linux: demo / production deployment
-PostgreSQL: shared app data, worker lease, advisory store
+CVE-2024-3094 有什麼風險？
+最近 Cisco 有哪些高風險 CVE？
+今天有沒有 CISA KEV 新增項目？
+Windows Azure Fortinet 近期有哪些 Critical 弱點？
+哪些項目已經列入 CISA KEV？
 ```
 
-## 後續建議
+## 自行實作的部分
 
-下一步優先順序：
+- CISA KEV ingestion
+- NVD ingestion
+- `SecurityAdvisory` normalization
+- chunk creation
+- watchlist management
+- notification dispatch
+- Telegram update queue
+- Agent reply orchestration
+- Operations dashboard
 
-1. 加入 pgvector migration 或保留 local embedding 作為 dev fallback
-2. 加入 OpenAI-compatible summary service，沒有 API key 時沿用 local summary
-3. 擴充 security command service 的單元測試
-4. 補新版 Linux 部署文件與 demo 截圖
+## 可替換的部分
+
+- Chat model：OpenAI / Ollama
+- Embedding model：OpenAI / Ollama / local hash fallback
+- Vector store：目前是 EF chunk store，未來可替換成 pgvector 或 Qdrant
+- Runtime deployment：local dev、Docker、Linux VM、App Service
+
+## RAG 責任切分
+
+資料匯入層負責把外部資料來源轉成一致的 `SecurityAdvisory` 與 `SecurityAdvisoryChunk`。
+
+檢索層負責根據使用者問題、廠商名稱、CVE ID、severity、KEV 狀態找出相關 context。
+
+回答層只根據檢索回來的 context 回答，並在資訊不足時明確說明目前資料庫沒有足夠資料。這樣可以降低模型亂補細節的風險。
+
+## MVP Acceptance
+
+MVP 能力目標：
+
+1. 本機不設定 API key 也能啟動。
+2. 可以同步 CISA KEV / NVD 資料。
+3. Operations page 可以直接測試自然語言 Agent。
+4. Telegram 啟用後，使用者可用自然語言查 CVE 與查廠商弱點。
+5. Provider 切成 OpenAI 或 Ollama 時，回答會由模型根據 RAG context 整理。

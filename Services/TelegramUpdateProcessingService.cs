@@ -11,7 +11,7 @@ namespace SecurityAdvisoryBot.Services;
 /// </summary>
 public class TelegramUpdateProcessingService(
     ApplicationDbContext dbContext,
-    ICommandReplyService commandReplyService,
+    ISecurityAdvisoryAgentService advisoryAgent,
     ITelegramBotClient telegramBotClient,
     IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<TelegramUpdateProcessingService> logger) : ITelegramUpdateProcessingService
@@ -49,7 +49,7 @@ public class TelegramUpdateProcessingService(
         try
         {
             var chatId = chat.Id.ToString();
-            var replyText = await commandReplyService.BuildReplyAsync(text, chatId, cancellationToken);
+            var replyText = await advisoryAgent.BuildReplyAsync(text, chatId, cancellationToken: cancellationToken);
             var sendResult = await telegramBotClient.SendTextMessageAsync(chatId, replyText, cancellationToken);
 
             dbContext.PushLogs.Add(new PushLog
@@ -137,13 +137,13 @@ public class TelegramUpdateProcessingService(
     private static string BuildMessageTitle(string commandText)
     {
         var compactText = string.Join(' ', commandText.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-        var title = $"Command: {compactText}";
+        var title = $"Message: {compactText}";
         return title.Length <= 200 ? title : title[..200];
     }
 
     private async Task<string?> TrySendFallbackReplyAsync(string chatId, CancellationToken cancellationToken)
     {
-        var fallbackMessage = "剛剛整理資料時發生錯誤，我們已經記錄下來請稍後再試一次";
+        var fallbackMessage = "處理弱點查詢時發生錯誤，系統已記錄，請稍後再試。";
         var fallbackResult = await telegramBotClient.SendTextMessageAsync(chatId, fallbackMessage, cancellationToken);
         return fallbackResult.IsSuccess ? "Fallback reply sent after command failure." : fallbackResult.ErrorMessage;
     }

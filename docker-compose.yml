@@ -35,6 +35,16 @@ services:
       SecurityAdvisories__EnableNvdSource: ${SECURITY_ADVISORIES_ENABLE_NVD_SOURCE:-true}
       SecurityAdvisories__NvdLookbackDays: ${SECURITY_ADVISORIES_NVD_LOOKBACK_DAYS:-7}
       SecurityAdvisories__MaxNvdResultsPerSync: ${SECURITY_ADVISORIES_MAX_NVD_RESULTS_PER_SYNC:-100}
+      AiProvider__Provider: ${AI_PROVIDER:-Local}
+      AiProvider__EnableChatGeneration: ${AI_ENABLE_CHAT_GENERATION:-false}
+      AiProvider__UseLocalFallback: ${AI_USE_LOCAL_FALLBACK:-true}
+      AiProvider__OpenAiApiBaseUrl: ${OPENAI_API_BASE_URL:-https://api.openai.com}
+      AiProvider__OpenAiApiKey: ${OPENAI_API_KEY:-}
+      AiProvider__OpenAiChatModel: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      AiProvider__OpenAiEmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      AiProvider__OllamaApiBaseUrl: ${OLLAMA_API_BASE_URL:-http://host.docker.internal:11434}
+      AiProvider__OllamaChatModel: ${OLLAMA_CHAT_MODEL:-llama3.1}
+      AiProvider__OllamaEmbeddingModel: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
     ports:
       - "${APP_PORT:-8080}:8080"
     volumes:

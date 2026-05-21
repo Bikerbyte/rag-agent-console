@@ -27,6 +27,7 @@ builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(
 builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
 builder.Services.Configure<SecurityAdvisoryOptions>(builder.Configuration.GetSection(SecurityAdvisoryOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
+builder.Services.Configure<AiProviderOptions>(builder.Configuration.GetSection(AiProviderOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
 builder.Services.PostConfigure<AppRuntimeOptions>(options =>
 {
@@ -73,19 +74,29 @@ builder.Services.AddHttpClient<NvdAdvisorySource>((serviceProvider, httpClient) 
     httpClient.BaseAddress = new Uri(securityOptions.NvdApiBaseUrl);
     httpClient.Timeout = TimeSpan.FromSeconds(45);
 });
+builder.Services.AddHttpClient<IAiChatClient, AiChatClient>((serviceProvider, httpClient) =>
+{
+    var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+    httpClient.Timeout = TimeSpan.FromSeconds(Math.Clamp(aiOptions.ChatTimeoutSeconds, 5, 180));
+});
+builder.Services.AddHttpClient<IAdvisoryEmbeddingService, AdvisoryEmbeddingService>((serviceProvider, httpClient) =>
+{
+    var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+    httpClient.Timeout = TimeSpan.FromSeconds(Math.Clamp(aiOptions.EmbeddingTimeoutSeconds, 5, 180));
+});
 builder.Services.AddHttpClient();
 
 // Add Service Area - 應用服務
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<ITelegramPushService, TelegramPushService>();
+builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<CisaKevAdvisorySource>());
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<NvdAdvisorySource>());
-builder.Services.AddScoped<IAdvisoryEmbeddingService, LocalHashAdvisoryEmbeddingService>();
 builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncService>();
 builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
 builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
-builder.Services.AddScoped<ICommandReplyService, SecurityAdvisoryCommandReplyService>();
+builder.Services.AddScoped<ISecurityAdvisoryAgentService, SecurityAdvisoryAgentService>();
 builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
@@ -158,15 +169,19 @@ app.Use(async (context, next) =>
 });
 
 // 本機診斷用 endpoint
-app.MapGet("/api/telegram/health", (IOptions<TelegramBotOptions> options) => Results.Ok(new
+app.MapGet("/api/telegram/health", async (IAppSettingsService appSettings, CancellationToken cancellationToken) =>
 {
-    Provider = "Telegram",
-    options.Value.Enabled,
-    HasBotToken = !string.IsNullOrWhiteSpace(options.Value.BotToken),
-    options.Value.UseWebhookMode,
-    options.Value.WebhookPath,
-    appRuntimeOptions.EnableTelegramUpdateQueueWorker
-}));
+    var options = await appSettings.GetTelegramBotOptionsAsync(cancellationToken);
+    return Results.Ok(new
+    {
+        Provider = "Telegram",
+        options.Enabled,
+        HasBotToken = !string.IsNullOrWhiteSpace(options.BotToken),
+        options.UseWebhookMode,
+        options.WebhookPath,
+        appRuntimeOptions.EnableTelegramUpdateQueueWorker
+    });
+});
 
 if (appRuntimeOptions.EnableTelegramWebhookIngress)
 {
@@ -174,11 +189,11 @@ if (appRuntimeOptions.EnableTelegramWebhookIngress)
     app.MapPost(telegramBotOptions.WebhookPath, async (
         HttpRequest request,
         TelegramUpdate update,
-        IOptions<TelegramBotOptions> options,
+        IAppSettingsService appSettings,
         ITelegramUpdateQueueService updateQueueService,
         CancellationToken cancellationToken) =>
     {
-        var currentOptions = options.Value;
+        var currentOptions = await appSettings.GetTelegramBotOptionsAsync(cancellationToken);
 
         if (!currentOptions.Enabled || string.IsNullOrWhiteSpace(currentOptions.BotToken))
         {

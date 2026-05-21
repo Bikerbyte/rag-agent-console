@@ -150,7 +150,7 @@ public class SecurityAdvisoryNotificationDispatchService(
         }
 
         builder.AppendLine();
-        builder.AppendLine($"查詢: /explain {advisory.CveId ?? advisory.ExternalId}");
+        builder.AppendLine($"你可以直接詢問: {advisory.CveId ?? advisory.ExternalId} 有什麼風險？");
         builder.AppendLine($"來源: {advisory.SourceUrl}");
         return builder.ToString().TrimEnd();
     }

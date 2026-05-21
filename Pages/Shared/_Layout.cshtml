@@ -14,53 +14,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/SecurityAdvisoryBot.styles.css" asp-append-version="true" />
 </head>
 <body>
     <div class="app-shell">
-        <aside class="app-sidebar">
+        <header class="app-sidebar">
             <a class="app-brand" asp-area="" asp-page="/Index">
-                <span class="app-brand-mark">SEC</span>
+                <span class="app-brand-mark">S</span>
                 <span class="app-brand-copy">
                     <strong>Advisory Bot</strong>
-                    <span>CVE sync、RAG 查詢、Telegram 通知與營運管理台</span>
+                    <span>Security RAG</span>
                 </span>
             </a>
 
             <nav class="app-nav" aria-label="Primary">
                 <a class="app-nav-link @(currentPage == "/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Index">
-                    <span class="app-nav-eyebrow">總覽</span>
-                    <strong>首頁</strong>
-                </a>
-                <a class="app-nav-link @(currentPage == "/Telegram/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Telegram/Index">
-                    <span class="app-nav-eyebrow">Bot</span>
-                    <strong>Telegram</strong>
+                    <span class="app-nav-eyebrow">Overview</span>
+                    <strong>Dashboard</strong>
                 </a>
                 <a class="app-nav-link @(currentPage == "/Advisories/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Advisories/Index">
-                    <span class="app-nav-eyebrow">Intel</span>
-                    <strong>Advisories</strong>
+                    <span class="app-nav-eyebrow">RAG data</span>
+                    <strong>Knowledge Base</strong>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Groups/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Groups/Index">
-                    <span class="app-nav-eyebrow">推播</span>
-                    <strong>聊天設定</strong>
-                </a>
-                <a class="app-nav-link @(currentPage == "/Logs/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Logs/Index">
-                    <span class="app-nav-eyebrow">紀錄</span>
-                    <strong>紀錄</strong>
-                </a>
-                <a class="app-nav-link @(currentPage == "/Runtime/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Runtime/Index">
-                    <span class="app-nav-eyebrow">多節點</span>
-                    <strong>Runtime</strong>
+                <a class="app-nav-link @(currentPage == "/Operations/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Operations/Index">
+                    <span class="app-nav-eyebrow">Bot ops</span>
+                    <strong>Operations</strong>
                 </a>
             </nav>
 
             <section class="sidebar-note">
-                <p class="sidebar-note-label">目前重點</p>
-                <p class="sidebar-note-text">先把弱點同步、RAG 查詢、推播規則和 runtime 狀態做清楚，維持輕量但可 demo。</p>
+                <span class="topbar-chip">TEAM</span>
+                <span class="user-avatar">I</span>
+                <span>Ian</span>
             </section>
-        </aside>
+        </header>
 
         <div class="app-main">
             <header class="app-topbar">
@@ -70,9 +58,8 @@
                 </div>
                 <div class="topbar-meta">
                     <span class="topbar-chip">Node: @currentInstanceName</span>
-                    <span class="topbar-chip">ASP.NET Core Razor Pages</span>
-                    <span class="topbar-chip">CVE / KEV Sync</span>
-                    <span class="topbar-chip">Telegram Delivery</span>
+                    <span class="topbar-chip">CVE / KEV</span>
+                    <span class="topbar-chip">Telegram</span>
                 </div>
             </header>
 
@@ -82,13 +69,13 @@
 
             <footer class="app-footer">
                 <span>Security Advisory Bot</span>
-                <span>輕量 CVE intelligence、RAG 查詢與 Telegram 通知 side project</span>
+                <span>Production-oriented CVE RAG and Telegram notification console</span>
             </footer>
         </div>
     </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

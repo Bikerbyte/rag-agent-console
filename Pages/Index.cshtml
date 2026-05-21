@@ -1,123 +1,67 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "首頁";
+    ViewData["Title"] = "Dashboard";
 }
 
-<section class="dashboard-hero">
-    <div class="hero-grid">
-        <div>
-            <p class="eyebrow">Security Advisory Console</p>
-            <h1 class="display-title">CVE intelligence、RAG 查詢與 Telegram 通知</h1>
-            <p class="dashboard-copy">同步公開弱點來源，整理成可追問的 advisory knowledge base，並依照 Telegram 群組的 watchlist 推送高風險情報。</p>
-
-            <div class="hero-actions">
-                <a class="btn btn-primary" asp-page="/Advisories/Index">查看 Advisories</a>
-                <a class="btn btn-outline-secondary" asp-page="/Groups/Index">管理 Telegram 訂閱</a>
-            </div>
-        </div>
-
-        <div class="hero-rail">
-            <section class="data-card">
-                <span class="metric-label">最近弱點同步</span>
-                <p class="metric-note">@Model.LatestAdvisorySyncText</p>
-            </section>
-            <section class="data-card">
-                <span class="metric-label">RAG 索引</span>
-                <p class="metric-note">@Model.RagIndexText</p>
-            </section>
-            <section class="data-card">
-                <span class="metric-label">最近回覆</span>
-                <p class="metric-note">@Model.LatestReplyText</p>
-            </section>
-            <section class="data-card">
-                <span class="metric-label">節點狀態</span>
-                <p class="metric-note">@Model.RuntimeSummaryText</p>
-            </section>
+<section class="dashboard-hero compact-hero">
+    <div>
+        <p class="eyebrow">Security Advisory RAG Bot</p>
+        <h1 class="display-title">CVE 弱點情報與 Telegram 通知管理</h1>
+        <p class="dashboard-copy">
+            提供弱點資料同步、RAG 索引、Telegram 通知與節點狀態的營運檢視。
+        </p>
+        <div class="hero-actions">
+            <a class="btn btn-primary" asp-page="/Advisories/Index">Open knowledge base</a>
+            <a class="btn btn-outline-secondary" asp-page="/Operations/Index">Bot operations</a>
         </div>
     </div>
 </section>
 
-<section class="stats-grid">
-    <article class="stat-card">
+<section class="compact-metrics">
+    <article class="metric-strip">
         <span class="metric-label">Advisories</span>
-        <strong class="stat-value">@Model.AdvisoryCount</strong>
-        <p class="stat-note">目前已同步的弱點情報</p>
+        <strong>@Model.AdvisoryCount</strong>
+        <p>@Model.KnownExploitedCount KEV · @Model.RagChunkCount RAG chunks</p>
     </article>
-    <article class="stat-card">
-        <span class="metric-label">CISA KEV</span>
-        <strong class="stat-value">@Model.KnownExploitedCount</strong>
-        <p class="stat-note">已知遭利用弱點</p>
+    <article class="metric-strip">
+        <span class="metric-label">Telegram</span>
+        <strong>@(Model.BotEnabled && Model.HasBotToken ? "Ready" : "Needs config")</strong>
+        <p>@Model.ChatCount chats · @Model.PendingTelegramUpdateCount queued updates</p>
     </article>
-    <article class="stat-card">
-        <span class="metric-label">RAG chunks</span>
-        <strong class="stat-value">@Model.RagChunkCount</strong>
-        <p class="stat-note">可供 /ask 檢索的段落</p>
+    <article class="metric-strip">
+        <span class="metric-label">AI provider</span>
+        <strong>@Model.AiProviderText</strong>
+        <p>OpenAI, Ollama, or local fallback</p>
     </article>
-    <article class="stat-card">
-        <span class="metric-label">聊天數</span>
-        <strong class="stat-value">@Model.ChatCount</strong>
-        <p class="stat-note">已建立推播設定的 Telegram chat</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">推播紀錄</span>
-        <strong class="stat-value">@Model.PushLogCount</strong>
-        <p class="stat-note">目前保留的推播與回覆紀錄</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">同步紀錄</span>
-        <strong class="stat-value">@Model.SyncLogCount</strong>
-        <p class="stat-note">目前保留的同步作業紀錄</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">線上節點</span>
-        <strong class="stat-value">@Model.ActiveNodeCount</strong>
-        <p class="stat-note">45 秒內有心跳的節點數</p>
-    </article>
-    <article class="stat-card">
-        <span class="metric-label">Update Queue</span>
-        <strong class="stat-value">@Model.PendingTelegramUpdateCount</strong>
-        <p class="stat-note">待處理或處理中的 Telegram update</p>
+    <article class="metric-strip">
+        <span class="metric-label">Runtime</span>
+        <strong>@Model.InstanceName</strong>
+        <p>@Model.ActiveNodeCount online node(s) · @Model.EnvironmentName</p>
     </article>
 </section>
 
-<section class="content-grid">
+<section class="ops-grid mt-4">
     <article class="panel">
         <div class="panel-header">
             <div class="panel-title-group">
-                <span class="section-kicker">執行資訊</span>
-                <h2 class="panel-title">執行狀態</h2>
-                <p class="panel-subtitle">本機檢查用</p>
-            </div>
-        </div>
-
-        <div class="mini-grid">
-            <div class="mini-stat">
-                <span>程序 ID</span>
-                <strong>@Model.CurrentProcessId</strong>
-            </div>
-            <div class="mini-stat">
-                <span>啟動時間</span>
-                <strong>@Model.ProcessStartTime.ToString("yyyy-MM-dd HH:mm:ss")</strong>
-            </div>
-            <div class="mini-stat">
-                <span>環境</span>
-                <strong>@Model.EnvironmentName</strong>
-            </div>
-            <div class="mini-stat">
-                <span>網址</span>
-                <strong>@Model.CurrentBaseUrl</strong>
-            </div>
-            <div class="mini-stat">
-                <span>節點</span>
-                <strong>@Model.InstanceName</strong>
+                <span class="section-kicker">Latest state</span>
+                <h2 class="panel-title">RAG pipeline</h2>
             </div>
         </div>
 
         <div class="detail-stack">
             <div class="detail-row">
-                <strong>Bot 狀態</strong>
-                <p class="muted-line">Telegram bot @(Model.BotEnabled ? "已啟用" : "未啟用")，Token @(Model.HasBotToken ? "已設定" : "未設定")</p>
+                <strong>Advisory sync</strong>
+                <p class="muted-line">@Model.LatestAdvisorySyncText</p>
+            </div>
+            <div class="detail-row">
+                <strong>Index</strong>
+                <p class="muted-line">@Model.RagIndexText</p>
+            </div>
+            <div class="detail-row">
+                <strong>Last Telegram delivery</strong>
+                <p class="muted-line">@Model.LatestReplyText</p>
             </div>
         </div>
     </article>
@@ -125,17 +69,16 @@
     <article class="panel">
         <div class="panel-header">
             <div class="panel-title-group">
-                <span class="section-kicker">本機操作</span>
-                <h2 class="panel-title">常用指令</h2>
-                <p class="panel-subtitle">開發使用</p>
+                <span class="section-kicker">Operations</span>
+                <h2 class="panel-title">Command reference</h2>
             </div>
         </div>
 
         <ul class="panel-list">
-            <li><code>dotnet run</code> 啟動站台與 background workers</li>
-            <li><code>dotnet ef database update</code> 套用 migrations</li>
-            <li><code>/sync</code> 從 Telegram 手動觸發 advisory 同步</li>
-            <li><a asp-page="/Runtime/Index">Runtime 頁面</a> 可看多節點心跳與 update queue</li>
+            <li><code>CVE-2024-xxxx 有什麼風險？</code> 查詢單一 CVE</li>
+            <li><code>最近 Cisco 有哪些高風險 CVE？</code> 查詢廠商弱點</li>
+            <li><code>幫我追蹤 Fortinet Azure</code> 更新 Telegram watchlist</li>
+            <li><code>dotnet run</code> 啟動站台和背景 worker</li>
         </ul>
     </article>
 </section>
