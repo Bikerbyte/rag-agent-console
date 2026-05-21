@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 /// <summary>
 /// 集中整理常用的 runtime profile，讓部署時優先選 profile，

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="CPBLLineBotCloud.Tests\\**\\*.cs" />
-    <Content Remove="CPBLLineBotCloud.Tests\\**\\*" />
-    <EmbeddedResource Remove="CPBLLineBotCloud.Tests\\**\\*" />
-    <None Remove="CPBLLineBotCloud.Tests\\**\\*" />
+    <Compile Remove="SecurityAdvisoryBot.Tests\\**\\*.cs" />
+    <Content Remove="SecurityAdvisoryBot.Tests\\**\\*" />
+    <EmbeddedResource Remove="SecurityAdvisoryBot.Tests\\**\\*" />
+    <None Remove="SecurityAdvisoryBot.Tests\\**\\*" />
   </ItemGroup>
 
 </Project>

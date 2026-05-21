@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 只封裝這個專案實際有用到的 Telegram Bot API 呼叫。

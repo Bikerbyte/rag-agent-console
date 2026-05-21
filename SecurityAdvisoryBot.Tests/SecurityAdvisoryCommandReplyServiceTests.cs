@@ -1,11 +1,11 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
-using CPBLLineBotCloud.Services;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace CPBLLineBotCloud.Tests;
+namespace SecurityAdvisoryBot.Tests;
 
 public class SecurityAdvisoryCommandReplyServiceTests
 {

@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 public interface ISecurityAdvisoryAnswerService
 {

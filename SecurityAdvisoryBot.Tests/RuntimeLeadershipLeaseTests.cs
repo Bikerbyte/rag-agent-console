@@ -1,6 +1,6 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
-using CPBLLineBotCloud.Services;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
 
-namespace CPBLLineBotCloud.Tests;
+namespace SecurityAdvisoryBot.Tests;
 
 public class RuntimeLeadershipLeaseTests
 {

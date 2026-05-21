@@ -1,7 +1,7 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 在 webhook 模式下，啟動時主動把公開 webhook URL 註冊到 Telegram。

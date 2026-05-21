@@ -1,6 +1,6 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 管理 Telegram update 的收件佇列，讓 ingress 與實際處理流程可以拆開。

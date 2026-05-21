@@ -1,6 +1,6 @@
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 public interface ISecurityAdvisorySearchService
 {

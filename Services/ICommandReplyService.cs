@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 /// <summary>
 /// 將收到的 Telegram 指令文字整理成可直接回傳給使用者的訊息內容。

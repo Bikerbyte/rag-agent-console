@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 public class DataSourceOptions
 {
