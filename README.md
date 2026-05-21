@@ -38,6 +38,24 @@ flowchart LR
     Admin --> Queue
 ```
 
+## 專案檔案禮儀
+
+這個專案刻意維持務實的 Razor Pages / Services 結構，不套過度複雜的 Clean Architecture。資料夾的分工如下：
+
+```text
+Data/                 EF Core DbContext
+Models/               EF entity、options、view model
+Pages/                Razor Pages 後台介面
+Services/Agent/       Agent 回覆、RAG retrieval、AI provider client
+Services/Advisories/  CISA / NVD 同步、弱點正規化、通知派送
+Services/Telegram/    Telegram API、polling、webhook、update queue、push
+Services/Runtime/     節點 heartbeat 與 leadership lease
+Services/Settings/    後台設定覆蓋 appsettings / user-secrets
+Services/Contracts/   依領域分組的 service interface
+```
+
+命名原則是「看到檔名就知道責任線」。同一條流程可以有多個 service，但不把不同責任混在同一個大型檔案裡。
+
 ## 使用的開源與外部元件
 
 - ASP.NET Core / Razor Pages：Web app 與營運後台

@@ -45,6 +45,18 @@ Windows Azure Fortinet 近期有哪些 Critical 弱點？
 - Agent reply orchestration
 - Operations dashboard
 
+## Service 分層
+
+`Services/Agent` 放使用者訊息到回答的路徑，包含 RAG retrieval、AI provider client 與 Agent orchestration。
+
+`Services/Advisories` 放弱點資料生命週期，包含 CISA / NVD source、同步、chunk 建立與通知派送。
+
+`Services/Telegram` 放 Telegram 相關基礎設施，包含 bot client、webhook、polling、update queue 與 push。
+
+`Services/Runtime` 放多節點執行時協調，例如 heartbeat 與 leadership lease。
+
+`Services/Settings` 放後台可調整設定。`Services/Contracts` 只放依領域拆分的 interface，避免一個 contracts 檔案變成所有 service 的雜物箱。
+
 ## 可替換的部分
 
 - Chat model：OpenAI / Ollama
