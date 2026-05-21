@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 /// <summary>
 /// 記錄 scheduled job 目前由哪個節點持有執行租約，讓多節點部署時仍維持單活執行。

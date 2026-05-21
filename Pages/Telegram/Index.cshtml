@@ -1,5 +1,5 @@
 @page
-@model CPBLLineBotCloud.Pages.Telegram.IndexModel
+@model SecurityAdvisoryBot.Pages.Telegram.IndexModel
 @{
     ViewData["Title"] = "Telegram";
 }
@@ -112,7 +112,7 @@
                         </td>
                         <td><code>@chat.ChatId</code></td>
                         <td>@(chat.EnableAdvisoryPush ? "啟用" : "停用")</td>
-                        <td>@CPBLLineBotCloud.Pages.Telegram.IndexModel.GetAdvisoryWatchlistLabel(chat)</td>
+                        <td>@SecurityAdvisoryBot.Pages.Telegram.IndexModel.GetAdvisoryWatchlistLabel(chat)</td>
                         <td>@chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                     </tr>
                 }

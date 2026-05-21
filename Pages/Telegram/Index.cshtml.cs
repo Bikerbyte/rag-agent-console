@@ -1,11 +1,11 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
-using CPBLLineBotCloud.Services;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Pages.Telegram;
+namespace SecurityAdvisoryBot.Pages.Telegram;
 
 public class IndexModel(
     IOptions<TelegramBotOptions> options,

@@ -1,4 +1,4 @@
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 /// <summary>
 /// 控制目前節點要啟用哪些執行角色，方便同一份程式部署到不同 VM。

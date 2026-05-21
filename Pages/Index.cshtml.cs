@@ -1,11 +1,11 @@
 using System.Diagnostics;
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Pages;
+namespace SecurityAdvisoryBot.Pages;
 
 public class IndexModel(
     ApplicationDbContext dbContext,

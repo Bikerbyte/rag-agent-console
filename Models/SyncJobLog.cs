@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace CPBLLineBotCloud.Models;
+namespace SecurityAdvisoryBot.Models;
 
 public class SyncJobLog
 {

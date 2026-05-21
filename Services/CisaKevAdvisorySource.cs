@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Models;
 using Microsoft.Extensions.Options;
 
-namespace CPBLLineBotCloud.Services;
+namespace SecurityAdvisoryBot.Services;
 
 public class CisaKevAdvisorySource(
     HttpClient httpClient,

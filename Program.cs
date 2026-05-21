@@ -1,6 +1,6 @@
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
-using CPBLLineBotCloud.Services;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

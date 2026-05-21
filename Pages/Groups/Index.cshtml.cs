@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
-using CPBLLineBotCloud.Data;
-using CPBLLineBotCloud.Models;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace CPBLLineBotCloud.Pages.Groups;
+namespace SecurityAdvisoryBot.Pages.Groups;
 
 public class IndexModel(ApplicationDbContext dbContext, ILogger<IndexModel> logger) : PageModel
 {
