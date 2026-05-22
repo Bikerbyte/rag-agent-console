@@ -154,6 +154,39 @@ public class IndexModel(
         return Page();
     }
 
+    public async Task<IActionResult> OnPostAskAgentJsonAsync(CancellationToken cancellationToken)
+    {
+        var messages = ReadAgentHistory().ToList();
+
+        if (string.IsNullOrWhiteSpace(AgentInput.Message))
+        {
+            return new JsonResult(new
+            {
+                historyJson = JsonSerializer.Serialize(messages),
+                newMessages = Array.Empty<AgentChatMessageViewModel>()
+            });
+        }
+
+        var history = messages
+            .Select(message => new AdvisoryConversationMessage(message.Role, message.Content))
+            .ToList();
+
+        var userMessage = AgentInput.Message.Trim();
+        var userChatMessage = new AgentChatMessageViewModel("user", userMessage);
+        messages.Add(userChatMessage);
+
+        var reply = await advisoryAgent.BuildReplyAsync(userMessage, "operations-preview", history, cancellationToken);
+        var agentChatMessage = new AgentChatMessageViewModel("assistant", reply);
+        messages.Add(agentChatMessage);
+
+        var retainedMessages = messages.TakeLast(12).ToList();
+        return new JsonResult(new
+        {
+            historyJson = JsonSerializer.Serialize(retainedMessages),
+            newMessages = new[] { agentChatMessage }
+        });
+    }
+
     private async Task LoadPageDataAsync()
     {
         var currentTelegramOptions = await appSettingsService.GetTelegramBotOptionsAsync();

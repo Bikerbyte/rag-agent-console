@@ -1411,7 +1411,7 @@ hr {
   letter-spacing: 0.08em;
 }
 
-.chat-message pre {
+.chat-bubble {
   margin: 0;
   padding: 0.78rem 0.9rem;
   border: 1px solid var(--panel-border);
@@ -1421,7 +1421,6 @@ hr {
   font-family: inherit;
   font-size: 0.95rem;
   line-height: 1.55;
-  white-space: pre-wrap;
 }
 
 .chat-message.is-user {
@@ -1432,9 +1431,103 @@ hr {
   text-align: right;
 }
 
-.chat-message.is-user pre {
+.chat-message.is-user .chat-bubble {
   border-color: #dbe7ff;
   background: #eef4ff;
+}
+
+.agent-markdown {
+  overflow-wrap: anywhere;
+}
+
+.agent-markdown p {
+  margin: 0 0 0.65rem;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+.agent-markdown p:last-child,
+.agent-markdown ul:last-child {
+  margin-bottom: 0;
+}
+
+.agent-markdown ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
+  padding-left: 1.1rem;
+}
+
+.agent-markdown li {
+  padding-left: 0.15rem;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+.agent-markdown strong {
+  font-weight: 800;
+}
+
+.agent-markdown a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.agent-compose.is-busy {
+  opacity: 0.92;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  gap: 0.24rem;
+  margin-right: 0.48rem;
+  vertical-align: middle;
+}
+
+.thinking-dots i {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.36;
+  animation: thinkingPulse 1.05s ease-in-out infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+.chat-message.is-thinking .chat-bubble {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: var(--text-soft);
+  background: #fff;
+}
+
+.chat-message.is-thinking em {
+  color: var(--text-soft);
+  font-style: normal;
+  font-weight: 700;
+}
+
+@keyframes thinkingPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 0.95;
+    transform: translateY(-2px);
+  }
 }
 
 .agent-compose {

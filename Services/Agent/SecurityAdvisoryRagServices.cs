@@ -298,10 +298,10 @@ public class SecurityAdvisoryAnswerService(
 
     private static bool LooksLikeSecurityQuestion(string question)
         => ContainsAny(question,
-            "cve-", "cve ", "kev", "cvss", "critical", "漏洞", "弱點", "資安", "風險",
+            "cve", "kev", "cvss", "critical", "漏洞", "弱點", "資安", "風險",
             "修補", "攻擊", "利用", "廠商", "產品", "高風險", "嚴重", "cisa", "nvd",
             "cisco", "fortinet", "microsoft", "windows", "azure", "linux", "openssl",
-            "router", "firewall", "vpn", "exchange", "office", "adobe", "oracle");
+            "router", "firewall", "vpn", "exchange", "office", "adobe", "oracle", "citrix");
 
     private static bool ContainsAny(string value, params string[] tokens)
         => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
