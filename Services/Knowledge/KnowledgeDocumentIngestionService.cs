@@ -1,0 +1,167 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using SecurityAdvisoryBot.Data;
+using SecurityAdvisoryBot.Models;
+
+namespace SecurityAdvisoryBot.Services;
+
+public class KnowledgeDocumentIngestionService(
+    ApplicationDbContext dbContext,
+    IKnowledgeDocumentTextExtractor textExtractor,
+    IKnowledgeTextChunkingService chunkingService,
+    IAdvisoryEmbeddingService embeddingService,
+    ILogger<KnowledgeDocumentIngestionService> logger) : IKnowledgeDocumentIngestionService
+{
+    public async Task<KnowledgeDocumentIngestionResult> ImportTextAsync(
+        KnowledgeDocumentImportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var text = NormalizeText(request.Text);
+        return await SaveDocumentAsync(
+            request.Title,
+            request.SourceType,
+            fileName: null,
+            contentType: "text/plain",
+            text,
+            request.ModuleName,
+            request.Vendor,
+            request.Product,
+            request.Tags,
+            isMarkdown: false,
+            cancellationToken);
+    }
+
+    public async Task<KnowledgeDocumentIngestionResult> ImportFileAsync(
+        KnowledgeDocumentFileImportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var extracted = await textExtractor.ExtractAsync(
+            request.FileName,
+            request.ContentType,
+            request.ContentStream,
+            cancellationToken);
+
+        var isMarkdown = string.Equals(extracted.NormalizedContentType, "text/markdown", StringComparison.OrdinalIgnoreCase);
+        return await SaveDocumentAsync(
+            string.IsNullOrWhiteSpace(request.Title) ? Path.GetFileNameWithoutExtension(request.FileName) : request.Title,
+            "UploadedFile",
+            request.FileName,
+            extracted.NormalizedContentType,
+            extracted.Text,
+            request.ModuleName,
+            request.Vendor,
+            request.Product,
+            request.Tags,
+            isMarkdown,
+            cancellationToken);
+    }
+
+    private async Task<KnowledgeDocumentIngestionResult> SaveDocumentAsync(
+        string title,
+        string sourceType,
+        string? fileName,
+        string? contentType,
+        string text,
+        string moduleName,
+        string? vendor,
+        string? product,
+        string? tags,
+        bool isMarkdown,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new InvalidOperationException("The imported document did not contain extractable text.");
+        }
+
+        var chunks = chunkingService.SplitIntoChunks(text, isMarkdown);
+        if (chunks.Count == 0)
+        {
+            throw new InvalidOperationException("The imported document did not produce any chunks.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var document = new KnowledgeDocument
+        {
+            Title = Trim(title, 160),
+            SourceType = Trim(sourceType, 128),
+            FileName = Normalize(fileName, 260),
+            ContentType = Normalize(contentType, 120),
+            ModuleName = NormalizeModule(moduleName),
+            Vendor = Normalize(vendor, 120),
+            Product = Normalize(product, 160),
+            Tags = Normalize(tags, 800),
+            ExtractedText = text,
+            ContentHash = BuildContentHash(text),
+            CharacterCount = text.Length,
+            ChunkCount = chunks.Count,
+            CreatedTime = now,
+            LastUpdatedTime = now
+        };
+
+        for (var index = 0; index < chunks.Count; index++)
+        {
+            var chunkText = chunks[index];
+            var embedding = await embeddingService.BuildEmbeddingAsync(BuildEmbeddingText(document, chunkText), cancellationToken);
+            document.Chunks.Add(new KnowledgeDocumentChunk
+            {
+                ChunkIndex = index,
+                ChunkText = Trim(chunkText, 4000),
+                EmbeddingJson = JsonSerializer.Serialize(embedding),
+                CreatedTime = now
+            });
+        }
+
+        dbContext.KnowledgeDocuments.Add(document);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Imported knowledge document {DocumentId} into module {ModuleName}. Chunks={ChunkCount}.",
+            document.KnowledgeDocumentId,
+            document.ModuleName,
+            document.ChunkCount);
+
+        return new KnowledgeDocumentIngestionResult(
+            document.KnowledgeDocumentId,
+            document.Title,
+            document.SourceType,
+            document.ModuleName,
+            document.CharacterCount,
+            document.ChunkCount);
+    }
+
+    private static string BuildEmbeddingText(KnowledgeDocument document, string chunkText)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(document.Title);
+        builder.AppendLine($"Module: {document.ModuleName}");
+        builder.AppendLine($"Vendor: {document.Vendor}");
+        builder.AppendLine($"Product: {document.Product}");
+        builder.AppendLine($"Tags: {document.Tags}");
+        builder.AppendLine(chunkText);
+        return builder.ToString();
+    }
+
+    private static string NormalizeText(string value)
+        => string.Join(Environment.NewLine, value
+            .Replace("\r\n", "\n")
+            .Replace('\r', '\n')
+            .Split('\n', StringSplitOptions.TrimEntries)
+            .Where(line => !string.IsNullOrWhiteSpace(line)));
+
+    private static string NormalizeModule(string? value)
+        => string.IsNullOrWhiteSpace(value) ? KnowledgeModuleNames.InternalDocs : Trim(value, 64);
+
+    private static string? Normalize(string? value, int maxLength)
+        => string.IsNullOrWhiteSpace(value) ? null : Trim(value, maxLength);
+
+    private static string Trim(string value, int maxLength)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+    }
+
+    private static string BuildContentHash(string text)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+}

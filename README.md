@@ -78,6 +78,11 @@ Runtime channel   Telegram / Operations console
 - Entity Framework Core：資料存取
 - PostgreSQL：正式環境儲存
 - pgvector：PostgreSQL 向量檢索 extension，Docker 環境已使用 pgvector-ready image
+- Microsoft Semantic Kernel TextChunker：通用文件 chunking
+- Markdig：Markdown 文字抽取
+- HtmlAgilityPack：HTML 文字抽取
+- CsvHelper：CSV 文字抽取
+- DocumentFormat.OpenXml：DOCX 文字抽取
 - Serilog：結構化 application logging
 - OpenTelemetry：HTTP / runtime tracing 與 metrics 掛點
 - Telegram Bot API：聊天入口與回覆推送
