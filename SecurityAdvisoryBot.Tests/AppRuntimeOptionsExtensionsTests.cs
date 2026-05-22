@@ -20,7 +20,7 @@ public class AppRuntimeOptionsExtensionsTests
 
         Assert.Equal(AppRuntimeProfiles.Standard, options.Profile);
         Assert.True(options.EnableTelegramWebhookIngress);
-        Assert.False(options.EnableTelegramPollingWorker);
+        Assert.True(options.EnableTelegramPollingWorker);
         Assert.True(options.EnableTelegramUpdateQueueWorker);
         Assert.True(options.EnableOfficialDataSyncWorker);
         Assert.True(options.EnableNotificationWorker);
@@ -80,7 +80,7 @@ public class AppRuntimeOptionsExtensionsTests
 
         options.ApplyRuntimeProfile(configuration);
 
-        Assert.False(options.EnableTelegramPollingWorker);
+        Assert.True(options.EnableTelegramPollingWorker);
     }
 
     [Fact]

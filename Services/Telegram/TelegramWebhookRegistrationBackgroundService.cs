@@ -7,8 +7,7 @@ namespace SecurityAdvisoryBot.Services;
 /// 在 webhook 模式下，啟動時主動把公開 webhook URL 註冊到 Telegram。
 /// </summary>
 public class TelegramWebhookRegistrationBackgroundService(
-    ITelegramBotClient telegramBotClient,
-    IOptions<TelegramBotOptions> telegramBotOptions,
+    IServiceScopeFactory scopeFactory,
     IOptions<AppRuntimeOptions> appRuntimeOptions,
     ILogger<TelegramWebhookRegistrationBackgroundService> logger) : BackgroundService
 {
@@ -16,7 +15,10 @@ public class TelegramWebhookRegistrationBackgroundService(
     {
         await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
 
-        var botOptions = telegramBotOptions.Value;
+        using var scope = scopeFactory.CreateScope();
+        var appSettingsService = scope.ServiceProvider.GetRequiredService<IAppSettingsService>();
+        var telegramBotClient = scope.ServiceProvider.GetRequiredService<ITelegramBotClient>();
+        var botOptions = await appSettingsService.GetTelegramBotOptionsAsync(stoppingToken);
         var runtimeOptions = appRuntimeOptions.Value;
 
         if (!botOptions.Enabled || string.IsNullOrWhiteSpace(botOptions.BotToken))

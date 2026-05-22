@@ -131,7 +131,7 @@ public static class AppRuntimeOptionsExtensions
             _ => new AppRuntimeOptions
             {
                 EnableTelegramWebhookIngress = true,
-                EnableTelegramPollingWorker = false,
+                EnableTelegramPollingWorker = true,
                 EnableTelegramUpdateQueueWorker = true,
                 EnableOfficialDataSyncWorker = true,
                 EnableNotificationWorker = true
