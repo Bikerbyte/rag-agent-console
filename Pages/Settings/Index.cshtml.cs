@@ -34,6 +34,17 @@ public class IndexModel(
         var currentAi = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
         var currentTelegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
 
+        ValidateUrl(Input.OpenAiApiBaseUrl, nameof(Input.OpenAiApiBaseUrl), "OpenAI Base URL must start with http:// or https://.");
+        ValidateUrl(Input.OllamaApiBaseUrl, nameof(Input.OllamaApiBaseUrl), "Ollama Base URL must start with http:// or https://.");
+        ValidateUrl(Input.TelegramApiBaseUrl, nameof(Input.TelegramApiBaseUrl), "Telegram API base URL must start with http:// or https://.");
+        if (!ModelState.IsValid)
+        {
+            var submittedInput = Input;
+            await LoadAsync(cancellationToken);
+            Input = submittedInput;
+            return Page();
+        }
+
         var updates = new List<AppSettingUpdate>
         {
             new("AiProvider:Provider", Input.AiProvider),
@@ -164,6 +175,14 @@ public class IndexModel(
         AiStatusLabel = "Offline";
         AiStatusDetail = "目前使用 Local fallback，不會呼叫 OpenAI 或 Ollama。";
         AiStatusClass = "is-neutral";
+    }
+
+    private void ValidateUrl(string? value, string propertyName, string errorMessage)
+    {
+        if (!SettingsUrlValidator.IsAbsoluteHttpUrl(value))
+        {
+            ModelState.AddModelError($"Input.{propertyName}", errorMessage);
+        }
     }
 
     public sealed record SettingsHealthItem(string Label, bool IsReady, string Detail);
