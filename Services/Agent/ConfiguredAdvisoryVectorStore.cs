@@ -19,7 +19,13 @@ public class ConfiguredAdvisoryVectorStore(
         {
             try
             {
-                return await pgVectorStore.SearchAsync(request, cancellationToken);
+                var candidates = await pgVectorStore.SearchAsync(request, cancellationToken);
+                if (candidates.Count > 0 || !options.UseJsonFallback)
+                {
+                    return candidates;
+                }
+
+                logger.LogInformation("PgVector returned no candidates. Falling back to EF JSON vector search.");
             }
             catch (PgVectorUnavailableException exception) when (options.UseJsonFallback)
             {
