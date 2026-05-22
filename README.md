@@ -198,6 +198,7 @@ Docker Compose 的 PostgreSQL 服務使用 `pgvector/pgvector:0.8.2-pg17-trixie`
 ## 相關文件
 
 - [Security Advisory RAG Agent 設計說明](docs/SecurityAdvisoryRag.zh-TW.md)
+- [RAG Agent 產品邏輯與 Knowledge Base 規劃](docs/RagAgentProductDirection.zh-TW.md)
 - [Ian .NET 實作風格](docs/Ian_Style_SKILL.zh-TW.md)
 
 ## MVP 驗收方向
