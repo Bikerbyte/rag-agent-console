@@ -1,8 +1,11 @@
 @page
+@using SecurityAdvisoryBot.Models
 @model SecurityAdvisoryBot.Pages.Advisories.IndexModel
 @{
     ViewData["Title"] = "Knowledge";
     var activeQuery = Request.Query["q"].ToString();
+    var activeRetrievalQuery = Request.Query["retrievalQuery"].ToString();
+    var activeTopK = int.TryParse(Request.Query["topK"], out var parsedTopK) ? Math.Clamp(parsedTopK, 1, 10) : 5;
     var kevActive = string.Equals(Request.Query["kev"], "true", StringComparison.OrdinalIgnoreCase);
     var criticalActive = string.Equals(Request.Query["critical"], "true", StringComparison.OrdinalIgnoreCase);
 }
@@ -140,6 +143,225 @@
 
                 <section class="setting-block">
                     <div class="setting-title">
+                        <h2>Data sources</h2>
+                        <p>官方 CVE 資料是第一個 domain module；手動文字與檔案會進入通用 Knowledge Document 管線，後續可給 workflow QA 或內部文件 QA 共用。</p>
+                    </div>
+
+                    <div class="source-card-grid">
+                        <article class="source-card is-active">
+                            <span class="option-icon">C</span>
+                            <div>
+                                <strong>Official CVE sources</strong>
+                                <p>CISA KEV / NVD connectors normalize advisories and create CVE chunks.</p>
+                            </div>
+                            <form method="post" asp-page-handler="Sync">
+                                <button class="btn btn-sm btn-primary" type="submit">Sync</button>
+                            </form>
+                        </article>
+
+                        <article class="source-card">
+                            <span class="option-icon">F</span>
+                            <div>
+                                <strong>Upload file</strong>
+                                <p>Markdown, TXT, HTML, CSV, and DOCX are parsed with open-source libraries.</p>
+                            </div>
+                        </article>
+
+                        <article class="source-card">
+                            <span class="option-icon">T</span>
+                            <div>
+                                <strong>Paste text</strong>
+                                <p>Create a managed document from advisory notes, SOPs, or internal memos.</p>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Upload knowledge file</h2>
+                        <p>檔案會先抽取文字，再使用 Semantic Kernel TextChunker 分段並建立 embedding。</p>
+                    </div>
+
+                    <form class="knowledge-ingest-form" method="post" asp-page-handler="UploadFile" enctype="multipart/form-data">
+                        <div class="form-row">
+                            <label class="field-block">
+                                <span>Title</span>
+                                <input asp-for="FileInput.Title" class="form-control" placeholder="Vendor advisory or SOP title" />
+                            </label>
+                            <label class="field-block">
+                                <span>Module</span>
+                                <select asp-for="FileInput.ModuleName" class="form-select">
+                                    <option value="@KnowledgeModuleNames.InternalDocs">Internal Docs</option>
+                                    <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
+                                    <option value="@KnowledgeModuleNames.WorkflowQa">Workflow QA</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <label class="field-block">
+                                <span>Vendor</span>
+                                <input asp-for="FileInput.Vendor" class="form-control" />
+                            </label>
+                            <label class="field-block">
+                                <span>Product</span>
+                                <input asp-for="FileInput.Product" class="form-control" />
+                            </label>
+                        </div>
+                        <label class="field-block">
+                            <span>Tags</span>
+                            <input asp-for="FileInput.Tags" class="form-control" placeholder="sop, incident, vpn" />
+                        </label>
+                        <label class="upload-zone">
+                            <input asp-for="FileInput.Upload" type="file" accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
+                            <strong>Choose file</strong>
+                            <span>Supported: Markdown, TXT, HTML, CSV, DOCX. Max 15 MB.</span>
+                        </label>
+                        <button class="btn btn-primary" type="submit">Import file</button>
+                    </form>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Create from text</h2>
+                        <p>直接貼上文字建立文件。這會走同一條 chunking / embedding 管線。</p>
+                    </div>
+
+                    <form class="knowledge-ingest-form" method="post" asp-page-handler="ImportText">
+                        <div class="form-row">
+                            <label class="field-block">
+                                <span>Title</span>
+                                <input asp-for="ManualInput.Title" class="form-control" />
+                            </label>
+                            <label class="field-block">
+                                <span>Module</span>
+                                <select asp-for="ManualInput.ModuleName" class="form-select">
+                                    <option value="@KnowledgeModuleNames.InternalDocs">Internal Docs</option>
+                                    <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
+                                    <option value="@KnowledgeModuleNames.WorkflowQa">Workflow QA</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <label class="field-block">
+                                <span>Vendor</span>
+                                <input asp-for="ManualInput.Vendor" class="form-control" />
+                            </label>
+                            <label class="field-block">
+                                <span>Product</span>
+                                <input asp-for="ManualInput.Product" class="form-control" />
+                            </label>
+                        </div>
+                        <label class="field-block">
+                            <span>Tags</span>
+                            <input asp-for="ManualInput.Tags" class="form-control" />
+                        </label>
+                        <label class="field-block">
+                            <span>Content</span>
+                            <textarea asp-for="ManualInput.Text" class="form-control" rows="7"></textarea>
+                        </label>
+                        <button class="btn btn-primary" type="submit">Import text</button>
+                    </form>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Managed documents</h2>
+                        <p>User-managed documents are module-aware and can later be retrieved by CVE, workflow, or internal-document agents.</p>
+                    </div>
+
+                    <div class="managed-document-list">
+                        @if (Model.ManagedDocuments.Count == 0)
+                        {
+                            <p class="empty-copy">No managed documents yet.</p>
+                        }
+                        else
+                        {
+                            @foreach (var document in Model.ManagedDocuments)
+                            {
+                                <article class="managed-document-row">
+                                    <div>
+                                        <strong>@document.Title</strong>
+                                        <p>@document.ModuleName · @document.SourceType · @document.CharacterCount.ToString("N0") chars · @document.ChunkCount chunks</p>
+                                    </div>
+                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
+                                        @(document.IsEnabled ? "Available" : "Disabled")
+                                    </span>
+                                </article>
+                            }
+                        }
+                    </div>
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
+                        <h2>Retrieval test</h2>
+                        <p>先用自然語言測試 CVE Advisory module 的 RAG 命中結果，確認 Agent 回答前實際拿到哪些 context。</p>
+                    </div>
+
+                    <form class="retrieval-test-form" method="get">
+                        <label class="field-block">
+                            <span>Query</span>
+                            <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="例如：最近 Cisco 有哪些高風險 CVE" />
+                        </label>
+                        <label class="field-block topk-field">
+                            <span>Top K</span>
+                            <input class="form-control" type="number" min="1" max="10" name="topK" value="@activeTopK" />
+                        </label>
+                        <button class="btn btn-primary" type="submit">Run retrieval</button>
+                    </form>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.RetrievalError))
+                    {
+                        <div class="alert alert-warning" role="alert">@Model.RetrievalError</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Model.RetrievalQuery) && Model.RetrievalResults.Count == 0)
+                    {
+                        <div class="retrieval-empty">
+                            <p>目前沒有命中的 chunk。可以先同步資料，或改用更明確的 CVE ID、廠商、產品名稱測試。</p>
+                        </div>
+                    }
+                    else if (Model.RetrievalResults.Count > 0)
+                    {
+                        <div class="retrieval-result-list">
+                            @for (var index = 0; index < Model.RetrievalResults.Count; index++)
+                            {
+                                var result = Model.RetrievalResults[index];
+                                var advisory = result.Advisory;
+                                <article class="retrieval-result-card">
+                                    <div class="retrieval-result-head">
+                                        <div>
+                                            <span class="chunk-rank"># @((index + 1).ToString("000"))</span>
+                                            <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
+                                        </div>
+                                        <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                            Score @FormatScore(result.Score)
+                                        </span>
+                                    </div>
+                                    <p class="retrieval-title">@advisory.Title</p>
+                                    <dl class="retrieval-meta">
+                                        <div>
+                                            <dt>Vendor</dt>
+                                            <dd>@(string.IsNullOrWhiteSpace(advisory.Vendor) ? "-" : advisory.Vendor)</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Product</dt>
+                                            <dd>@(string.IsNullOrWhiteSpace(advisory.Product) ? "-" : advisory.Product)</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Risk</dt>
+                                            <dd>@BuildRisk(advisory)</dd>
+                                        </div>
+                                    </dl>
+                                    <p class="retrieval-chunk">@TrimPreview(result.ChunkText)</p>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <section class="setting-block">
+                    <div class="setting-title">
                         <h2>Knowledge data</h2>
                         <p>搜尋目前已同步的 advisory。清單保持精簡，完整回答會由 Agent 依問題取回相關 chunks。</p>
                     </div>
@@ -213,6 +435,10 @@
                         <strong>@Model.ChunkCount.ToString("N0")</strong>
                     </article>
                     <article>
+                        <span>Documents</span>
+                        <strong>@Model.ManagedDocumentCount.ToString("N0")</strong>
+                    </article>
+                    <article>
                         <span>KEV</span>
                         <strong>@Model.KevCount.ToString("N0")</strong>
                     </article>
@@ -254,5 +480,27 @@
     {
         var compact = string.Join(' ', value.Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         return compact.Length <= 260 ? compact : compact[..260] + "...";
+    }
+
+    private static string FormatScore(double value)
+        => value.ToString("0.000");
+
+    private static string BuildRisk(SecurityAdvisory advisory)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(advisory.Severity))
+        {
+            parts.Add(advisory.Severity);
+        }
+        if (advisory.CvssScore.HasValue)
+        {
+            parts.Add($"CVSS {advisory.CvssScore:0.0}");
+        }
+        if (advisory.IsKnownExploited)
+        {
+            parts.Add("KEV");
+        }
+
+        return parts.Count == 0 ? "-" : string.Join(" / ", parts);
     }
 }

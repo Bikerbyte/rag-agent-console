@@ -16,6 +16,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<SyncJobLog> SyncJobLogs => Set<SyncJobLog>();
     public DbSet<SecurityAdvisory> SecurityAdvisories => Set<SecurityAdvisory>();
     public DbSet<SecurityAdvisoryChunk> SecurityAdvisoryChunks => Set<SecurityAdvisoryChunk>();
+    public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+    public DbSet<KnowledgeDocumentChunk> KnowledgeDocumentChunks => Set<KnowledgeDocumentChunk>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -56,6 +58,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasMany(advisory => advisory.Chunks)
             .WithOne(chunk => chunk.Advisory)
             .HasForeignKey(chunk => chunk.SecurityAdvisoryId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<KnowledgeDocument>()
+            .HasIndex(document => document.ModuleName);
+
+        modelBuilder.Entity<KnowledgeDocument>()
+            .HasMany(document => document.Chunks)
+            .WithOne(chunk => chunk.Document)
+            .HasForeignKey(chunk => chunk.KnowledgeDocumentId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -247,45 +247,50 @@ Knowledge Workspace:
 
 ## 待辦順序
 
-1. 重整 Knowledge Base 頁面資訊架構
+## 已落地的第一階段
+
+- Knowledge Base 頁面已加入 Data Sources、文件匯入、文件列表與 Retrieval Test。
+- 新增 `KnowledgeDocument` / `KnowledgeDocumentChunk`，讓官方 CVE advisory 之外，也能管理 user-managed documents。
+- 文件 ingestion 已可由 Web UI 匯入手動文字與檔案，並建立 chunks / embeddings。
+- 文件解析優先採用開源套件：Markdig、HtmlAgilityPack、CsvHelper、DocumentFormat.OpenXml。
+- Chunking 使用 Microsoft Semantic Kernel TextChunker，避免自行維護分段演算法。
+- Retrieval Test 已可用自然語言查詢目前 CVE Advisory module，並顯示 rank、score、CVE、vendor、product、risk 與 chunk preview。
+
+## 待辦順序
+
+1. 補強 Knowledge Base 頁面資訊架構
    - 拆成 Data Sources、Documents、Retrieval Test、Index Settings。
-   - 降低目前頁面的雜訊與擁擠感。
+   - 下一步可將 Documents / Retrieval Test / Settings 拆成獨立分頁，降低單頁密度。
 
-2. 新增 Retrieval Test
-   - 直接輸入 query。
-   - 顯示 top matches、score、metadata、chunk preview。
-   - 讓使用者先驗證知識庫檢索是否正確。
+2. 將 user-managed documents 接入通用 retriever
+   - 目前 Retrieval Test 已驗證 CVE Advisory module。
+   - 下一步要讓 `KnowledgeDocumentChunks` 也進入 module-aware retriever。
+   - 可依 module 選擇 `CveAdvisory`、`WorkflowQa`、`InternalDocs`。
 
-3. 新增文件 / 手動文字管理模型
-   - 建立 document entity。
-   - 文件與 advisory chunk 關聯。
-   - 區分 official advisory 與 user-managed document。
-   - 加入 module 欄位，讓 CVE、工作流程 QA、內部文件 QA 可共用 Knowledge Base runtime。
+3. 新增文件操作
+   - 啟用 / 停用文件。
+   - 刪除文件與 chunk。
+   - 重新 embedding。
+   - 顯示 parser、embedding 狀態與最後處理時間。
 
-4. 新增手動文字建立
-   - Web UI 可直接貼文字。
-   - 可填 title、source、vendor、product、tags。
-   - 儲存後產生 chunks / embeddings。
-
-5. 新增檔案上傳
-   - 初期支援 `.md`、`.txt`。
-   - 後續再加入 PDF / DOCX parser。
-   - 上傳後進入 preprocessing preview。
-
-6. 新增 LLM Query Planner
+4. 新增 LLM Query Planner
    - 使用 OpenAI / Ollama 將使用者問題轉成 structured retrieval request。
    - planner output 需要 schema validation。
    - local fallback 才使用簡化 keyword parser。
 
-7. 新增 Agent Retrieval Trace
+5. 新增 Agent Retrieval Trace
    - Web Chat 顯示 planner 與 retrieval trace。
    - Telegram 維持簡潔回答。
    - Operations / Logs 可查詢歷史 trace。
 
-8. 抽象 domain module 邊界
+6. 抽象 domain module 邊界
    - 定義 module metadata、planner schema、retrieval scope、answer template。
    - 先以 CVE Advisory module 實作。
    - 後續可新增 Workflow QA module，而不需要重寫 Telegram 或 Knowledge Base。
+
+7. 評估 PDF parser
+   - 目前已支援 Markdown、TXT、HTML、CSV、DOCX。
+   - PDF 需要選擇穩定、可維護的 .NET parser 後再接入。
 
 ## 當前不做
 
