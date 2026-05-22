@@ -101,8 +101,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Add Service Area - 對外 HTTP Client
 builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((serviceProvider, httpClient) =>
 {
-    var telegramBotOptions = serviceProvider.GetRequiredService<IOptions<TelegramBotOptions>>().Value;
-    httpClient.BaseAddress = new Uri(telegramBotOptions.ApiBaseUrl);
+    httpClient.BaseAddress = new Uri(SettingsUrlValidator.DefaultTelegramApiBaseUrl);
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddHttpClient<CisaKevAdvisorySource>(httpClient =>

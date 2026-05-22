@@ -29,13 +29,13 @@ public class AppSettingsService(
         options.UseLocalFallback = GetBool(values, "AiProvider:UseLocalFallback", options.UseLocalFallback);
         options.OpenAiApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
             Get(values, "AiProvider:OpenAiApiBaseUrl", options.OpenAiApiBaseUrl),
-            aiOptions.Value.OpenAiApiBaseUrl);
+            SettingsUrlValidator.DefaultOpenAiApiBaseUrl);
         options.OpenAiApiKey = Get(values, "AiProvider:OpenAiApiKey", options.OpenAiApiKey);
         options.OpenAiChatModel = Get(values, "AiProvider:OpenAiChatModel", options.OpenAiChatModel);
         options.OpenAiEmbeddingModel = Get(values, "AiProvider:OpenAiEmbeddingModel", options.OpenAiEmbeddingModel);
         options.OllamaApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
             Get(values, "AiProvider:OllamaApiBaseUrl", options.OllamaApiBaseUrl),
-            aiOptions.Value.OllamaApiBaseUrl);
+            SettingsUrlValidator.DefaultOllamaApiBaseUrl);
         options.OllamaChatModel = Get(values, "AiProvider:OllamaChatModel", options.OllamaChatModel);
         options.OllamaEmbeddingModel = Get(values, "AiProvider:OllamaEmbeddingModel", options.OllamaEmbeddingModel);
         options.ChatTimeoutSeconds = GetInt(values, "AiProvider:ChatTimeoutSeconds", options.ChatTimeoutSeconds);
@@ -52,7 +52,7 @@ public class AppSettingsService(
         options.BotToken = Get(values, "TelegramBot:BotToken", options.BotToken);
         options.ApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
             Get(values, "TelegramBot:ApiBaseUrl", options.ApiBaseUrl),
-            telegramOptions.Value.ApiBaseUrl);
+            SettingsUrlValidator.DefaultTelegramApiBaseUrl);
         options.PollingDelaySeconds = GetInt(values, "TelegramBot:PollingDelaySeconds", options.PollingDelaySeconds);
         options.UseWebhookMode = GetBool(values, "TelegramBot:UseWebhookMode", options.UseWebhookMode);
         options.WebhookPath = Get(values, "TelegramBot:WebhookPath", options.WebhookPath);
