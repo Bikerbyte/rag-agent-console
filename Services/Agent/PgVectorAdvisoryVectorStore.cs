@@ -33,11 +33,13 @@ public class PgVectorAdvisoryVectorStore(
                 SELECT *
                 FROM "SecurityAdvisoryChunks"
                 WHERE "EmbeddingJson" IS NOT NULL AND "EmbeddingJson" <> ''
+                  AND vector_dims("EmbeddingJson"::vector) = {2}
                 ORDER BY "EmbeddingJson"::vector <=> CAST({0} AS vector)
                 LIMIT {1}
                 """,
                 queryVector,
-                limit)
+                limit,
+                request.QueryEmbedding.Length)
             .Include(chunk => chunk.Advisory)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
