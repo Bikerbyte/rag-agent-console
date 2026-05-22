@@ -175,6 +175,6 @@ public class TelegramBotClient(
             ]
         };
 
-    private static Uri BuildUri(string baseUrl, string path)
-        => new(new Uri(baseUrl.TrimEnd('/') + "/"), path.TrimStart('/'));
+    public static Uri BuildUri(string baseUrl, string path)
+        => new($"{baseUrl.TrimEnd('/')}/{path.TrimStart('/')}");
 }
