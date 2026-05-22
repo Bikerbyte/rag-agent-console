@@ -6,6 +6,26 @@
 
 目前程式已經能跑通 Telegram、OpenAI / Ollama provider、PostgreSQL / pgvector、CISA KEV / NVD 同步與基本 RAG 回答，但現階段仍有一部分 query preprocessing 是由程式端 keyword / regex 先做。這比較像 MVP 的 search + RAG，不是最終希望的 Agentic RAG。
 
+目前 CVE / 弱點查詢是第一個落地領域，但整體設計不應綁死在 CVE。更準確的定位是：這是一個可組裝的 RAG Agent runtime，CVE 弱點管理只是第一組 domain module。後續若要加入工作流程問答、內部 SOP 問答、客戶支援知識庫、合規文件查詢，應該能透過新增資料來源、planner schema、retriever 與 answer template 來擴充，而不是複製一套新的 bot。
+
+設計方向：
+
+```text
+Core runtime
+  -> Channel adapters: Telegram / Web Chat
+  -> Model providers: OpenAI / Ollama / Local fallback
+  -> Knowledge Base runtime: documents / chunks / embeddings / retrieval test
+  -> Agent orchestration: planner / retrieval / answer / trace
+
+Domain modules
+  -> CVE Advisory module
+  -> Workflow QA module
+  -> Internal document QA module
+  -> Future custom modules
+```
+
+CVE module 目前包含 CISA KEV、NVD、vendor / product / CVE 查詢、KEV 通知、watchlist。未來其他 module 不應改動 Telegram ingress、AI provider、vector store 或通用 Knowledge Base 管理流程。
+
 正式產品邏輯應該是：
 
 ```text
@@ -123,6 +143,22 @@ Trace 建議格式：
 
 Knowledge Base 頁面不應只是資料表。它應該是管理 RAG 資料的主要入口，參考 Dify 的 Knowledge 設計，但保持本專案的資安弱點領域焦點。
 
+參考 Dify 畫面後，Knowledge Base 應具備兩種主要操作視角：
+
+1. 建立知識庫 / 匯入資料
+   - 以 stepper 呈現流程：選擇資料來源 -> 文字分段與清洗 -> 處理並完成。
+   - Step 1 顯示資料來源卡片，例如「匯入已有文字」、「同步自 Web 網站」、「同步自外部工具」。
+   - 對本專案而言，第一階段來源應是「官方弱點來源」、「上傳文字檔」、「手動貼上文字」、「同步 Web advisory URL」。
+   - 上傳區應清楚顯示支援格式、檔案大小限制與批次限制。
+
+2. 已建立知識庫 / 文件列表
+   - 左側 rail 顯示目前 knowledge space 與功能入口。
+   - 主要分頁包含「文件」、「管道」、「檢索測試」、「設定」。
+   - 文件列表顯示檔名、分段模式、字元數、檢索次數、上傳時間、狀態、操作。
+   - 右上角提供「新增檔案」、「元數據」等管理操作。
+
+本專案不需要照抄 Dify 的品牌與 SaaS 包裝，但應吸收它的資訊架構：建立資料、管理文件、測試檢索、設定索引，四件事要分得很清楚。
+
 應包含以下能力：
 
 1. 資料來源總覽
@@ -158,6 +194,12 @@ Knowledge Base 頁面不應只是資料表。它應該是管理 RAG 資料的主
    - 刪除文件與 chunk。
    - 查看來源、同步時間、chunk 數、embedding 狀態。
 
+7. Module-aware metadata
+   - 每份文件應標記 module，例如 `CveAdvisory`、`WorkflowQa`、`InternalDocs`。
+   - Retrieval Test 可選擇 module 範圍。
+   - Agent Planner 可依 intent 選擇要查哪個 module。
+   - 回答時應顯示來源 module，避免把 CVE 資料和工作流程文件混在一起。
+
 ## Knowledge Base 頁面設計方向
 
 目前 Knowledge Base 頁面偏資料表與資訊堆疊，後續需要改成正式的知識庫工作台。
@@ -165,19 +207,33 @@ Knowledge Base 頁面不應只是資料表。它應該是管理 RAG 資料的主
 建議版面：
 
 ```text
-Left rail:
-  Data Sources
-  Documents
-  Retrieval Test
-  Index Settings
+Create Knowledge:
+  Top stepper:
+    1 Choose source
+    2 Preprocess and clean
+    3 Execute and finish
 
-Main:
-  selected workflow / table / editor
+  Main:
+    source cards
+    upload / text input area
+    next action
 
-Right preview:
-  chunk preview
-  retrieval matches
-  document metadata
+Knowledge Workspace:
+  Left rail:
+    Documents
+    Channels
+    Retrieval Test
+    Settings
+
+  Main:
+    filters / search / sort
+    document table
+    status and actions
+
+  Detail / Preview:
+    metadata
+    chunk preview
+    retrieval matches
 ```
 
 設計原則：
@@ -187,6 +243,7 @@ Right preview:
 - 操作用正式產品語氣。
 - 每個區塊功能清楚，不讓 Operations、Chat、Knowledge Base 混在一起。
 - Retrieval Test 是 Knowledge Base 的核心能力之一，不是附屬 debug 工具。
+- CVE 弱點資料是第一個 domain module，但 UI 命名要保留擴充性，例如使用 Knowledge / Documents / Modules，而不是所有地方都寫死 Advisory。
 
 ## 待辦順序
 
@@ -203,6 +260,7 @@ Right preview:
    - 建立 document entity。
    - 文件與 advisory chunk 關聯。
    - 區分 official advisory 與 user-managed document。
+   - 加入 module 欄位，讓 CVE、工作流程 QA、內部文件 QA 可共用 Knowledge Base runtime。
 
 4. 新增手動文字建立
    - Web UI 可直接貼文字。
@@ -224,16 +282,26 @@ Right preview:
    - Telegram 維持簡潔回答。
    - Operations / Logs 可查詢歷史 trace。
 
+8. 抽象 domain module 邊界
+   - 定義 module metadata、planner schema、retrieval scope、answer template。
+   - 先以 CVE Advisory module 實作。
+   - 後續可新增 Workflow QA module，而不需要重寫 Telegram 或 Knowledge Base。
+
 ## 當前不做
 
 - 不針對單一產品寫死特殊規則，例如只為 NetScaler 改 parser。
-- 不先做大型 workflow builder。
+- 不先做大型 workflow builder；先保留 module 化邊界，等 CVE module 穩定後再擴充工作流程 QA。
 - 不把 Knowledge Base 做成複雜 SPA。
 - 不在 Telegram 回覆中塞完整 debug trace。
 
 ## 需要補充的設計參考
 
-目前已有 Dify Knowledge 的方向作為參考。若要更貼近 Dify 的上傳、preprocessing、retrieval preview 操作體驗，建議補一張或多張畫面：
+目前已有 Dify Knowledge 的方向作為參考，包含：
+
+- 建立知識庫時的 stepper、資料來源卡片與上傳區。
+- 知識庫文件列表的左側 rail、文件表格、檢索測試入口、設定入口。
+
+若要更貼近 Dify 的 preprocessing、retrieval preview 操作體驗，建議後續再補一張或多張畫面：
 
 - Knowledge list / dataset overview
 - Create knowledge / upload file
