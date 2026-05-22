@@ -47,6 +47,8 @@
     </div>
 
     <form method="post" asp-page-handler="Save" class="settings-editor">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
         <section class="settings-card is-primary">
             <div class="settings-card-header">
                 <div>
@@ -95,6 +97,7 @@
                         <label class="field-block field-span-2">
                             <span>Base URL</span>
                             <input asp-for="Input.OpenAiApiBaseUrl" class="form-control" />
+                            <span asp-validation-for="Input.OpenAiApiBaseUrl" class="text-danger"></span>
                         </label>
                         <label class="field-block">
                             <span>Chat model</span>
@@ -116,6 +119,7 @@
                         <label class="field-block field-span-2">
                             <span>Base URL</span>
                             <input asp-for="Input.OllamaApiBaseUrl" class="form-control" />
+                            <span asp-validation-for="Input.OllamaApiBaseUrl" class="text-danger"></span>
                         </label>
                         <label class="field-block">
                             <span>Chat model</span>
@@ -201,6 +205,7 @@
                 <label class="field-block">
                     <span>Telegram API base URL</span>
                     <input asp-for="Input.TelegramApiBaseUrl" class="form-control" />
+                    <span asp-validation-for="Input.TelegramApiBaseUrl" class="text-danger"></span>
                 </label>
                 <label class="field-switch field-span-2">
                     <input asp-for="Input.UseWebhookMode" class="form-check-input" />

@@ -27,11 +27,15 @@ public class AppSettingsService(
         options.Provider = Get(values, "AiProvider:Provider", options.Provider);
         options.EnableChatGeneration = GetBool(values, "AiProvider:EnableChatGeneration", options.EnableChatGeneration);
         options.UseLocalFallback = GetBool(values, "AiProvider:UseLocalFallback", options.UseLocalFallback);
-        options.OpenAiApiBaseUrl = Get(values, "AiProvider:OpenAiApiBaseUrl", options.OpenAiApiBaseUrl);
+        options.OpenAiApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
+            Get(values, "AiProvider:OpenAiApiBaseUrl", options.OpenAiApiBaseUrl),
+            aiOptions.Value.OpenAiApiBaseUrl);
         options.OpenAiApiKey = Get(values, "AiProvider:OpenAiApiKey", options.OpenAiApiKey);
         options.OpenAiChatModel = Get(values, "AiProvider:OpenAiChatModel", options.OpenAiChatModel);
         options.OpenAiEmbeddingModel = Get(values, "AiProvider:OpenAiEmbeddingModel", options.OpenAiEmbeddingModel);
-        options.OllamaApiBaseUrl = Get(values, "AiProvider:OllamaApiBaseUrl", options.OllamaApiBaseUrl);
+        options.OllamaApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
+            Get(values, "AiProvider:OllamaApiBaseUrl", options.OllamaApiBaseUrl),
+            aiOptions.Value.OllamaApiBaseUrl);
         options.OllamaChatModel = Get(values, "AiProvider:OllamaChatModel", options.OllamaChatModel);
         options.OllamaEmbeddingModel = Get(values, "AiProvider:OllamaEmbeddingModel", options.OllamaEmbeddingModel);
         options.ChatTimeoutSeconds = GetInt(values, "AiProvider:ChatTimeoutSeconds", options.ChatTimeoutSeconds);
@@ -46,7 +50,9 @@ public class AppSettingsService(
 
         options.Enabled = GetBool(values, "TelegramBot:Enabled", options.Enabled);
         options.BotToken = Get(values, "TelegramBot:BotToken", options.BotToken);
-        options.ApiBaseUrl = Get(values, "TelegramBot:ApiBaseUrl", options.ApiBaseUrl);
+        options.ApiBaseUrl = SettingsUrlValidator.UseFallbackUnlessAbsoluteHttpUrl(
+            Get(values, "TelegramBot:ApiBaseUrl", options.ApiBaseUrl),
+            telegramOptions.Value.ApiBaseUrl);
         options.PollingDelaySeconds = GetInt(values, "TelegramBot:PollingDelaySeconds", options.PollingDelaySeconds);
         options.UseWebhookMode = GetBool(values, "TelegramBot:UseWebhookMode", options.UseWebhookMode);
         options.WebhookPath = Get(values, "TelegramBot:WebhookPath", options.WebhookPath);
