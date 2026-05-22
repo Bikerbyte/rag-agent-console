@@ -10,7 +10,7 @@
 - 主要互動不依賴機器指令；Telegram callback 也送自然語言問題。
 - 模型 provider 可切換 OpenAI API、Ollama local model，或 local deterministic fallback。
 - 資安資料串接由本專案自行實作，避免只停留在提示詞層級。
-- RAG 與回答流程保持可替換，未來可以接 pgvector、Qdrant 或其他 vector store。
+- RAG 與回答流程保持可替換，目前可在 EfJson 與 pgvector 之間切換，後續也可以接 Qdrant 或其他 vector store。
 
 ## Agent Flow
 
@@ -61,14 +61,16 @@ Windows Azure Fortinet 近期有哪些 Critical 弱點？
 
 - Chat model：OpenAI / Ollama
 - Embedding model：OpenAI / Ollama / local hash fallback
-- Vector store：目前是 EF chunk store，未來可替換成 pgvector 或 Qdrant
+- Vector store：目前可使用 EfJson 或 PgVector，未來可替換成 Qdrant、Chroma 或 Milvus
 - Runtime deployment：local dev、Docker、Linux VM、App Service
 
 ## RAG 責任切分
 
 資料匯入層負責把外部資料來源轉成一致的 `SecurityAdvisory` 與 `SecurityAdvisoryChunk`。
 
-檢索層負責根據使用者問題、廠商名稱、CVE ID、severity、KEV 狀態找出相關 context。
+Vector store 層由 `IAdvisoryVectorStore` 抽象出來。`ConfiguredAdvisoryVectorStore` 依設定選擇 `EfAdvisoryVectorStore` 或 `PgVectorAdvisoryVectorStore`。預設 `EfJson` 使用 EF Core / PostgreSQL 儲存 chunks 與 embedding JSON；`PgVector` 使用 PostgreSQL `vector` extension 做向量排序，並保留 JSON fallback。未來若要接 Qdrant、Chroma 或 Milvus，只要新增同一個 interface 的實作。
+
+檢索層負責根據使用者問題、廠商名稱、CVE ID、severity、KEV 狀態建立 retrieval profile，交給 vector store 找候選 chunks，再排序出相關 context。
 
 回答層只根據檢索回來的 context 回答，並在資訊不足時明確說明目前資料庫沒有足夠資料。這樣可以降低模型亂補細節的風險。
 
