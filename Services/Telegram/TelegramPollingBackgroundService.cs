@@ -9,8 +9,6 @@ namespace SecurityAdvisoryBot.Services;
 /// </summary>
 public class TelegramPollingBackgroundService(
     IServiceScopeFactory scopeFactory,
-    ITelegramBotClient telegramBotClient,
-    IOptions<TelegramBotOptions> options,
     ILogger<TelegramPollingBackgroundService> logger) : BackgroundService
 {
     private long? _offset;
@@ -21,7 +19,10 @@ public class TelegramPollingBackgroundService(
         // 這裡故意保持簡單和耐用，Telegram 或本地回覆流程出錯就留到下一輪再試。
         while (!stoppingToken.IsCancellationRequested)
         {
-            var telegramBotOptions = options.Value;
+            using var settingsScope = scopeFactory.CreateScope();
+            var appSettingsService = settingsScope.ServiceProvider.GetRequiredService<IAppSettingsService>();
+            var telegramBotClient = settingsScope.ServiceProvider.GetRequiredService<ITelegramBotClient>();
+            var telegramBotOptions = await appSettingsService.GetTelegramBotOptionsAsync(stoppingToken);
 
             if (!telegramBotOptions.Enabled || string.IsNullOrWhiteSpace(telegramBotOptions.BotToken))
             {
@@ -50,8 +51,7 @@ public class TelegramPollingBackgroundService(
                 foreach (var update in updates)
                 {
                     _offset = update.UpdateId + 1;
-                    using var scope = scopeFactory.CreateScope();
-                    var updateQueueService = scope.ServiceProvider.GetRequiredService<ITelegramUpdateQueueService>();
+                    var updateQueueService = settingsScope.ServiceProvider.GetRequiredService<ITelegramUpdateQueueService>();
                     await updateQueueService.EnqueueAsync(update, "Polling", stoppingToken);
                 }
             }
