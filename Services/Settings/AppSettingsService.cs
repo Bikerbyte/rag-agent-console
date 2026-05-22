@@ -10,7 +10,9 @@ public class AppSettingsService(
     IOptions<AiProviderOptions> aiOptions,
     IOptions<TelegramBotOptions> telegramOptions,
     IOptions<DataSourceOptions> dataSourceOptions,
-    IOptions<PushNotificationOptions> pushOptions) : IAppSettingsService
+    IOptions<PushNotificationOptions> pushOptions,
+    IOptions<VectorStoreOptions> vectorStoreOptions,
+    IOptions<ObservabilityOptions> observabilityOptions) : IAppSettingsService
 {
     public async Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default)
         => await dbContext.AppSettings
@@ -69,6 +71,26 @@ public class AppSettingsService(
         options.EnableSecurityAdvisoryPush = GetBool(values, "PushNotifications:EnableSecurityAdvisoryPush", options.EnableSecurityAdvisoryPush);
         options.WorkerIntervalSeconds = GetInt(values, "PushNotifications:WorkerIntervalSeconds", options.WorkerIntervalSeconds);
         options.AdvisoryLookbackHours = GetInt(values, "PushNotifications:AdvisoryLookbackHours", options.AdvisoryLookbackHours);
+        return options;
+    }
+
+    public async Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var values = await GetAllAsync(cancellationToken);
+        var options = Clone(vectorStoreOptions.Value);
+        options.Provider = Get(values, "VectorStore:Provider", options.Provider);
+        options.CandidateLimit = GetInt(values, "VectorStore:CandidateLimit", options.CandidateLimit);
+        options.UseJsonFallback = GetBool(values, "VectorStore:UseJsonFallback", options.UseJsonFallback);
+        return options;
+    }
+
+    public async Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var values = await GetAllAsync(cancellationToken);
+        var options = Clone(observabilityOptions.Value);
+        options.EnableOpenTelemetry = GetBool(values, "Observability:EnableOpenTelemetry", options.EnableOpenTelemetry);
+        options.EnableConsoleExporter = GetBool(values, "Observability:EnableConsoleExporter", options.EnableConsoleExporter);
+        options.ServiceName = Get(values, "Observability:ServiceName", options.ServiceName);
         return options;
     }
 
@@ -148,5 +170,21 @@ public class AppSettingsService(
             EnableSecurityAdvisoryPush = source.EnableSecurityAdvisoryPush,
             WorkerIntervalSeconds = source.WorkerIntervalSeconds,
             AdvisoryLookbackHours = source.AdvisoryLookbackHours
+        };
+
+    private static VectorStoreOptions Clone(VectorStoreOptions source)
+        => new()
+        {
+            Provider = source.Provider,
+            CandidateLimit = source.CandidateLimit,
+            UseJsonFallback = source.UseJsonFallback
+        };
+
+    private static ObservabilityOptions Clone(ObservabilityOptions source)
+        => new()
+        {
+            EnableOpenTelemetry = source.EnableOpenTelemetry,
+            EnableConsoleExporter = source.EnableConsoleExporter,
+            ServiceName = source.ServiceName
         };
 }

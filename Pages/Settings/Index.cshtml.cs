@@ -1,0 +1,240 @@
+using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace SecurityAdvisoryBot.Pages.Settings;
+
+public class IndexModel(
+    IAppSettingsService appSettingsService) : PageModel
+{
+    public bool HasOpenAiApiKey { get; private set; }
+    public bool BotEnabled { get; private set; }
+    public bool HasTelegramBotToken { get; private set; }
+    public string AiStatusLabel { get; private set; } = "Offline";
+    public string AiStatusDetail { get; private set; } = string.Empty;
+    public string AiStatusClass { get; private set; } = "is-warning";
+    public string VectorStoreStatusLabel { get; private set; } = "EfJson";
+    public string VectorStoreStatusClass { get; private set; } = "is-neutral";
+    public IReadOnlyList<SettingsHealthItem> AiHealthItems { get; private set; } = [];
+
+    [BindProperty]
+    public AppSettingsInput Input { get; set; } = new();
+
+    [TempData]
+    public string? StatusMessage { get; set; }
+
+    public async Task OnGetAsync(CancellationToken cancellationToken)
+    {
+        await LoadAsync(cancellationToken);
+    }
+
+    public async Task<IActionResult> OnPostSaveAsync(CancellationToken cancellationToken)
+    {
+        var currentAi = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
+        var currentTelegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
+
+        var updates = new List<AppSettingUpdate>
+        {
+            new("AiProvider:Provider", Input.AiProvider),
+            new("AiProvider:EnableChatGeneration", Input.EnableChatGeneration.ToString()),
+            new("AiProvider:UseLocalFallback", Input.UseLocalFallback.ToString()),
+            new("AiProvider:OpenAiApiBaseUrl", Input.OpenAiApiBaseUrl),
+            new("AiProvider:OpenAiChatModel", Input.OpenAiChatModel),
+            new("AiProvider:OpenAiEmbeddingModel", Input.OpenAiEmbeddingModel),
+            new("AiProvider:OllamaApiBaseUrl", Input.OllamaApiBaseUrl),
+            new("AiProvider:OllamaChatModel", Input.OllamaChatModel),
+            new("AiProvider:OllamaEmbeddingModel", Input.OllamaEmbeddingModel),
+            new("TelegramBot:Enabled", Input.TelegramEnabled.ToString()),
+            new("TelegramBot:ApiBaseUrl", Input.TelegramApiBaseUrl),
+            new("TelegramBot:UseWebhookMode", Input.UseWebhookMode.ToString()),
+            new("TelegramBot:WebhookUrl", Input.WebhookUrl),
+            new("TelegramBot:WebhookPath", Input.WebhookPath),
+            new("TelegramBot:PollingDelaySeconds", Input.PollingDelaySeconds.ToString()),
+            new("DataSources:AutoSyncIntervalMinutes", Input.AutoSyncIntervalMinutes.ToString()),
+            new("PushNotifications:Enabled", Input.PushEnabled.ToString()),
+            new("PushNotifications:EnableSecurityAdvisoryPush", Input.SecurityAdvisoryPushEnabled.ToString()),
+            new("PushNotifications:WorkerIntervalSeconds", Input.PushWorkerIntervalSeconds.ToString()),
+            new("PushNotifications:AdvisoryLookbackHours", Input.AdvisoryLookbackHours.ToString()),
+            new("VectorStore:Provider", Input.VectorStoreProvider),
+            new("VectorStore:CandidateLimit", Input.VectorStoreCandidateLimit.ToString()),
+            new("VectorStore:UseJsonFallback", Input.VectorStoreUseJsonFallback.ToString()),
+            new("Observability:EnableOpenTelemetry", Input.EnableOpenTelemetry.ToString()),
+            new("Observability:EnableConsoleExporter", Input.EnableOpenTelemetryConsoleExporter.ToString()),
+            new("Observability:ServiceName", Input.OpenTelemetryServiceName)
+        };
+
+        updates.Add(new AppSettingUpdate(
+            "AiProvider:OpenAiApiKey",
+            string.IsNullOrWhiteSpace(Input.OpenAiApiKey) ? currentAi.OpenAiApiKey : Input.OpenAiApiKey,
+            IsSecret: true));
+
+        updates.Add(new AppSettingUpdate(
+            "TelegramBot:BotToken",
+            string.IsNullOrWhiteSpace(Input.TelegramBotToken) ? currentTelegram.BotToken : Input.TelegramBotToken,
+            IsSecret: true));
+
+        updates.Add(new AppSettingUpdate(
+            "TelegramBot:WebhookSecretToken",
+            string.IsNullOrWhiteSpace(Input.WebhookSecretToken) ? currentTelegram.WebhookSecretToken : Input.WebhookSecretToken,
+            IsSecret: true));
+
+        await appSettingsService.SaveAsync(updates, cancellationToken);
+        StatusMessage = "設定已儲存。AI、Telegram 與 RAG retrieval 設定會在後續請求套用；worker role 與 OpenTelemetry 啟動設定需重新啟動。";
+        return RedirectToPage();
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        var ai = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
+        var telegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
+        var dataSource = await appSettingsService.GetDataSourceOptionsAsync(cancellationToken);
+        var push = await appSettingsService.GetPushNotificationOptionsAsync(cancellationToken);
+        var vectorStore = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
+        var observability = await appSettingsService.GetObservabilityOptionsAsync(cancellationToken);
+
+        HasOpenAiApiKey = !string.IsNullOrWhiteSpace(ai.OpenAiApiKey);
+        BotEnabled = telegram.Enabled;
+        HasTelegramBotToken = !string.IsNullOrWhiteSpace(telegram.BotToken);
+        Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability);
+        SetAiStatus(ai);
+        SetVectorStoreStatus(vectorStore);
+    }
+
+    private void SetVectorStoreStatus(VectorStoreOptions options)
+    {
+        VectorStoreStatusLabel = options.Provider;
+        VectorStoreStatusClass = string.Equals(options.Provider, VectorStoreProviderNames.PgVector, StringComparison.OrdinalIgnoreCase)
+            ? "is-success"
+            : "is-neutral";
+    }
+
+    private void SetAiStatus(AiProviderOptions options)
+    {
+        var isLocal = string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase);
+        var isOpenAi = string.Equals(options.Provider, AiProviderNames.OpenAI, StringComparison.OrdinalIgnoreCase);
+        var isOllama = string.Equals(options.Provider, AiProviderNames.Ollama, StringComparison.OrdinalIgnoreCase);
+        var hasOpenAiKey = !string.IsNullOrWhiteSpace(options.OpenAiApiKey);
+        var isAiChatEnabled = options.EnableChatGeneration && !isLocal;
+        var credentialReady = !isOpenAi || hasOpenAiKey;
+
+        AiHealthItems =
+        [
+            new("Provider", !isLocal, isLocal ? "目前仍是 Local fallback" : options.Provider),
+            new("Chat generation", options.EnableChatGeneration, options.EnableChatGeneration ? "已開啟" : "尚未開啟"),
+            new("Credential", credentialReady, isOpenAi && !hasOpenAiKey ? "OpenAI API key 尚未儲存" : "可用")
+        ];
+
+        if (isAiChatEnabled && credentialReady)
+        {
+            AiStatusLabel = "Online";
+            AiStatusDetail = isOpenAi
+                ? $"OpenAI chat model: {options.OpenAiChatModel}"
+                : isOllama
+                    ? $"Ollama chat model: {options.OllamaChatModel}"
+                    : "Chat generation enabled";
+            AiStatusClass = "is-success";
+            return;
+        }
+
+        if (isLocal && hasOpenAiKey)
+        {
+            AiStatusLabel = "Key saved, not active";
+            AiStatusDetail = "OpenAI key 已儲存，但 Provider 仍是 Local。請切到 OpenAI 並開啟 Chat generation。";
+            AiStatusClass = "is-warning";
+            return;
+        }
+
+        if (isOpenAi && !hasOpenAiKey)
+        {
+            AiStatusLabel = "Needs API key";
+            AiStatusDetail = "Provider 已選 OpenAI，但尚未儲存 OpenAI API key。";
+            AiStatusClass = "is-warning";
+            return;
+        }
+
+        if (!options.EnableChatGeneration && !isLocal)
+        {
+            AiStatusLabel = "Chat disabled";
+            AiStatusDetail = "Provider 已選擇，但 Chat generation 尚未開啟。";
+            AiStatusClass = "is-warning";
+            return;
+        }
+
+        AiStatusLabel = "Offline";
+        AiStatusDetail = "目前使用 Local fallback，不會呼叫 OpenAI 或 Ollama。";
+        AiStatusClass = "is-neutral";
+    }
+
+    public sealed record SettingsHealthItem(string Label, bool IsReady, string Detail);
+
+    public class AppSettingsInput
+    {
+        public string AiProvider { get; set; } = AiProviderNames.Local;
+        public bool EnableChatGeneration { get; set; }
+        public bool UseLocalFallback { get; set; } = true;
+        public string OpenAiApiBaseUrl { get; set; } = "https://api.openai.com";
+        public string? OpenAiApiKey { get; set; }
+        public string OpenAiChatModel { get; set; } = "gpt-4o-mini";
+        public string OpenAiEmbeddingModel { get; set; } = "text-embedding-3-small";
+        public string OllamaApiBaseUrl { get; set; } = "http://localhost:11434";
+        public string OllamaChatModel { get; set; } = "llama3.1";
+        public string OllamaEmbeddingModel { get; set; } = "nomic-embed-text";
+        public bool TelegramEnabled { get; set; }
+        public string? TelegramBotToken { get; set; }
+        public string TelegramApiBaseUrl { get; set; } = "https://api.telegram.org";
+        public bool UseWebhookMode { get; set; }
+        public string? WebhookUrl { get; set; }
+        public string WebhookPath { get; set; } = "/api/telegram/webhook";
+        public string? WebhookSecretToken { get; set; }
+        public int PollingDelaySeconds { get; set; } = 3;
+        public int AutoSyncIntervalMinutes { get; set; } = 15;
+        public bool PushEnabled { get; set; } = true;
+        public bool SecurityAdvisoryPushEnabled { get; set; } = true;
+        public int PushWorkerIntervalSeconds { get; set; } = 90;
+        public int AdvisoryLookbackHours { get; set; } = 72;
+        public string VectorStoreProvider { get; set; } = VectorStoreProviderNames.EfJson;
+        public int VectorStoreCandidateLimit { get; set; } = 3000;
+        public bool VectorStoreUseJsonFallback { get; set; } = true;
+        public bool EnableOpenTelemetry { get; set; }
+        public bool EnableOpenTelemetryConsoleExporter { get; set; }
+        public string OpenTelemetryServiceName { get; set; } = "SecurityAdvisoryBot";
+
+        public static AppSettingsInput From(
+            AiProviderOptions ai,
+            TelegramBotOptions telegram,
+            DataSourceOptions dataSource,
+            PushNotificationOptions push,
+            VectorStoreOptions vectorStore,
+            ObservabilityOptions observability)
+            => new()
+            {
+                AiProvider = ai.Provider,
+                EnableChatGeneration = ai.EnableChatGeneration,
+                UseLocalFallback = ai.UseLocalFallback,
+                OpenAiApiBaseUrl = ai.OpenAiApiBaseUrl,
+                OpenAiChatModel = ai.OpenAiChatModel,
+                OpenAiEmbeddingModel = ai.OpenAiEmbeddingModel,
+                OllamaApiBaseUrl = ai.OllamaApiBaseUrl,
+                OllamaChatModel = ai.OllamaChatModel,
+                OllamaEmbeddingModel = ai.OllamaEmbeddingModel,
+                TelegramEnabled = telegram.Enabled,
+                TelegramApiBaseUrl = telegram.ApiBaseUrl,
+                UseWebhookMode = telegram.UseWebhookMode,
+                WebhookUrl = telegram.WebhookUrl,
+                WebhookPath = telegram.WebhookPath,
+                PollingDelaySeconds = telegram.PollingDelaySeconds,
+                AutoSyncIntervalMinutes = dataSource.AutoSyncIntervalMinutes,
+                PushEnabled = push.Enabled,
+                SecurityAdvisoryPushEnabled = push.EnableSecurityAdvisoryPush,
+                PushWorkerIntervalSeconds = push.WorkerIntervalSeconds,
+                AdvisoryLookbackHours = push.AdvisoryLookbackHours,
+                VectorStoreProvider = vectorStore.Provider,
+                VectorStoreCandidateLimit = vectorStore.CandidateLimit,
+                VectorStoreUseJsonFallback = vectorStore.UseJsonFallback,
+                EnableOpenTelemetry = observability.EnableOpenTelemetry,
+                EnableOpenTelemetryConsoleExporter = observability.EnableConsoleExporter,
+                OpenTelemetryServiceName = observability.ServiceName
+            };
+    }
+}

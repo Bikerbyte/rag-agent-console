@@ -4,20 +4,30 @@ using SecurityAdvisoryBot.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 var applicationStartedAt = DateTimeOffset.UtcNow;
 var appRuntimeSection = builder.Configuration.GetSection(AppRuntimeOptions.SectionName);
 var appRuntimeOptions = appRuntimeSection.Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
+var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
 appRuntimeOptions.ApplyRuntimeProfile(appRuntimeSection);
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
 // 這裡刻意保持可讀性，避免把 startup 都藏進 extension 後反而不容易維護。
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
+});
 
 // Add Service Area - 共用平台服務
 builder.Services.AddDataProtection()
@@ -28,6 +38,8 @@ builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(D
 builder.Services.Configure<SecurityAdvisoryOptions>(builder.Configuration.GetSection(SecurityAdvisoryOptions.SectionName));
 builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
 builder.Services.Configure<AiProviderOptions>(builder.Configuration.GetSection(AiProviderOptions.SectionName));
+builder.Services.Configure<VectorStoreOptions>(builder.Configuration.GetSection(VectorStoreOptions.SectionName));
+builder.Services.Configure<ObservabilityOptions>(builder.Configuration.GetSection(ObservabilityOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
 builder.Services.PostConfigure<AppRuntimeOptions>(options =>
 {
@@ -36,6 +48,35 @@ builder.Services.PostConfigure<AppRuntimeOptions>(options =>
 });
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
+
+if (observabilityOptions.EnableOpenTelemetry)
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource.AddService(observabilityOptions.ServiceName))
+        .WithTracing(tracing =>
+        {
+            tracing
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation();
+
+            if (observabilityOptions.EnableConsoleExporter)
+            {
+                tracing.AddConsoleExporter();
+            }
+        })
+        .WithMetrics(metrics =>
+        {
+            metrics
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation();
+
+            if (observabilityOptions.EnableConsoleExporter)
+            {
+                metrics.AddConsoleExporter();
+            }
+        });
+}
 
 // Add Service Area - 資料庫
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -93,6 +134,9 @@ builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<CisaKevAdvisorySource>());
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<NvdAdvisorySource>());
 builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncService>();
+builder.Services.AddScoped<EfAdvisoryVectorStore>();
+builder.Services.AddScoped<PgVectorAdvisoryVectorStore>();
+builder.Services.AddScoped<IAdvisoryVectorStore, ConfiguredAdvisoryVectorStore>();
 builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
 builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
@@ -156,6 +200,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();

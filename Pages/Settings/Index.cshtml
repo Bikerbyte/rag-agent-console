@@ -1,0 +1,270 @@
+@page
+@model SecurityAdvisoryBot.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<section class="page-header compact-header">
+    <div>
+        <p class="eyebrow">Application configuration</p>
+        <h1>Settings</h1>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+}
+
+<section class="panel settings-panel settings-workbench">
+    <div class="settings-rail">
+        <span class="section-kicker">Runtime settings</span>
+        <h2 class="panel-title">Configuration state</h2>
+
+        <div class="settings-status-card">
+            <span class="metric-label">AI connection</span>
+            <strong>@Model.AiStatusLabel</strong>
+            <p>@Model.AiStatusDetail</p>
+        </div>
+
+        <div class="settings-status-card">
+            <span class="metric-label">Vector store</span>
+            <strong>@Model.VectorStoreStatusLabel</strong>
+        </div>
+
+        <div class="settings-health-list">
+            @foreach (var item in Model.AiHealthItems)
+            {
+                <div class="settings-health-item @(item.IsReady ? "is-ready" : "is-missing")">
+                    <span></span>
+                    <div>
+                        <strong>@item.Label</strong>
+                        <p>@item.Detail</p>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="Save" class="settings-editor">
+        <section class="settings-card is-primary">
+            <div class="settings-card-header">
+                <div>
+                    <span class="section-kicker">AI Provider</span>
+                    <h3>Model and retrieval runtime</h3>
+                </div>
+                <span class="status-pill @Model.AiStatusClass">@Model.AiStatusLabel</span>
+            </div>
+
+            <div class="settings-control-grid">
+                <label class="field-block field-span-2">
+                    <span>Provider</span>
+                    <select asp-for="Input.AiProvider" class="form-select">
+                        <option value="Local">Local fallback</option>
+                        <option value="OpenAI">OpenAI</option>
+                        <option value="Ollama">Ollama</option>
+                    </select>
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.EnableChatGeneration" class="form-check-input" />
+                    <span>
+                        <strong>Chat generation</strong>
+                    </span>
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.UseLocalFallback" class="form-check-input" />
+                    <span>
+                        <strong>Local fallback</strong>
+                    </span>
+                </label>
+            </div>
+
+            <div class="provider-grid">
+                <div class="provider-box">
+                    <div class="provider-box-header">
+                        <strong>OpenAI</strong>
+                        <span class="status-pill @(Model.HasOpenAiApiKey ? "is-success" : "is-neutral")">
+                            @(Model.HasOpenAiApiKey ? "Key saved" : "No key")
+                        </span>
+                    </div>
+                    <div class="settings-control-grid">
+                        <label class="field-block field-span-2">
+                            <span>API key</span>
+                            <input asp-for="Input.OpenAiApiKey" class="form-control" type="password" autocomplete="off" />
+                        </label>
+                        <label class="field-block field-span-2">
+                            <span>Base URL</span>
+                            <input asp-for="Input.OpenAiApiBaseUrl" class="form-control" />
+                        </label>
+                        <label class="field-block">
+                            <span>Chat model</span>
+                            <input asp-for="Input.OpenAiChatModel" class="form-control" />
+                        </label>
+                        <label class="field-block">
+                            <span>Embedding model</span>
+                            <input asp-for="Input.OpenAiEmbeddingModel" class="form-control" />
+                        </label>
+                    </div>
+                </div>
+
+                <div class="provider-box">
+                    <div class="provider-box-header">
+                        <strong>Ollama</strong>
+                        <span class="status-pill is-neutral">Local endpoint</span>
+                    </div>
+                    <div class="settings-control-grid">
+                        <label class="field-block field-span-2">
+                            <span>Base URL</span>
+                            <input asp-for="Input.OllamaApiBaseUrl" class="form-control" />
+                        </label>
+                        <label class="field-block">
+                            <span>Chat model</span>
+                            <input asp-for="Input.OllamaChatModel" class="form-control" />
+                        </label>
+                        <label class="field-block">
+                            <span>Embedding model</span>
+                            <input asp-for="Input.OllamaEmbeddingModel" class="form-control" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <div class="settings-card-header">
+                <div>
+                    <span class="section-kicker">RAG</span>
+                    <h3>Retrieval and observability</h3>
+                </div>
+                <span class="status-pill @Model.VectorStoreStatusClass">@Model.VectorStoreStatusLabel</span>
+            </div>
+
+            <div class="settings-control-grid">
+                <label class="field-block">
+                    <span>Vector store</span>
+                    <select asp-for="Input.VectorStoreProvider" class="form-select">
+                        <option value="EfJson">EF JSON</option>
+                        <option value="PgVector">PgVector</option>
+                    </select>
+                </label>
+                <label class="field-block">
+                    <span>Candidate limit</span>
+                    <input asp-for="Input.VectorStoreCandidateLimit" class="form-control" type="number" min="50" max="10000" />
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.VectorStoreUseJsonFallback" class="form-check-input" />
+                    <span>
+                        <strong>JSON fallback</strong>
+                    </span>
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.EnableOpenTelemetry" class="form-check-input" />
+                    <span>
+                        <strong>OpenTelemetry</strong>
+                    </span>
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.EnableOpenTelemetryConsoleExporter" class="form-check-input" />
+                    <span>
+                        <strong>Console exporter</strong>
+                    </span>
+                </label>
+                <label class="field-block">
+                    <span>Service name</span>
+                    <input asp-for="Input.OpenTelemetryServiceName" class="form-control" />
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <div class="settings-card-header">
+                <div>
+                    <span class="section-kicker">Telegram</span>
+                    <h3>Bot ingress and API access</h3>
+                </div>
+                <span class="status-pill @(Model.BotEnabled && Model.HasTelegramBotToken ? "is-success" : "is-warning")">
+                    @(Model.BotEnabled && Model.HasTelegramBotToken ? "Configured" : "Needs config")
+                </span>
+            </div>
+
+            <div class="settings-control-grid">
+                <label class="field-switch field-span-2">
+                    <input asp-for="Input.TelegramEnabled" class="form-check-input" />
+                    <span>
+                        <strong>Enable Telegram bot</strong>
+                    </span>
+                </label>
+                <label class="field-block">
+                    <span>Bot token @(Model.HasTelegramBotToken ? "(saved)" : "(not set)")</span>
+                    <input asp-for="Input.TelegramBotToken" class="form-control" type="password" autocomplete="off" />
+                </label>
+                <label class="field-block">
+                    <span>Telegram API base URL</span>
+                    <input asp-for="Input.TelegramApiBaseUrl" class="form-control" />
+                </label>
+                <label class="field-switch field-span-2">
+                    <input asp-for="Input.UseWebhookMode" class="form-check-input" />
+                    <span>
+                        <strong>Webhook mode</strong>
+                    </span>
+                </label>
+                <label class="field-block">
+                    <span>Webhook URL</span>
+                    <input asp-for="Input.WebhookUrl" class="form-control" placeholder="https://your-domain/api/telegram/webhook" />
+                </label>
+                <label class="field-block">
+                    <span>Webhook path</span>
+                    <input asp-for="Input.WebhookPath" class="form-control" />
+                </label>
+                <label class="field-block">
+                    <span>Webhook secret token</span>
+                    <input asp-for="Input.WebhookSecretToken" class="form-control" type="password" autocomplete="off" />
+                </label>
+                <label class="field-block">
+                    <span>Polling delay seconds</span>
+                    <input asp-for="Input.PollingDelaySeconds" class="form-control" type="number" min="1" />
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <div class="settings-card-header">
+                <div>
+                    <span class="section-kicker">Jobs</span>
+                    <h3>Sync and notification cadence</h3>
+                </div>
+            </div>
+
+            <div class="settings-control-grid">
+                <label class="field-block">
+                    <span>Auto sync interval minutes</span>
+                    <input asp-for="Input.AutoSyncIntervalMinutes" class="form-control" type="number" min="5" />
+                </label>
+                <label class="field-block">
+                    <span>Push worker interval seconds</span>
+                    <input asp-for="Input.PushWorkerIntervalSeconds" class="form-control" type="number" min="30" />
+                </label>
+                <label class="field-block">
+                    <span>Advisory lookback hours</span>
+                    <input asp-for="Input.AdvisoryLookbackHours" class="form-control" type="number" min="1" />
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.PushEnabled" class="form-check-input" />
+                    <span>
+                        <strong>Push worker behavior</strong>
+                    </span>
+                </label>
+                <label class="field-switch">
+                    <input asp-for="Input.SecurityAdvisoryPushEnabled" class="form-check-input" />
+                    <span>
+                        <strong>Security advisory push</strong>
+                    </span>
+                </label>
+            </div>
+        </section>
+
+        <div class="settings-save-bar">
+            <button type="submit" class="btn btn-primary">Save settings</button>
+        </div>
+    </form>
+</section>

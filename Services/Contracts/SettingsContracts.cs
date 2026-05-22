@@ -8,6 +8,8 @@ public interface IAppSettingsService
     Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default);
     Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default);
     Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default);
+    Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default);
+    Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(IEnumerable<AppSettingUpdate> updates, CancellationToken cancellationToken = default);
 }

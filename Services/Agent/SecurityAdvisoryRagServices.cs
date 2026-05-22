@@ -1,16 +1,13 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using SecurityAdvisoryBot.Data;
 using SecurityAdvisoryBot.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace SecurityAdvisoryBot.Services;
 
 public partial class SecurityAdvisorySearchService(
-    ApplicationDbContext dbContext,
     IAdvisoryEmbeddingService embeddingService,
+    IAdvisoryVectorStore vectorStore,
     IOptions<SecurityAdvisoryOptions> options,
     ILogger<SecurityAdvisorySearchService> logger) : ISecurityAdvisorySearchService
 {
@@ -27,85 +24,29 @@ public partial class SecurityAdvisorySearchService(
         var profile = RetrievalProfile.FromQuestion(question);
         var queryVector = await embeddingService.BuildEmbeddingAsync(question, cancellationToken);
         var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
-
-        var chunkQuery = dbContext.SecurityAdvisoryChunks
-            .Include(chunk => chunk.Advisory)
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(profile.CveId))
-        {
-            chunkQuery = chunkQuery.Where(chunk =>
-                chunk.Advisory != null &&
-                (chunk.Advisory.CveId == profile.CveId || chunk.Advisory.ExternalId == profile.CveId));
-        }
-        else
-        {
-            if (profile.KevOnly)
-            {
-                chunkQuery = chunkQuery.Where(chunk => chunk.Advisory != null && chunk.Advisory.IsKnownExploited);
-            }
-
-            if (profile.HighRiskOnly)
-            {
-                chunkQuery = chunkQuery.Where(chunk =>
-                    chunk.Advisory != null &&
-                    (chunk.Advisory.IsKnownExploited ||
-                     chunk.Advisory.CvssScore >= 9 ||
-                     chunk.Advisory.Severity == "CRITICAL" ||
-                     chunk.Advisory.Severity == "Critical"));
-            }
-
-            foreach (var keyword in profile.Keywords.Take(6))
-            {
-                var current = keyword;
-                chunkQuery = chunkQuery.Where(chunk =>
-                    chunk.Advisory != null &&
-                    ((chunk.Advisory.CveId != null && chunk.Advisory.CveId.ToLower().Contains(current)) ||
-                     chunk.Advisory.Title.ToLower().Contains(current) ||
-                     chunk.Advisory.Description.ToLower().Contains(current) ||
-                     (chunk.Advisory.Vendor != null && chunk.Advisory.Vendor.ToLower().Contains(current)) ||
-                     (chunk.Advisory.Product != null && chunk.Advisory.Product.ToLower().Contains(current)) ||
-                     (chunk.Advisory.Tags != null && chunk.Advisory.Tags.ToLower().Contains(current))));
-            }
-        }
-
-        var chunks = await chunkQuery
-            .OrderByDescending(chunk => chunk.SecurityAdvisoryId)
-            .Take(3000)
-            .ToListAsync(cancellationToken);
+        var request = new AdvisoryVectorSearchRequest(
+            question,
+            profile.CveId,
+            profile.KevOnly,
+            profile.HighRiskOnly,
+            profile.Keywords,
+            queryVector,
+            effectiveMax);
+        var candidates = await vectorStore.SearchAsync(request, cancellationToken);
 
         var ranked = new List<SecurityAdvisorySearchResult>();
-        foreach (var chunk in chunks)
+        foreach (var candidate in candidates)
         {
-            if (chunk.Advisory is null)
-            {
-                continue;
-            }
-
-            float[]? vector;
-            try
-            {
-                vector = JsonSerializer.Deserialize<float[]>(chunk.EmbeddingJson);
-            }
-            catch (JsonException exception)
-            {
-                logger.LogDebug(exception, "Skipping malformed advisory embedding for chunk {ChunkId}.", chunk.SecurityAdvisoryChunkId);
-                continue;
-            }
-
-            if (vector is null || vector.Length == 0)
-            {
-                continue;
-            }
-
-            var score = CosineSimilarity(queryVector, vector) + profile.ScoreTextMatch(chunk.Advisory, chunk.ChunkText);
+            var score = CosineSimilarity(queryVector, candidate.Embedding) + candidate.TextScore;
             if (score <= 0)
             {
                 continue;
             }
 
-            ranked.Add(new SecurityAdvisorySearchResult(chunk.Advisory, chunk.ChunkText, score));
+            ranked.Add(new SecurityAdvisorySearchResult(candidate.Advisory, candidate.ChunkText, score));
         }
+
+        logger.LogDebug("RAG search produced {CandidateCount} candidates and {RankedCount} ranked results.", candidates.Count, ranked.Count);
 
         return ranked
             .OrderByDescending(item => item.Score)
@@ -147,43 +88,6 @@ public partial class SecurityAdvisorySearchService(
 
         public static RetrievalProfile FromQuestion(string question)
             => new(question);
-
-        public double ScoreTextMatch(SecurityAdvisory advisory, string chunkText)
-        {
-            var score = 0d;
-            var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Description,
-                advisory.Vendor, advisory.Product, advisory.Tags, chunkText).ToLowerInvariant();
-
-            if (!string.IsNullOrWhiteSpace(CveId) &&
-                (string.Equals(advisory.CveId, CveId, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(advisory.ExternalId, CveId, StringComparison.OrdinalIgnoreCase)))
-            {
-                score += 4;
-            }
-
-            foreach (var keyword in Keywords)
-            {
-                if (searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                {
-                    score += 1;
-                }
-            }
-
-            if (KevOnly && advisory.IsKnownExploited)
-            {
-                score += 1.5;
-            }
-
-            if (HighRiskOnly &&
-                (advisory.IsKnownExploited ||
-                 advisory.CvssScore >= 9 ||
-                 string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase)))
-            {
-                score += 1.5;
-            }
-
-            return score;
-        }
 
         private static string? ExtractCveId(string value)
         {

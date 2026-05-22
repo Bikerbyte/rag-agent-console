@@ -56,11 +56,30 @@ Services/Contracts/   依領域分組的 service interface
 
 命名原則是「看到檔名就知道責任線」。同一條流程可以有多個 service，但不把不同責任混在同一個大型檔案裡。
 
+## RAG 模組化方向
+
+目前 RAG 是可替換模組組合，不綁死單一平台：
+
+```text
+Data sources      CISA KEV / NVD connectors
+Normalization     SecurityAdvisorySyncService
+Embedding         OpenAI / Ollama / local hash provider
+Vector store      IAdvisoryVectorStore，預設 EfJson，可切 PgVector
+Retriever         SecurityAdvisorySearchService
+Answer composer   SecurityAdvisoryAnswerService
+Runtime channel   Telegram / Operations console
+```
+
+這個切法接近「自製簡化 Dify」：資料來源、embedding provider、vector store、retriever、answer composer 都有清楚邊界。現在 `ConfiguredAdvisoryVectorStore` 可以在 `EfJson` 與 `PgVector` 之間切換，後續若要新增 `QdrantAdvisoryVectorStore`、`ChromaAdvisoryVectorStore` 或其他開源向量庫實作，不需要重寫 Telegram bot 或 Agent 回答流程。
+
 ## 使用的開源與外部元件
 
 - ASP.NET Core / Razor Pages：Web app 與營運後台
 - Entity Framework Core：資料存取
 - PostgreSQL：正式環境儲存
+- pgvector：PostgreSQL 向量檢索 extension，Docker 環境已使用 pgvector-ready image
+- Serilog：結構化 application logging
+- OpenTelemetry：HTTP / runtime tracing 與 metrics 掛點
 - Telegram Bot API：聊天入口與回覆推送
 - CISA KEV、NVD：公開弱點資料來源
 - Ollama：本機 LLM 與 embedding 模型
@@ -165,7 +184,7 @@ dotnet user-secrets set "AppRuntime:Profile" "PollingNode"
 http://localhost:5087
 ```
 
-`Operations` 頁面提供應用程式設定、Telegram 設定、AI provider 設定、watchlist 管理與自然語言 Agent 測試面板。即使還沒有接 Telegram token，也可以先在後台測試同步資料、查詢 CVE 與查詢廠商高風險弱點。
+`Operations` 頁面提供同步、訂閱、節點狀態、訊息流程與 Agent 對話檢查。`Settings` 頁面集中管理 AI provider、Telegram、RAG vector store、排程與 observability 設定。
 
 ## Docker
 
@@ -174,7 +193,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-在 `.env` 內選擇 OpenAI、Ollama 或 Local fallback。
+Docker Compose 的 PostgreSQL 服務使用 `pgvector/pgvector:0.8.2-pg17-trixie`。在 `.env` 內選擇 OpenAI、Ollama 或 Local fallback；若要啟用 pgvector retrieval，將 `VECTOR_STORE_PROVIDER=PgVector`。
 
 ## 相關文件
 

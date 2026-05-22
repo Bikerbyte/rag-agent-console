@@ -34,8 +34,6 @@ public class IndexModel(
     public IReadOnlyList<SyncJobLog> SyncJobLogs { get; private set; } = [];
     public IReadOnlyList<NodeSummaryViewModel> Nodes { get; private set; } = [];
     public IReadOnlyList<AgentChatMessageViewModel> AgentMessages { get; private set; } = [];
-    public bool HasOpenAiApiKey { get; private set; }
-    public bool HasTelegramBotToken { get; private set; }
 
     [BindProperty]
     public ChatSubscriptionInput Input { get; set; } = new();
@@ -45,9 +43,6 @@ public class IndexModel(
 
     [BindProperty]
     public string? AgentHistoryJson { get; set; }
-
-    [BindProperty]
-    public AppSettingsInput SettingsInput { get; set; } = new();
 
     [TempData]
     public string? StatusMessage { get; set; }
@@ -121,55 +116,6 @@ public class IndexModel(
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostSaveSettingsAsync(CancellationToken cancellationToken)
-    {
-        var currentAi = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
-        var currentTelegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
-
-        var updates = new List<AppSettingUpdate>
-        {
-            new("AiProvider:Provider", SettingsInput.AiProvider),
-            new("AiProvider:EnableChatGeneration", SettingsInput.EnableChatGeneration.ToString()),
-            new("AiProvider:UseLocalFallback", SettingsInput.UseLocalFallback.ToString()),
-            new("AiProvider:OpenAiApiBaseUrl", SettingsInput.OpenAiApiBaseUrl),
-            new("AiProvider:OpenAiChatModel", SettingsInput.OpenAiChatModel),
-            new("AiProvider:OpenAiEmbeddingModel", SettingsInput.OpenAiEmbeddingModel),
-            new("AiProvider:OllamaApiBaseUrl", SettingsInput.OllamaApiBaseUrl),
-            new("AiProvider:OllamaChatModel", SettingsInput.OllamaChatModel),
-            new("AiProvider:OllamaEmbeddingModel", SettingsInput.OllamaEmbeddingModel),
-            new("TelegramBot:Enabled", SettingsInput.TelegramEnabled.ToString()),
-            new("TelegramBot:ApiBaseUrl", SettingsInput.TelegramApiBaseUrl),
-            new("TelegramBot:UseWebhookMode", SettingsInput.UseWebhookMode.ToString()),
-            new("TelegramBot:WebhookUrl", SettingsInput.WebhookUrl),
-            new("TelegramBot:WebhookPath", SettingsInput.WebhookPath),
-            new("TelegramBot:PollingDelaySeconds", SettingsInput.PollingDelaySeconds.ToString()),
-            new("DataSources:AutoSyncIntervalMinutes", SettingsInput.AutoSyncIntervalMinutes.ToString()),
-            new("PushNotifications:Enabled", SettingsInput.PushEnabled.ToString()),
-            new("PushNotifications:EnableSecurityAdvisoryPush", SettingsInput.SecurityAdvisoryPushEnabled.ToString()),
-            new("PushNotifications:WorkerIntervalSeconds", SettingsInput.PushWorkerIntervalSeconds.ToString()),
-            new("PushNotifications:AdvisoryLookbackHours", SettingsInput.AdvisoryLookbackHours.ToString())
-        };
-
-        updates.Add(new AppSettingUpdate(
-            "AiProvider:OpenAiApiKey",
-            string.IsNullOrWhiteSpace(SettingsInput.OpenAiApiKey) ? currentAi.OpenAiApiKey : SettingsInput.OpenAiApiKey,
-            IsSecret: true));
-
-        updates.Add(new AppSettingUpdate(
-            "TelegramBot:BotToken",
-            string.IsNullOrWhiteSpace(SettingsInput.TelegramBotToken) ? currentTelegram.BotToken : SettingsInput.TelegramBotToken,
-            IsSecret: true));
-
-        updates.Add(new AppSettingUpdate(
-            "TelegramBot:WebhookSecretToken",
-            string.IsNullOrWhiteSpace(SettingsInput.WebhookSecretToken) ? currentTelegram.WebhookSecretToken : SettingsInput.WebhookSecretToken,
-            IsSecret: true));
-
-        await appSettingsService.SaveAsync(updates, cancellationToken);
-        StatusMessage = "Application settings saved. AI and Telegram clients will use the new values immediately. Worker role changes may require restart.";
-        return RedirectToPage();
-    }
-
     public async Task<IActionResult> OnPostClearAgentAsync()
     {
         await LoadPageDataAsync();
@@ -212,8 +158,6 @@ public class IndexModel(
     {
         var currentTelegramOptions = await appSettingsService.GetTelegramBotOptionsAsync();
         var currentAiOptions = await appSettingsService.GetAiProviderOptionsAsync();
-        var currentDataSourceOptions = await appSettingsService.GetDataSourceOptionsAsync();
-        var currentPushOptions = await appSettingsService.GetPushNotificationOptionsAsync();
         var now = DateTimeOffset.UtcNow;
         var activeThreshold = now.Subtract(OfflineThreshold);
 
@@ -221,12 +165,9 @@ public class IndexModel(
         AiProviderText = currentAiOptions.Provider;
         IsAiChatEnabled = currentAiOptions.EnableChatGeneration &&
             !string.Equals(currentAiOptions.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase);
-        HasOpenAiApiKey = !string.IsNullOrWhiteSpace(currentAiOptions.OpenAiApiKey);
         BotEnabled = currentTelegramOptions.Enabled;
         HasBotToken = !string.IsNullOrWhiteSpace(currentTelegramOptions.BotToken);
-        HasTelegramBotToken = HasBotToken;
         BotStatusMessage = "Telegram bot is not enabled yet.";
-        SettingsInput = AppSettingsInput.From(currentAiOptions, currentTelegramOptions, currentDataSourceOptions, currentPushOptions);
 
         if (BotEnabled && HasBotToken)
         {
@@ -345,62 +286,6 @@ public class IndexModel(
     }
 
     public sealed record AgentChatMessageViewModel(string Role, string Content);
-
-    public class AppSettingsInput
-    {
-        public string AiProvider { get; set; } = AiProviderNames.Local;
-        public bool EnableChatGeneration { get; set; }
-        public bool UseLocalFallback { get; set; } = true;
-        public string OpenAiApiBaseUrl { get; set; } = "https://api.openai.com";
-        public string? OpenAiApiKey { get; set; }
-        public string OpenAiChatModel { get; set; } = "gpt-4o-mini";
-        public string OpenAiEmbeddingModel { get; set; } = "text-embedding-3-small";
-        public string OllamaApiBaseUrl { get; set; } = "http://localhost:11434";
-        public string OllamaChatModel { get; set; } = "llama3.1";
-        public string OllamaEmbeddingModel { get; set; } = "nomic-embed-text";
-        public bool TelegramEnabled { get; set; }
-        public string? TelegramBotToken { get; set; }
-        public string TelegramApiBaseUrl { get; set; } = "https://api.telegram.org";
-        public bool UseWebhookMode { get; set; }
-        public string? WebhookUrl { get; set; }
-        public string WebhookPath { get; set; } = "/api/telegram/webhook";
-        public string? WebhookSecretToken { get; set; }
-        public int PollingDelaySeconds { get; set; } = 3;
-        public int AutoSyncIntervalMinutes { get; set; } = 15;
-        public bool PushEnabled { get; set; } = true;
-        public bool SecurityAdvisoryPushEnabled { get; set; } = true;
-        public int PushWorkerIntervalSeconds { get; set; } = 90;
-        public int AdvisoryLookbackHours { get; set; } = 72;
-
-        public static AppSettingsInput From(
-            AiProviderOptions ai,
-            TelegramBotOptions telegram,
-            DataSourceOptions dataSource,
-            PushNotificationOptions push)
-            => new()
-            {
-                AiProvider = ai.Provider,
-                EnableChatGeneration = ai.EnableChatGeneration,
-                UseLocalFallback = ai.UseLocalFallback,
-                OpenAiApiBaseUrl = ai.OpenAiApiBaseUrl,
-                OpenAiChatModel = ai.OpenAiChatModel,
-                OpenAiEmbeddingModel = ai.OpenAiEmbeddingModel,
-                OllamaApiBaseUrl = ai.OllamaApiBaseUrl,
-                OllamaChatModel = ai.OllamaChatModel,
-                OllamaEmbeddingModel = ai.OllamaEmbeddingModel,
-                TelegramEnabled = telegram.Enabled,
-                TelegramApiBaseUrl = telegram.ApiBaseUrl,
-                UseWebhookMode = telegram.UseWebhookMode,
-                WebhookUrl = telegram.WebhookUrl,
-                WebhookPath = telegram.WebhookPath,
-                PollingDelaySeconds = telegram.PollingDelaySeconds,
-                AutoSyncIntervalMinutes = dataSource.AutoSyncIntervalMinutes,
-                PushEnabled = push.Enabled,
-                SecurityAdvisoryPushEnabled = push.EnableSecurityAdvisoryPush,
-                PushWorkerIntervalSeconds = push.WorkerIntervalSeconds,
-                AdvisoryLookbackHours = push.AdvisoryLookbackHours
-            };
-    }
 
     public class NodeSummaryViewModel
     {
