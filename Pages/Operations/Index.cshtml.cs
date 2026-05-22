@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using SecurityAdvisoryBot.Data;
 using SecurityAdvisoryBot.Models;
 using SecurityAdvisoryBot.Services;
@@ -15,7 +14,6 @@ public class IndexModel(
     ITelegramBotClient telegramBotClient,
     IOptions<AppRuntimeOptions> runtimeOptions,
     IAppSettingsService appSettingsService,
-    ISecurityAdvisoryAgentService advisoryAgent,
     ILogger<IndexModel> logger) : PageModel
 {
     private static readonly TimeSpan OfflineThreshold = TimeSpan.FromSeconds(45);
@@ -33,16 +31,9 @@ public class IndexModel(
     public IReadOnlyList<PushLog> PushLogs { get; private set; } = [];
     public IReadOnlyList<SyncJobLog> SyncJobLogs { get; private set; } = [];
     public IReadOnlyList<NodeSummaryViewModel> Nodes { get; private set; } = [];
-    public IReadOnlyList<AgentChatMessageViewModel> AgentMessages { get; private set; } = [];
 
     [BindProperty]
     public ChatSubscriptionInput Input { get; set; } = new();
-
-    [BindProperty]
-    public AgentTestInput AgentInput { get; set; } = new();
-
-    [BindProperty]
-    public string? AgentHistoryJson { get; set; }
 
     [TempData]
     public string? StatusMessage { get; set; }
@@ -116,77 +107,6 @@ public class IndexModel(
         return RedirectToPage();
     }
 
-    public async Task<IActionResult> OnPostClearAgentAsync()
-    {
-        await LoadPageDataAsync();
-        AgentMessages = [];
-        AgentHistoryJson = null;
-        AgentInput = new AgentTestInput();
-        return Page();
-    }
-
-    public async Task<IActionResult> OnPostAskAgentAsync(CancellationToken cancellationToken)
-    {
-        await LoadPageDataAsync();
-        var messages = ReadAgentHistory().ToList();
-
-        if (string.IsNullOrWhiteSpace(AgentInput.Message))
-        {
-            AgentMessages = messages;
-            AgentHistoryJson = JsonSerializer.Serialize(AgentMessages);
-            return Page();
-        }
-
-        var history = messages
-            .Select(message => new AdvisoryConversationMessage(message.Role, message.Content))
-            .ToList();
-
-        var userMessage = AgentInput.Message.Trim();
-        messages.Add(new AgentChatMessageViewModel("user", userMessage));
-
-        var reply = await advisoryAgent.BuildReplyAsync(userMessage, "operations-preview", history, cancellationToken);
-        messages.Add(new AgentChatMessageViewModel("assistant", reply));
-
-        AgentMessages = messages.TakeLast(12).ToList();
-        AgentHistoryJson = JsonSerializer.Serialize(AgentMessages);
-        AgentInput = new AgentTestInput();
-        ModelState.Clear();
-        return Page();
-    }
-
-    public async Task<IActionResult> OnPostAskAgentJsonAsync(CancellationToken cancellationToken)
-    {
-        var messages = ReadAgentHistory().ToList();
-
-        if (string.IsNullOrWhiteSpace(AgentInput.Message))
-        {
-            return new JsonResult(new
-            {
-                historyJson = JsonSerializer.Serialize(messages),
-                newMessages = Array.Empty<AgentChatMessageViewModel>()
-            });
-        }
-
-        var history = messages
-            .Select(message => new AdvisoryConversationMessage(message.Role, message.Content))
-            .ToList();
-
-        var userMessage = AgentInput.Message.Trim();
-        var userChatMessage = new AgentChatMessageViewModel("user", userMessage);
-        messages.Add(userChatMessage);
-
-        var reply = await advisoryAgent.BuildReplyAsync(userMessage, "operations-preview", history, cancellationToken);
-        var agentChatMessage = new AgentChatMessageViewModel("assistant", reply);
-        messages.Add(agentChatMessage);
-
-        var retainedMessages = messages.TakeLast(12).ToList();
-        return new JsonResult(new
-        {
-            historyJson = JsonSerializer.Serialize(retainedMessages),
-            newMessages = new[] { agentChatMessage }
-        });
-    }
-
     private async Task LoadPageDataAsync()
     {
         var currentTelegramOptions = await appSettingsService.GetTelegramBotOptionsAsync();
@@ -251,24 +171,6 @@ public class IndexModel(
             .ToListAsync();
     }
 
-    private IReadOnlyList<AgentChatMessageViewModel> ReadAgentHistory()
-    {
-        if (string.IsNullOrWhiteSpace(AgentHistoryJson))
-        {
-            return [];
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<AgentChatMessageViewModel>>(AgentHistoryJson) ?? [];
-        }
-        catch (JsonException exception)
-        {
-            logger.LogWarning(exception, "Failed to parse operations agent chat history.");
-            return [];
-        }
-    }
-
     private async Task LoadInputAsync(int editId)
     {
         var entity = await dbContext.TelegramChatSubscriptions
@@ -311,14 +213,6 @@ public class IndexModel(
         [StringLength(32)]
         public string? MinimumSeverity { get; set; }
     }
-
-    public class AgentTestInput
-    {
-        [StringLength(800)]
-        public string? Message { get; set; }
-    }
-
-    public sealed record AgentChatMessageViewModel(string Role, string Content);
 
     public class NodeSummaryViewModel
     {

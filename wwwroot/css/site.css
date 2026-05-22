@@ -1385,6 +1385,65 @@ hr {
   background: #f8fafc;
 }
 
+.chat-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.chat-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.chat-heading h1 {
+  margin: 0;
+}
+
+.chat-workbench {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.agent-thread-large {
+  min-height: 58vh;
+  max-height: 68vh;
+  padding: 1rem;
+  align-content: start;
+}
+
+.agent-thread-large .chat-message {
+  max-width: min(780px, 86%);
+}
+
+.agent-thread-large .chat-bubble {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.chat-compose-bar {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chat-compose-bar .agent-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.chat-compose-bar textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.chat-compose-bar .btn-primary {
+  min-width: 112px;
+  min-height: 44px;
+}
+
 .agent-empty {
   display: grid;
   place-content: center;
@@ -1532,6 +1591,26 @@ hr {
 
 .agent-compose {
   gap: 0.7rem;
+}
+
+@media (max-width: 760px) {
+  .chat-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .agent-thread-large {
+    min-height: 58vh;
+    max-height: 64vh;
+  }
+
+  .agent-thread-large .chat-message {
+    max-width: 94%;
+  }
+
+  .chat-compose-bar .agent-compose {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-panel {

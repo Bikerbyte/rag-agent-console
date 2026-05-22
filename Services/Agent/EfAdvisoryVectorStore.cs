@@ -47,8 +47,8 @@ public class EfAdvisoryVectorStore(
                 chunkQuery = chunkQuery.Where(chunk =>
                     chunk.Advisory != null &&
                     ((chunk.Advisory.CveId != null && chunk.Advisory.CveId.ToLower().Contains(current)) ||
+                     (chunk.Advisory.ExternalId != null && chunk.Advisory.ExternalId.ToLower().Contains(current)) ||
                      chunk.Advisory.Title.ToLower().Contains(current) ||
-                     chunk.Advisory.Description.ToLower().Contains(current) ||
                      (chunk.Advisory.Vendor != null && chunk.Advisory.Vendor.ToLower().Contains(current)) ||
                      (chunk.Advisory.Product != null && chunk.Advisory.Product.ToLower().Contains(current)) ||
                      (chunk.Advisory.Tags != null && chunk.Advisory.Tags.ToLower().Contains(current))));
@@ -98,8 +98,8 @@ public class EfAdvisoryVectorStore(
         string chunkText)
     {
         var score = 0d;
-        var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Description,
-            advisory.Vendor, advisory.Product, advisory.Tags, chunkText).ToLowerInvariant();
+        var structuredSearchable = BuildStructuredSearchableText(advisory);
+        var fullSearchable = string.Join(' ', structuredSearchable, advisory.Description, chunkText).ToLowerInvariant();
 
         if (!string.IsNullOrWhiteSpace(request.CveId) &&
             (string.Equals(advisory.CveId, request.CveId, StringComparison.OrdinalIgnoreCase) ||
@@ -110,9 +110,13 @@ public class EfAdvisoryVectorStore(
 
         foreach (var keyword in request.Keywords)
         {
-            if (searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
-                score += 1;
+                score += 2;
+            }
+            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 0.25;
             }
         }
 
@@ -131,4 +135,8 @@ public class EfAdvisoryVectorStore(
 
         return score;
     }
+
+    private static string BuildStructuredSearchableText(SecurityAdvisory advisory)
+        => string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
+            .ToLowerInvariant();
 }

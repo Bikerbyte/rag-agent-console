@@ -37,6 +37,10 @@
                     <span class="app-nav-eyebrow">RAG data</span>
                     <strong>Knowledge Base</strong>
                 </a>
+                <a class="app-nav-link @(currentPage == "/Chat/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Chat/Index">
+                    <span class="app-nav-eyebrow">Agent</span>
+                    <strong>Chat</strong>
+                </a>
                 <a class="app-nav-link @(currentPage == "/Operations/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Operations/Index">
                     <span class="app-nav-eyebrow">Bot ops</span>
                     <strong>Operations</strong>

@@ -1,0 +1,63 @@
+@page
+@model SecurityAdvisoryBot.Pages.Chat.IndexModel
+@{
+    ViewData["Title"] = "Agent Chat";
+}
+
+<section class="chat-page">
+    <div class="chat-heading">
+        <div>
+            <p class="eyebrow">Agent runtime</p>
+            <h1>Agent Chat</h1>
+        </div>
+        <span class="status-pill @(Model.IsAiChatEnabled ? "is-success" : "is-warning")">
+            @(Model.IsAiChatEnabled ? "AI enabled" : "AI not connected")
+        </span>
+    </div>
+
+    @if (!Model.IsAiChatEnabled)
+    {
+        <div class="agent-notice">
+            AI provider is not connected.
+        </div>
+    }
+
+    <section class="chat-workbench">
+        <div class="agent-thread agent-thread-large" id="agentThread" aria-label="Agent conversation history">
+            @if (Model.AgentMessages.Count == 0)
+            {
+                <div class="agent-empty" data-agent-empty>
+                    <strong>No messages</strong>
+                </div>
+            }
+            else
+            {
+                @foreach (var message in Model.AgentMessages)
+                {
+                    <div class="chat-message @(message.Role == "user" ? "is-user" : "is-agent")">
+                        <span>@(message.Role == "user" ? "You" : "Agent")</span>
+                        <div class="chat-bubble agent-markdown" data-markdown="@message.Content"></div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="chat-compose-bar">
+            <form method="post" asp-page-handler="AskAgent" class="agent-compose" id="agentComposeForm">
+                <input type="hidden" asp-for="AgentHistoryJson" id="agentHistoryJson" />
+                <label asp-for="AgentInput.Message" class="visually-hidden">Message</label>
+                <textarea asp-for="AgentInput.Message" class="form-control" rows="3" placeholder="Ask about CVE risk, vendor exposure, or recent high-risk advisories."></textarea>
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+
+            <form method="post" asp-page-handler="ClearAgent">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Clear conversation</button>
+            </form>
+        </div>
+    </section>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/agent-chat.js" asp-append-version="true"></script>
+}

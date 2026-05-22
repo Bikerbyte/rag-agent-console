@@ -157,8 +157,7 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Description,
-            advisory.Vendor, advisory.Product, advisory.Tags, chunkText).ToLowerInvariant();
+        var searchable = BuildStructuredSearchableText(advisory);
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -168,14 +167,18 @@ public class PgVectorAdvisoryVectorStore(
         string chunkText)
     {
         var score = 0d;
-        var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Description,
-            advisory.Vendor, advisory.Product, advisory.Tags, chunkText).ToLowerInvariant();
+        var structuredSearchable = BuildStructuredSearchableText(advisory);
+        var fullSearchable = string.Join(' ', structuredSearchable, advisory.Description, chunkText).ToLowerInvariant();
 
         foreach (var keyword in request.Keywords)
         {
-            if (searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             {
-                score += 1;
+                score += 2;
+            }
+            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 0.25;
             }
         }
 
@@ -194,6 +197,10 @@ public class PgVectorAdvisoryVectorStore(
 
         return score;
     }
+
+    private static string BuildStructuredSearchableText(SecurityAdvisory advisory)
+        => string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
+            .ToLowerInvariant();
 }
 
 public sealed class PgVectorUnavailableException(string message) : InvalidOperationException(message);
