@@ -27,7 +27,7 @@ public partial class AdvisoryQueryPlanner(
             }
         }
 
-        return BuildLocalPlan(question);
+        return BuildLocalPlan(question, history);
     }
 
     private async Task<AdvisoryQueryPlan?> TryBuildWithAiAsync(
@@ -108,18 +108,34 @@ public partial class AdvisoryQueryPlanner(
         }
     }
 
-    private static AdvisoryQueryPlan BuildLocalPlan(string question)
+    private static AdvisoryQueryPlan BuildLocalPlan(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history)
     {
         var cveId = NormalizeCve(CveRegex().Match(question).Value);
         var version = ExtractVersion(question);
         var riskFilter = ExtractRiskFilter(question);
-        var keywords = ExtractKeywords(question, version);
+        var keywords = ExtractKeywords(question, version).ToList();
+        var historyKeywords = ExtractHistoryKeywords(history, version);
+        foreach (var keyword in historyKeywords)
+        {
+            if (!keywords.Contains(keyword, StringComparer.OrdinalIgnoreCase))
+            {
+                keywords.Add(keyword);
+            }
+        }
+
+        keywords = keywords.Take(8).ToList();
         var retrievalQuery = BuildRetrievalQuery(cveId, keywords, riskFilter);
         var notes = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(version))
         {
             notes.Add("version is supporting context, not a hard retrieval filter");
+        }
+        if (historyKeywords.Count > 0)
+        {
+            notes.Add("follow-up context was used to complete the retrieval query");
         }
 
         return new AdvisoryQueryPlan(
@@ -180,6 +196,30 @@ public partial class AdvisoryQueryPlanner(
         }
 
         return NormalizeKeywords(keywords, version);
+    }
+
+    private static IReadOnlyList<string> ExtractHistoryKeywords(
+        IReadOnlyList<AdvisoryConversationMessage>? history,
+        string? version)
+    {
+        if (history is null || history.Count == 0)
+        {
+            return [];
+        }
+
+        var latestUserContext = history
+            .Where(message => string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase))
+            .Select(message => message.Content)
+            .LastOrDefault(message => !string.IsNullOrWhiteSpace(message));
+
+        if (string.IsNullOrWhiteSpace(latestUserContext))
+        {
+            return [];
+        }
+
+        return ExtractKeywords(latestUserContext, version)
+            .Take(4)
+            .ToList();
     }
 
     private static IReadOnlyList<string> NormalizeKeywords(IEnumerable<string>? keywords, string? version)
@@ -267,7 +307,7 @@ public partial class AdvisoryQueryPlanner(
     [GeneratedRegex("cve-\\d{4}-\\d{4,}", RegexOptions.IgnoreCase)]
     private static partial Regex CveRegex();
 
-    [GeneratedRegex("(?<!cve-)\\b\\d+(?:\\.\\d+){1,3}[a-z0-9-]*\\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase)]
     private static partial Regex VersionRegex();
 
     [GeneratedRegex("[a-z0-9_.:-]{2,}")]

@@ -16,13 +16,20 @@ public partial class SecurityAdvisorySearchService(
         string question,
         int maxResults = 5,
         CancellationToken cancellationToken = default)
+        => await SearchAsync(question, history: null, maxResults, cancellationToken);
+
+    public async Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(question))
         {
             return [];
         }
 
-        var plan = await queryPlanner.BuildPlanAsync(question, cancellationToken: cancellationToken);
+        var plan = await queryPlanner.BuildPlanAsync(question, history, cancellationToken);
         var queryVector = await embeddingService.BuildEmbeddingAsync(plan.RetrievalQuery, cancellationToken);
         var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
         var request = new AdvisoryVectorSearchRequest(
@@ -97,7 +104,7 @@ public class SecurityAdvisoryAnswerService(
             return string.IsNullOrWhiteSpace(generalReply) ? BuildAiUnavailableReply() : generalReply;
         }
 
-        var results = await searchService.SearchAsync(question, options.Value.RagMaxChunks, cancellationToken);
+        var results = await searchService.SearchAsync(question, history, options.Value.RagMaxChunks, cancellationToken);
         if (results.Count == 0)
         {
             return "目前資料庫裡找不到足夠相關的弱點資料。可以先同步資料，或換成較明確的產品、廠商、CVE ID 再問一次。";
@@ -176,7 +183,9 @@ public class SecurityAdvisoryAnswerService(
         Use only the provided advisory context.
         Do not claim facts that are not present in the context.
         If the user asks about a specific product version but the advisory context does not include affected version ranges, say the current data is insufficient to confirm whether that exact version is affected.
-        Use the conversation history only to resolve follow-up references.
+        Use the conversation history only to resolve follow-up references such as omitted vendor or product names.
+        The current user question always has priority over conversation history. If the current question contains a version, that version replaces any earlier version in the history.
+        Do not merge an older version from conversation history with a newer follow-up version.
         For list questions, prioritize what should be handled first and explain why.
         Be concise, operational, and clear about uncertainty.
         Include CVE IDs, affected vendors/products, severity, exploitation status, recommended action, and sources when available.
@@ -185,6 +194,9 @@ public class SecurityAdvisoryAnswerService(
         var userPrompt = $"""
         Conversation history:
         {BuildHistoryText(history)}
+
+        Resolved follow-up context:
+        {BuildFollowUpContext(question, history)}
 
         User question:
         {question}
@@ -267,7 +279,63 @@ public class SecurityAdvisoryAnswerService(
         => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     private static bool ContainsVersionLike(string value)
-        => Regex.IsMatch(value, "(?<!cve-)\\b\\d+(?:\\.\\d+){1,3}[a-z0-9-]*\\b", RegexOptions.IgnoreCase);
+        => Regex.IsMatch(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
+
+    private static string BuildFollowUpContext(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history)
+    {
+        var currentVersion = ExtractVersion(question);
+        var latestUserContext = history?
+            .Where(message => string.Equals(message.Role, "user", StringComparison.OrdinalIgnoreCase))
+            .Select(message => message.Content)
+            .LastOrDefault(message => !string.IsNullOrWhiteSpace(message));
+
+        var contextKeywords = ExtractContextKeywords(latestUserContext, currentVersion);
+        if (string.IsNullOrWhiteSpace(currentVersion) && contextKeywords.Count == 0)
+        {
+            return "(none)";
+        }
+
+        var builder = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(currentVersion))
+        {
+            builder.AppendLine($"Current version from the current user question: {currentVersion}.");
+            builder.AppendLine("Treat this as the active version for this answer.");
+            builder.AppendLine("Do not use older version numbers from conversation history as the active version.");
+        }
+
+        if (contextKeywords.Count > 0)
+        {
+            builder.AppendLine($"Prior context for omitted vendor/product names only: {string.Join(", ", contextKeywords)}.");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string? ExtractVersion(string value)
+    {
+        var match = Regex.Match(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
+        return match.Success ? match.Value : null;
+    }
+
+    private static IReadOnlyList<string> ExtractContextKeywords(string? value, string? currentVersion)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return Regex.Matches(value, "[a-z0-9_.:-]{2,}", RegexOptions.IgnoreCase)
+            .Select(match => match.Value.Trim().Trim('.', ':', '-').ToLowerInvariant())
+            .Where(keyword =>
+                !string.Equals(keyword, currentVersion, StringComparison.OrdinalIgnoreCase) &&
+                !ContainsVersionLike(keyword) &&
+                !CommonContextWords.Contains(keyword))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(6)
+            .ToList();
+    }
 
     private static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
     {
@@ -296,4 +364,10 @@ public class SecurityAdvisoryAnswerService(
 
         若要啟用完整對話能力，請設定 OpenAI 或 Ollama，並將 AiProvider:EnableChatGeneration 設為 true。
         """;
+
+    private static readonly HashSet<string> CommonContextWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "cve", "kev", "cvss", "risk", "high", "critical", "version",
+        "漏洞", "弱點", "版本", "風險", "有弱點嗎"
+    };
 }

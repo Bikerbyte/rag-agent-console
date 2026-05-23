@@ -35,6 +35,25 @@ public class AdvisoryQueryPlannerTests
         Assert.Contains("known exploited", plan.RetrievalQuery, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task BuildPlanAsync_WhenFollowUpContainsOnlyVersion_UsesPreviousUserContext()
+    {
+        var planner = CreatePlanner();
+        var history = new[]
+        {
+            new AdvisoryConversationMessage("user", "citrix netscaler 59.22 版本有弱點嗎"),
+            new AdvisoryConversationMessage("assistant", "目前資料不足以確認該版本，但 Citrix NetScaler 有相關 CVE。")
+        };
+
+        var plan = await planner.BuildPlanAsync("2402 呢?", history);
+
+        Assert.Equal("2402", plan.Version);
+        Assert.Contains("citrix", plan.SearchKeywords);
+        Assert.Contains("netscaler", plan.SearchKeywords);
+        Assert.DoesNotContain("2402", plan.SearchKeywords);
+        Assert.Contains(plan.Notes, note => note.Contains("follow-up context", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static AdvisoryQueryPlanner CreatePlanner()
         => new(
             new FakeAiChatClient(),
