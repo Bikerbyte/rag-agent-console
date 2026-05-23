@@ -49,7 +49,7 @@ public class SecurityAdvisoryAgentServiceTests
 
         var reply = await service.BuildReplyAsync(" ");
 
-        Assert.Contains("最近 Cisco 有哪些高風險 CVE", reply);
+        Assert.Contains("知識庫", reply);
     }
 
     private sealed class FakeAnswerService : ISecurityAdvisoryAnswerService

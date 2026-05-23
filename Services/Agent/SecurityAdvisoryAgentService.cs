@@ -38,11 +38,11 @@ public class SecurityAdvisoryAgentService(
 
     private static string BuildCapabilitiesReply()
         => """
-        你可以直接詢問弱點風險、CVE、CISA KEV、廠商或產品影響範圍。
+        你可以直接詢問知識庫中的資料，或請我整理特定主題的重點。
 
         例如：
-        - 最近 Cisco 有哪些高風險 CVE？
-        - CVE-2024-3094 有什麼風險？
-        - 今天有沒有 CISA KEV 新增項目？
+        - 最近有什麼需要關注的資訊？
+        - 幫我整理 [主題] 的處理建議
+        - 這個問題應該怎麼處理？
         """;
 }

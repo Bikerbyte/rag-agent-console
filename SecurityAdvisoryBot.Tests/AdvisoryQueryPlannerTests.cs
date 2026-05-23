@@ -1,6 +1,7 @@
 using SecurityAdvisoryBot.Models;
 using SecurityAdvisoryBot.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace SecurityAdvisoryBot.Tests;
@@ -78,4 +79,111 @@ public class AdvisoryQueryPlannerTests
 
     private static LocalAdvisoryQueryPlanner CreatePlanner()
         => new(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
+}
+
+public class ResilientAdvisoryQueryPlannerTests
+{
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiDisabled_UsesLocalPlanner()
+    {
+        var planner = CreatePlanner(enableChat: false, aiResponse: null);
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiEnabledAndReturnsValidJson_UsesAiPlan()
+    {
+        const string json = """
+            {
+              "intent": "vulnerability_lookup",
+              "moduleName": "CveAdvisory",
+              "vendor": "Citrix",
+              "product": "NetScaler",
+              "version": null,
+              "cveId": null,
+              "riskFilter": "none",
+              "retrievalQuery": "Citrix NetScaler vulnerabilities",
+              "searchKeywords": ["citrix", "netscaler"],
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal("Citrix NetScaler vulnerabilities", plan.RetrievalQuery);
+        Assert.Contains("citrix", plan.SearchKeywords);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsInvalidJson_FallsBackToLocal()
+    {
+        var planner = CreatePlanner(enableChat: true, aiResponse: "not json at all");
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsNull_FallsBackToLocal()
+    {
+        var planner = CreatePlanner(enableChat: true, aiResponse: null);
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsJsonFencedResponse_StripsFenceAndParses()
+    {
+        const string fenced = """
+            ```json
+            {
+              "intent": "vulnerability_lookup",
+              "moduleName": "CveAdvisory",
+              "vendor": null,
+              "product": null,
+              "version": null,
+              "cveId": null,
+              "riskFilter": "known_exploited",
+              "retrievalQuery": "known exploited vulnerabilities",
+              "searchKeywords": [],
+              "notes": []
+            }
+            ```
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: fenced);
+
+        var plan = await planner.BuildPlanAsync("最近有哪些被利用的弱點");
+
+        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal("known_exploited", plan.RiskFilter);
+    }
+
+    private static ResilientAdvisoryQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
+    {
+        var local = new LocalAdvisoryQueryPlanner(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
+        var aiOptions = Options.Create(new AiProviderOptions
+        {
+            Provider = enableChat ? AiProviderNames.OpenAI : AiProviderNames.Local,
+            EnableChatGeneration = enableChat
+        });
+        return new ResilientAdvisoryQueryPlanner(
+            new FakeAiChatClient(aiResponse),
+            local,
+            aiOptions,
+            NullLogger<ResilientAdvisoryQueryPlanner>.Instance);
+    }
+
+    private sealed class FakeAiChatClient(string? response) : IAiChatClient
+    {
+        public Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+            => Task.FromResult(response);
+    }
 }

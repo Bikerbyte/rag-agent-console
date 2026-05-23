@@ -1,4 +1,5 @@
 (() => {
+    const STORAGE_KEY = "agent-chat-history";
     const form = document.getElementById("agentComposeForm");
     const thread = document.getElementById("agentThread");
     const historyInput = document.getElementById("agentHistoryJson");
@@ -143,8 +144,56 @@
         }
     };
 
+    const saveHistory = () => {
+        try {
+            localStorage.setItem(STORAGE_KEY, historyInput.value || "");
+        } catch {
+            // localStorage unavailable (private browsing, quota exceeded)
+        }
+    };
+
+    const restoreHistory = () => {
+        const isEmpty = !!thread.querySelector("[data-agent-empty]");
+        if (!isEmpty) {
+            return;
+        }
+        let saved;
+        try {
+            saved = localStorage.getItem(STORAGE_KEY);
+        } catch {
+            return;
+        }
+        if (!saved) {
+            return;
+        }
+        let items;
+        try {
+            items = JSON.parse(saved);
+        } catch {
+            return;
+        }
+        if (!Array.isArray(items) || items.length === 0) {
+            return;
+        }
+        historyInput.value = saved;
+        for (const item of items) {
+            if (item && item.role && item.content) {
+                createMessage(item.role, item.content, { trace: item.trace });
+            }
+        }
+    };
+
     hydrateMarkdown();
+    restoreHistory();
     thread.scrollTop = thread.scrollHeight;
+
+    const clearForm = document.querySelector("form[action*='ClearAgent'], form[asp-page-handler='ClearAgent']") ||
+        [...document.querySelectorAll("form")].find((f) => f.querySelector("button")?.textContent?.trim() === "Clear conversation");
+    if (clearForm) {
+        clearForm.addEventListener("submit", () => {
+            try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+        });
+    }
 
     document.querySelectorAll(".agent-starter-chip").forEach((chip) => {
         chip.addEventListener("click", () => {
@@ -186,6 +235,7 @@
 
             const payload = await response.json();
             historyInput.value = payload.historyJson || "";
+            saveHistory();
             const remainingThinkingTime = Math.max(0, 650 - (Date.now() - thinkingStartedAt));
             if (remainingThinkingTime > 0) {
                 await new Promise((resolve) => setTimeout(resolve, remainingThinkingTime));
