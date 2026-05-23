@@ -2121,6 +2121,10 @@ hr {
   background: #2f9e63;
 }
 
+.settings-health-item.is-neutral > span {
+  background: #94a3b8;
+}
+
 .settings-health-item.is-missing > span {
   background: #d89025;
 }
