@@ -41,17 +41,18 @@ public class EfAdvisoryVectorStore(
                      chunk.Advisory.Severity == "Critical"));
             }
 
-            foreach (var keyword in request.Keywords.Take(6))
+            var searchableKeywords = request.Keywords.Take(6).ToList();
+            if (searchableKeywords.Count > 0)
             {
-                var current = keyword;
+                var primaryKeyword = searchableKeywords[0];
                 chunkQuery = chunkQuery.Where(chunk =>
                     chunk.Advisory != null &&
-                    ((chunk.Advisory.CveId != null && chunk.Advisory.CveId.ToLower().Contains(current)) ||
-                     (chunk.Advisory.ExternalId != null && chunk.Advisory.ExternalId.ToLower().Contains(current)) ||
-                     chunk.Advisory.Title.ToLower().Contains(current) ||
-                     (chunk.Advisory.Vendor != null && chunk.Advisory.Vendor.ToLower().Contains(current)) ||
-                     (chunk.Advisory.Product != null && chunk.Advisory.Product.ToLower().Contains(current)) ||
-                     (chunk.Advisory.Tags != null && chunk.Advisory.Tags.ToLower().Contains(current))));
+                    ((chunk.Advisory.CveId != null && chunk.Advisory.CveId.ToLower().Contains(primaryKeyword)) ||
+                     (chunk.Advisory.ExternalId != null && chunk.Advisory.ExternalId.ToLower().Contains(primaryKeyword)) ||
+                     chunk.Advisory.Title.ToLower().Contains(primaryKeyword) ||
+                     (chunk.Advisory.Vendor != null && chunk.Advisory.Vendor.ToLower().Contains(primaryKeyword)) ||
+                     (chunk.Advisory.Product != null && chunk.Advisory.Product.ToLower().Contains(primaryKeyword)) ||
+                     (chunk.Advisory.Tags != null && chunk.Advisory.Tags.ToLower().Contains(primaryKeyword))));
             }
         }
 

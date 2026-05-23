@@ -8,6 +8,7 @@ namespace SecurityAdvisoryBot.Services;
 public partial class SecurityAdvisorySearchService(
     IAdvisoryEmbeddingService embeddingService,
     IAdvisoryVectorStore vectorStore,
+    IAdvisoryQueryPlanner queryPlanner,
     IOptions<SecurityAdvisoryOptions> options,
     ILogger<SecurityAdvisorySearchService> logger) : ISecurityAdvisorySearchService
 {
@@ -21,15 +22,16 @@ public partial class SecurityAdvisorySearchService(
             return [];
         }
 
-        var profile = RetrievalProfile.FromQuestion(question);
-        var queryVector = await embeddingService.BuildEmbeddingAsync(question, cancellationToken);
+        var plan = await queryPlanner.BuildPlanAsync(question, cancellationToken: cancellationToken);
+        var queryVector = await embeddingService.BuildEmbeddingAsync(plan.RetrievalQuery, cancellationToken);
         var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
         var request = new AdvisoryVectorSearchRequest(
-            question,
-            profile.CveId,
-            profile.KevOnly,
-            profile.HighRiskOnly,
-            profile.Keywords,
+            plan.RetrievalQuery,
+            plan.CveId,
+            plan.Version,
+            plan.KevOnly,
+            plan.HighRiskOnly,
+            plan.SearchKeywords,
             queryVector,
             effectiveMax);
         var candidates = await vectorStore.SearchAsync(request, cancellationToken);
@@ -46,7 +48,12 @@ public partial class SecurityAdvisorySearchService(
             ranked.Add(new SecurityAdvisorySearchResult(candidate.Advisory, candidate.ChunkText, score));
         }
 
-        logger.LogDebug("RAG search produced {CandidateCount} candidates and {RankedCount} ranked results.", candidates.Count, ranked.Count);
+        logger.LogDebug(
+            "RAG search produced {CandidateCount} candidates and {RankedCount} ranked results. RetrievalQuery={RetrievalQuery}, Version={Version}.",
+            candidates.Count,
+            ranked.Count,
+            plan.RetrievalQuery,
+            plan.Version);
 
         return ranked
             .OrderByDescending(item => item.Score)
@@ -69,60 +76,6 @@ public partial class SecurityAdvisorySearchService(
         }
 
         return sum;
-    }
-
-    private sealed partial class RetrievalProfile
-    {
-        private RetrievalProfile(string question)
-        {
-            CveId = ExtractCveId(question);
-            KevOnly = ContainsAny(question, "kev", "known exploited", "已知遭利用", "被利用");
-            HighRiskOnly = ContainsAny(question, "critical", "high risk", "高風險", "嚴重", "cvss");
-            Keywords = ExtractKeywords(question);
-        }
-
-        public string? CveId { get; }
-        public bool KevOnly { get; }
-        public bool HighRiskOnly { get; }
-        public IReadOnlyList<string> Keywords { get; }
-
-        public static RetrievalProfile FromQuestion(string question)
-            => new(question);
-
-        private static string? ExtractCveId(string value)
-        {
-            var match = CveRegex().Match(value);
-            return match.Success ? match.Value.ToUpperInvariant() : null;
-        }
-
-        private static IReadOnlyList<string> ExtractKeywords(string question)
-        {
-            var keywords = new List<string>();
-            foreach (Match match in KeywordRegex().Matches(question.ToLowerInvariant()))
-            {
-                if (!StopWords.Contains(match.Value))
-                {
-                    keywords.Add(match.Value);
-                }
-            }
-
-            return keywords.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        }
-
-        private static bool ContainsAny(string value, params string[] tokens)
-            => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
-
-        private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "ask", "help", "latest", "critical", "kev", "cve", "sync", "watch", "follow",
-            "list", "show", "risk", "high", "recent", "today", "this", "week"
-        };
-
-        [GeneratedRegex("cve-\\d{4}-\\d{4,}", RegexOptions.IgnoreCase)]
-        private static partial Regex CveRegex();
-
-        [GeneratedRegex("[a-z0-9_.:-]{2,}")]
-        private static partial Regex KeywordRegex();
     }
 }
 
@@ -165,6 +118,12 @@ public class SecurityAdvisoryAnswerService(
         else
         {
             builder.AppendLine("根據目前已同步的弱點資料，整理如下：");
+        }
+
+        if (ContainsVersionLike(question))
+        {
+            builder.AppendLine();
+            builder.AppendLine("你有提到特定版本；目前資料庫主要包含 CVE、廠商、產品與風險狀態，沒有完整版本受影響範圍，因此以下只能確認相關產品已知弱點，不能直接判定該版本一定受影響。");
         }
 
         foreach (var result in results)
@@ -216,6 +175,7 @@ public class SecurityAdvisoryAnswerService(
         Answer in Traditional Chinese unless the user asks otherwise.
         Use only the provided advisory context.
         Do not claim facts that are not present in the context.
+        If the user asks about a specific product version but the advisory context does not include affected version ranges, say the current data is insufficient to confirm whether that exact version is affected.
         Use the conversation history only to resolve follow-up references.
         For list questions, prioritize what should be handled first and explain why.
         Be concise, operational, and clear about uncertainty.
@@ -305,6 +265,9 @@ public class SecurityAdvisoryAnswerService(
 
     private static bool ContainsAny(string value, params string[] tokens)
         => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
+
+    private static bool ContainsVersionLike(string value)
+        => Regex.IsMatch(value, "(?<!cve-)\\b\\d+(?:\\.\\d+){1,3}[a-z0-9-]*\\b", RegexOptions.IgnoreCase);
 
     private static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
     {

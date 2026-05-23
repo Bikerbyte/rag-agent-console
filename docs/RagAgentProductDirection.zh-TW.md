@@ -245,8 +245,6 @@ Knowledge Workspace:
 - Retrieval Test 是 Knowledge Base 的核心能力之一，不是附屬 debug 工具。
 - CVE 弱點資料是第一個 domain module，但 UI 命名要保留擴充性，例如使用 Knowledge / Documents / Modules，而不是所有地方都寫死 Advisory。
 
-## 待辦順序
-
 ## 已落地的第一階段
 
 - Knowledge Base 頁面已加入 Data Sources、文件匯入、文件列表與 Retrieval Test。
@@ -255,6 +253,8 @@ Knowledge Workspace:
 - 文件解析優先採用開源套件：Markdig、HtmlAgilityPack、CsvHelper、DocumentFormat.OpenXml。
 - Chunking 使用 Microsoft Semantic Kernel TextChunker，避免自行維護分段演算法。
 - Retrieval Test 已可用自然語言查詢目前 CVE Advisory module，並顯示 rank、score、CVE、vendor、product、risk 與 chunk preview。
+- Agent 查詢已加入 `IAdvisoryQueryPlanner` 邊界；OpenAI / Ollama 啟用時可先用 LLM 產生 structured retrieval plan，Local fallback 則使用 deterministic planner。
+- 版本號已從硬檢索條件中移除，改作為回答階段的不確定性說明，例如 `NetScaler 59.22` 會查 `Citrix NetScaler`，但回答會標明目前資料不足以確認該版本是否受影響。
 
 ## 待辦順序
 
@@ -273,10 +273,10 @@ Knowledge Workspace:
    - 重新 embedding。
    - 顯示 parser、embedding 狀態與最後處理時間。
 
-4. 新增 LLM Query Planner
-   - 使用 OpenAI / Ollama 將使用者問題轉成 structured retrieval request。
-   - planner output 需要 schema validation。
-   - local fallback 才使用簡化 keyword parser。
+4. 補強 LLM Query Planner
+   - 目前已建立 planner 邊界與 local fallback。
+   - 下一步要將 planner output 記錄到 trace，並補強 schema validation 與錯誤可觀測性。
+   - 後續可依 module 定義不同 planner schema。
 
 5. 新增 Agent Retrieval Trace
    - Web Chat 顯示 planner 與 retrieval trace。
