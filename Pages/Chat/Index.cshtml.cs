@@ -88,8 +88,8 @@ public class IndexModel(
         var userMessage = AgentInput.Message!.Trim();
         messages.Add(new AgentChatMessageViewModel("user", userMessage));
 
-        var reply = await advisoryAgent.BuildReplyAsync(userMessage, "web-chat", history, cancellationToken);
-        var agentChatMessage = new AgentChatMessageViewModel("assistant", reply);
+        var agentReply = await advisoryAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
+        var agentChatMessage = new AgentChatMessageViewModel("assistant", agentReply.Content, AgentTraceViewModel.FromTrace(agentReply.Trace));
         messages.Add(agentChatMessage);
         return agentChatMessage;
     }
@@ -125,5 +125,51 @@ public class IndexModel(
         public string? Message { get; set; }
     }
 
-    public sealed record AgentChatMessageViewModel(string Role, string Content);
+    public sealed record AgentChatMessageViewModel(
+        string Role,
+        string Content,
+        AgentTraceViewModel? Trace = null);
+
+    public sealed record AgentTraceViewModel(
+        string Intent,
+        string ModuleName,
+        string RetrievalQuery,
+        string RetrievalMode,
+        string? RiskFilter,
+        string? Version,
+        IReadOnlyList<AgentTraceMatchViewModel> Matches)
+    {
+        public static AgentTraceViewModel? FromTrace(AgentRetrievalTrace? trace)
+        {
+            if (trace is null)
+            {
+                return null;
+            }
+
+            return new AgentTraceViewModel(
+                trace.Planner.Intent ?? "-",
+                trace.Planner.ModuleName,
+                trace.Planner.RetrievalQuery,
+                trace.RetrievalMode,
+                trace.Planner.RiskFilter,
+                trace.Planner.Version,
+                trace.Matches.Select(match => new AgentTraceMatchViewModel(
+                    match.Rank,
+                    match.ModuleName,
+                    match.SourceKind,
+                    match.CveId ?? match.Title,
+                    match.Score,
+                    match.VectorScore,
+                    match.TextScore)).ToList());
+        }
+    }
+
+    public sealed record AgentTraceMatchViewModel(
+        int Rank,
+        string ModuleName,
+        string SourceKind,
+        string Label,
+        double Score,
+        double VectorScore,
+        double TextScore);
 }

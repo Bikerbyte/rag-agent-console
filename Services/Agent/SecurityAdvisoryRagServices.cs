@@ -23,13 +23,27 @@ public partial class SecurityAdvisorySearchService(
         IReadOnlyList<AdvisoryConversationMessage>? history,
         int maxResults = 5,
         CancellationToken cancellationToken = default)
+        => (await SearchWithTraceAsync(question, history, maxResults, cancellationToken: cancellationToken)).Results;
+
+    public async Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        int maxResults = 5,
+        string? moduleName = null,
+        string retrievalMode = RetrievalModes.Hybrid,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(question))
         {
-            return [];
+            return new SecurityAdvisorySearchResponse(
+                new AdvisoryQueryPlan(question, string.Empty, null, null, null, null, null, "none", [], [], moduleName ?? KnowledgeModuleNames.CveAdvisory),
+                RetrievalModes.Normalize(retrievalMode),
+                []);
         }
 
         var plan = await queryPlanner.BuildPlanAsync(question, history, cancellationToken);
+        var effectiveModule = string.IsNullOrWhiteSpace(moduleName) ? plan.ModuleName : moduleName.Trim();
+        var effectiveMode = RetrievalModes.Normalize(retrievalMode);
         var queryVector = await embeddingService.BuildEmbeddingAsync(plan.RetrievalQuery, cancellationToken);
         var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
         var request = new AdvisoryVectorSearchRequest(
@@ -40,19 +54,33 @@ public partial class SecurityAdvisorySearchService(
             plan.HighRiskOnly,
             plan.SearchKeywords,
             queryVector,
-            effectiveMax);
+            effectiveMax,
+            effectiveModule,
+            effectiveMode);
         var candidates = await vectorStore.SearchAsync(request, cancellationToken);
 
         var ranked = new List<SecurityAdvisorySearchResult>();
         foreach (var candidate in candidates)
         {
-            var score = CosineSimilarity(queryVector, candidate.Embedding) + candidate.TextScore;
+            var vectorScore = CosineSimilarity(queryVector, candidate.Embedding);
+            var score = effectiveMode switch
+            {
+                RetrievalModes.Vector => vectorScore,
+                RetrievalModes.Keyword => candidate.TextScore,
+                _ => vectorScore + candidate.TextScore
+            };
             if (score <= 0)
             {
                 continue;
             }
 
-            ranked.Add(new SecurityAdvisorySearchResult(candidate.Advisory, candidate.ChunkText, score));
+            ranked.Add(new SecurityAdvisorySearchResult(
+                candidate.Advisory,
+                candidate.Document,
+                candidate.ChunkText,
+                score,
+                vectorScore,
+                candidate.TextScore));
         }
 
         logger.LogDebug(
@@ -62,10 +90,15 @@ public partial class SecurityAdvisorySearchService(
             plan.RetrievalQuery,
             plan.Version);
 
-        return ranked
+        var results = ranked
             .OrderByDescending(item => item.Score)
             .Take(effectiveMax)
             .ToList();
+
+        return new SecurityAdvisorySearchResponse(
+            plan with { ModuleName = effectiveModule },
+            effectiveMode,
+            results);
     }
 
     private static double CosineSimilarity(IReadOnlyList<float> left, IReadOnlyList<float> right)
@@ -96,24 +129,34 @@ public class SecurityAdvisoryAnswerService(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
+        => (await BuildAnswerWithTraceAsync(question, history, cancellationToken)).Content;
+
+    public async Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default)
     {
         var aiOptions = aiProviderOptions.Value;
         if (!LooksLikeSecurityQuestion(question))
         {
             var generalReply = await TryGenerateGeneralAnswerAsync(question, history, cancellationToken);
-            return string.IsNullOrWhiteSpace(generalReply) ? BuildAiUnavailableReply() : generalReply;
+            return new AgentAnswerResult(
+                string.IsNullOrWhiteSpace(generalReply) ? BuildAiUnavailableReply() : generalReply,
+                null);
         }
 
-        var results = await searchService.SearchAsync(question, history, options.Value.RagMaxChunks, cancellationToken);
+        var searchResponse = await searchService.SearchWithTraceAsync(question, history, options.Value.RagMaxChunks, cancellationToken: cancellationToken);
+        var results = searchResponse.Results;
+        var trace = BuildTrace(question, searchResponse);
         if (results.Count == 0)
         {
-            return "目前資料庫裡找不到足夠相關的弱點資料。可以先同步資料，或換成較明確的產品、廠商、CVE ID 再問一次。";
+            return new AgentAnswerResult("目前資料庫裡找不到足夠相關的弱點資料。可以先同步資料，或換成較明確的產品、廠商、CVE ID 再問一次。", trace);
         }
 
         var generated = await TryGenerateAnswerAsync(question, results, history, cancellationToken);
         if (!string.IsNullOrWhiteSpace(generated))
         {
-            return generated;
+            return new AgentAnswerResult(generated, trace);
         }
 
         var builder = new StringBuilder();
@@ -135,23 +178,32 @@ public class SecurityAdvisoryAnswerService(
 
         foreach (var result in results)
         {
-            var advisory = result.Advisory;
             builder.AppendLine();
-            builder.AppendLine($"- {BuildTitle(advisory)}");
-            builder.AppendLine($"  風險: {BuildRiskText(advisory)}");
-
-            var summary = advisory.AiSummary ?? advisory.Description;
-            builder.AppendLine($"  摘要: {Trim(summary, 220)}");
-
-            if (!string.IsNullOrWhiteSpace(advisory.SuggestedAction))
+            if (result.Advisory is { } advisory)
             {
-                builder.AppendLine($"  建議: {Trim(advisory.SuggestedAction, 180)}");
-            }
+                builder.AppendLine($"- {BuildTitle(advisory)}");
+                builder.AppendLine($"  風險: {BuildRiskText(advisory)}");
 
-            builder.AppendLine($"  來源: {advisory.SourceName} {advisory.SourceUrl}");
+                var summary = advisory.AiSummary ?? advisory.Description;
+                builder.AppendLine($"  摘要: {Trim(summary, 220)}");
+
+                if (!string.IsNullOrWhiteSpace(advisory.SuggestedAction))
+                {
+                    builder.AppendLine($"  建議: {Trim(advisory.SuggestedAction, 180)}");
+                }
+
+                builder.AppendLine($"  來源: {advisory.SourceName} {advisory.SourceUrl}");
+            }
+            else
+            {
+                builder.AppendLine($"- {result.Title}");
+                builder.AppendLine($"  模組: {result.ModuleName}");
+                builder.AppendLine($"  摘要: {Trim(result.ChunkText, 220)}");
+                builder.AppendLine($"  來源: {result.SourceName}");
+            }
         }
 
-        return builder.ToString().TrimEnd();
+        return new AgentAnswerResult(builder.ToString().TrimEnd(), trace);
     }
 
     private async Task<string?> TryGenerateAnswerAsync(
@@ -163,17 +215,17 @@ public class SecurityAdvisoryAnswerService(
         var contextBuilder = new StringBuilder();
         foreach (var result in results)
         {
-            var advisory = result.Advisory;
-            contextBuilder.AppendLine($"CVE: {advisory.CveId ?? advisory.ExternalId}");
-            contextBuilder.AppendLine($"Title: {advisory.Title}");
-            contextBuilder.AppendLine($"Vendor: {advisory.Vendor}");
-            contextBuilder.AppendLine($"Product: {advisory.Product}");
-            contextBuilder.AppendLine($"Severity: {advisory.Severity}");
-            contextBuilder.AppendLine($"CVSS: {advisory.CvssScore}");
-            contextBuilder.AppendLine($"Known exploited: {advisory.IsKnownExploited}");
-            contextBuilder.AppendLine($"Summary: {advisory.AiSummary ?? advisory.Description}");
-            contextBuilder.AppendLine($"Suggested action: {advisory.SuggestedAction ?? advisory.RequiredAction}");
-            contextBuilder.AppendLine($"Source: {advisory.SourceName} {advisory.SourceUrl}");
+            contextBuilder.AppendLine($"Module: {result.ModuleName}");
+            contextBuilder.AppendLine($"Source kind: {result.SourceKind}");
+            contextBuilder.AppendLine($"CVE: {result.CveId}");
+            contextBuilder.AppendLine($"Title: {result.Title}");
+            contextBuilder.AppendLine($"Vendor: {result.Vendor}");
+            contextBuilder.AppendLine($"Product: {result.Product}");
+            contextBuilder.AppendLine($"Severity: {result.Severity}");
+            contextBuilder.AppendLine($"CVSS: {result.CvssScore}");
+            contextBuilder.AppendLine($"Known exploited: {result.IsKnownExploited}");
+            contextBuilder.AppendLine($"Context chunk: {result.ChunkText}");
+            contextBuilder.AppendLine($"Source: {result.SourceName} {result.SourceUrl}");
             contextBuilder.AppendLine();
         }
 
@@ -268,12 +320,35 @@ public class SecurityAdvisoryAnswerService(
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "...";
     }
 
+    private static AgentRetrievalTrace BuildTrace(string question, SecurityAdvisorySearchResponse searchResponse)
+        => new(
+            question,
+            searchResponse.Plan,
+            searchResponse.RetrievalMode,
+            searchResponse.Results.Select((result, index) => new AgentRetrievalMatch(
+                index + 1,
+                result.ModuleName,
+                result.SourceKind,
+                result.Title,
+                result.CveId,
+                result.Vendor,
+                result.Product,
+                result.Severity,
+                result.IsKnownExploited,
+                result.SourceName,
+                result.Score,
+                result.VectorScore,
+                result.TextScore,
+                Trim(result.ChunkText, 260))).ToList());
+
     private static bool LooksLikeSecurityQuestion(string question)
         => ContainsAny(question,
             "cve", "kev", "cvss", "critical", "漏洞", "弱點", "資安", "風險",
             "修補", "攻擊", "利用", "廠商", "產品", "高風險", "嚴重", "cisa", "nvd",
             "cisco", "fortinet", "microsoft", "windows", "azure", "linux", "openssl",
-            "router", "firewall", "vpn", "exchange", "office", "adobe", "oracle", "citrix");
+            "router", "firewall", "vpn", "exchange", "office", "adobe", "oracle", "citrix",
+            "workflow", "runbook", "sop", "procedure", "policy", "compliance", "memo",
+            "流程", "作業", "步驟", "政策", "合規", "內部文件");
 
     private static bool ContainsAny(string value, params string[] tokens)
         => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));

@@ -61,10 +61,17 @@ public class SecurityAdvisoryAgentServiceTests
             string question,
             IReadOnlyList<AdvisoryConversationMessage>? history = null,
             CancellationToken cancellationToken = default)
+            => BuildAnswerWithTraceAsync(question, history, cancellationToken)
+                .ContinueWith(task => task.Result.Content, cancellationToken);
+
+        public Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
+            string question,
+            IReadOnlyList<AdvisoryConversationMessage>? history = null,
+            CancellationToken cancellationToken = default)
         {
             LastQuestion = question;
             LastHistory = history;
-            return Task.FromResult($"answer: {question}");
+            return Task.FromResult(new AgentAnswerResult($"answer: {question}", null));
         }
     }
 }

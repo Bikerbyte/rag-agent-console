@@ -25,6 +25,14 @@ public interface IKnowledgeDocumentIngestionService
     Task<KnowledgeDocumentIngestionResult> ImportFileAsync(
         KnowledgeDocumentFileImportRequest request,
         CancellationToken cancellationToken = default);
+
+    Task SetEnabledAsync(int documentId, bool isEnabled, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(int documentId, CancellationToken cancellationToken = default);
+
+    Task<KnowledgeDocumentIngestionResult> RebuildEmbeddingsAsync(
+        int documentId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record KnowledgeDocumentImportRequest(

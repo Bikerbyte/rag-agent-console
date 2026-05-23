@@ -8,13 +8,35 @@ public sealed record AdvisoryVectorSearchRequest(
     bool HighRiskOnly,
     IReadOnlyList<string> Keywords,
     float[] QueryEmbedding,
-    int MaxResults);
+    int MaxResults,
+    string? ModuleName = null,
+    string RetrievalMode = RetrievalModes.Hybrid);
 
 public sealed record AdvisoryVectorSearchCandidate(
-    SecurityAdvisory Advisory,
+    SecurityAdvisory? Advisory,
+    KnowledgeDocument? Document,
     string ChunkText,
     float[] Embedding,
-    double TextScore);
+    double TextScore)
+{
+    public AdvisoryVectorSearchCandidate(
+        SecurityAdvisory advisory,
+        string chunkText,
+        float[] embedding,
+        double textScore)
+        : this(advisory, null, chunkText, embedding, textScore)
+    {
+    }
+
+    public AdvisoryVectorSearchCandidate(
+        KnowledgeDocument document,
+        string chunkText,
+        float[] embedding,
+        double textScore)
+        : this(null, document, chunkText, embedding, textScore)
+    {
+    }
+}
 
 public sealed record AdvisoryQueryPlan(
     string OriginalQuestion,
@@ -26,7 +48,8 @@ public sealed record AdvisoryQueryPlan(
     string? CveId,
     string? RiskFilter,
     IReadOnlyList<string> SearchKeywords,
-    IReadOnlyList<string> Notes)
+    IReadOnlyList<string> Notes,
+    string ModuleName = KnowledgeModuleNames.CveAdvisory)
 {
     public bool KevOnly => string.Equals(RiskFilter, "known_exploited", StringComparison.OrdinalIgnoreCase);
 
@@ -34,3 +57,70 @@ public sealed record AdvisoryQueryPlan(
         string.Equals(RiskFilter, "critical", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(RiskFilter, "high_risk", StringComparison.OrdinalIgnoreCase);
 }
+
+public static class RetrievalModes
+{
+    public const string Hybrid = "Hybrid";
+    public const string Vector = "Vector";
+    public const string Keyword = "Keyword";
+
+    public static string Normalize(string? value)
+        => value switch
+        {
+            Vector => Vector,
+            Keyword => Keyword,
+            _ => Hybrid
+        };
+}
+
+public sealed record SecurityAdvisorySearchResult(
+    SecurityAdvisory? Advisory,
+    KnowledgeDocument? Document,
+    string ChunkText,
+    double Score,
+    double VectorScore,
+    double TextScore)
+{
+    public string ModuleName => Document?.ModuleName ?? KnowledgeModuleNames.CveAdvisory;
+    public string SourceKind => Advisory is not null ? "OfficialAdvisory" : "ManagedDocument";
+    public string Title => Advisory?.Title ?? Document?.Title ?? "Untitled";
+    public string? CveId => Advisory?.CveId ?? Advisory?.ExternalId;
+    public string? Vendor => Advisory?.Vendor ?? Document?.Vendor;
+    public string? Product => Advisory?.Product ?? Document?.Product;
+    public string? Severity => Advisory?.Severity;
+    public decimal? CvssScore => Advisory?.CvssScore;
+    public bool IsKnownExploited => Advisory?.IsKnownExploited == true;
+    public string SourceName => Advisory?.SourceName ?? Document?.SourceType ?? "Knowledge";
+    public string? SourceUrl => Advisory?.SourceUrl;
+}
+
+public sealed record SecurityAdvisorySearchResponse(
+    AdvisoryQueryPlan Plan,
+    string RetrievalMode,
+    IReadOnlyList<SecurityAdvisorySearchResult> Results);
+
+public sealed record AgentAnswerResult(
+    string Content,
+    AgentRetrievalTrace? Trace);
+
+public sealed record AgentRetrievalTrace(
+    string OriginalQuestion,
+    AdvisoryQueryPlan Planner,
+    string RetrievalMode,
+    IReadOnlyList<AgentRetrievalMatch> Matches);
+
+public sealed record AgentRetrievalMatch(
+    int Rank,
+    string ModuleName,
+    string SourceKind,
+    string Title,
+    string? CveId,
+    string? Vendor,
+    string? Product,
+    string? Severity,
+    bool IsKnownExploited,
+    string SourceName,
+    double Score,
+    double VectorScore,
+    double TextScore,
+    string ChunkPreview);

@@ -54,6 +54,19 @@ public class AdvisoryQueryPlannerTests
         Assert.Contains(plan.Notes, note => note.Contains("follow-up context", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("公司 VPN SOP 的處理流程是什麼", KnowledgeModuleNames.WorkflowQa)]
+    [InlineData("查一下內部政策文件怎麼寫", KnowledgeModuleNames.InternalDocs)]
+    [InlineData("最近 Cisco 有哪些高風險 CVE", KnowledgeModuleNames.CveAdvisory)]
+    public async Task BuildPlanAsync_SelectsKnowledgeModule(string question, string expectedModule)
+    {
+        var planner = CreatePlanner();
+
+        var plan = await planner.BuildPlanAsync(question);
+
+        Assert.Equal(expectedModule, plan.ModuleName);
+    }
+
     private static AdvisoryQueryPlanner CreatePlanner()
         => new(
             new FakeAiChatClient(),

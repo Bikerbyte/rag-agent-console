@@ -78,6 +78,31 @@
         });
     };
 
+    const renderTrace = (trace) => {
+        if (!trace) {
+            return "";
+        }
+
+        const matches = (trace.matches || []).slice(0, 5).map((match) => `
+            <div class="trace-match-row">
+                <span>#${match.rank}</span>
+                <strong>${escapeHtml(match.label || "-")}</strong>
+                <small>${escapeHtml(match.moduleName || "-")} · ${escapeHtml(match.sourceKind || "-")} · score ${(match.score || 0).toFixed(3)}</small>
+            </div>`).join("");
+
+        return `
+            <details class="agent-trace">
+                <summary>Retrieval trace</summary>
+                <dl>
+                    <div><dt>Intent</dt><dd>${escapeHtml(trace.intent || "-")}</dd></div>
+                    <div><dt>Module</dt><dd>${escapeHtml(trace.moduleName || "-")}</dd></div>
+                    <div><dt>Query</dt><dd>${escapeHtml(trace.retrievalQuery || "-")}</dd></div>
+                    <div><dt>Mode</dt><dd>${escapeHtml(trace.retrievalMode || "-")}</dd></div>
+                </dl>
+                ${matches ? `<div class="trace-match-list">${matches}</div>` : ""}
+            </details>`;
+    };
+
     const createMessage = (role, content, options = {}) => {
         const empty = thread.querySelector("[data-agent-empty]");
         if (empty) {
@@ -99,6 +124,9 @@
         }
 
         wrapper.append(label, bubble);
+        if (!options.thinking && role !== "user") {
+            wrapper.insertAdjacentHTML("beforeend", renderTrace(options.trace));
+        }
         thread.append(wrapper);
         thread.scrollTop = thread.scrollHeight;
         return wrapper;
@@ -157,7 +185,7 @@
 
             for (const item of payload.newMessages || []) {
                 if (item.role === "assistant") {
-                    createMessage("assistant", item.content || "");
+                    createMessage("assistant", item.content || "", { trace: item.trace });
                 }
             }
         } catch {

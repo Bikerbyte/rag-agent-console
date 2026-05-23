@@ -38,7 +38,11 @@ public partial class AdvisoryQueryPlanner(
         var systemPrompt = """
         You are a CVE RAG query planner.
         Return JSON only. Do not include markdown fences.
-        Extract intent, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
+        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
+        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
+        Use CveAdvisory for vulnerability, CVE, KEV, vendor security advisory, and product exposure questions.
+        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
+        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
         riskFilter must be one of: known_exploited, critical, high_risk, none.
         Version must be supporting context only; do not include it in searchKeywords unless the advisory context explicitly has version range fields.
         RetrievalQuery should be concise English keywords for vector retrieval.
@@ -54,6 +58,7 @@ public partial class AdvisoryQueryPlanner(
         Expected JSON shape:
         {
           "intent": "vulnerability_lookup",
+          "moduleName": "CveAdvisory",
           "vendor": "Citrix",
           "product": "NetScaler",
           "version": "59.22",
@@ -99,7 +104,8 @@ public partial class AdvisoryQueryPlanner(
                 NormalizeCve(dto.CveId),
                 NormalizeRiskFilter(dto.RiskFilter),
                 keywords,
-                dto.Notes?.Where(note => !string.IsNullOrWhiteSpace(note)).Select(note => note.Trim()).ToList() ?? []);
+                dto.Notes?.Where(note => !string.IsNullOrWhiteSpace(note)).Select(note => note.Trim()).ToList() ?? [],
+                NormalizeModuleName(dto.ModuleName, dto.Intent, question));
         }
         catch (JsonException exception)
         {
@@ -115,6 +121,7 @@ public partial class AdvisoryQueryPlanner(
         var cveId = NormalizeCve(CveRegex().Match(question).Value);
         var version = ExtractVersion(question);
         var riskFilter = ExtractRiskFilter(question);
+        var moduleName = ExtractModuleName(question);
         var keywords = ExtractKeywords(question, version).ToList();
         var historyKeywords = ExtractHistoryKeywords(history, version);
         foreach (var keyword in historyKeywords)
@@ -148,7 +155,8 @@ public partial class AdvisoryQueryPlanner(
             cveId,
             riskFilter,
             keywords,
-            notes);
+            notes,
+            moduleName);
     }
 
     private static string BuildRetrievalQuery(string? cveId, IReadOnlyList<string> keywords, string? riskFilter)
@@ -296,6 +304,45 @@ public partial class AdvisoryQueryPlanner(
     private static string NormalizeRiskFilter(string? value)
         => string.IsNullOrWhiteSpace(value) ? "none" : value.Trim().ToLowerInvariant();
 
+    private static string ExtractModuleName(string question)
+    {
+        if (ContainsAny(question, "workflow", "runbook", "process", "procedure", "sop", "流程", "作業", "步驟"))
+        {
+            return KnowledgeModuleNames.WorkflowQa;
+        }
+
+        if (ContainsAny(question, "memo", "policy", "compliance", "內部", "政策", "合規"))
+        {
+            return KnowledgeModuleNames.InternalDocs;
+        }
+
+        return KnowledgeModuleNames.CveAdvisory;
+    }
+
+    private static string NormalizeModuleName(string? value, string? intent, string question)
+    {
+        var normalized = value?.Trim();
+        if (string.Equals(normalized, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase))
+        {
+            return KnowledgeModuleNames.CveAdvisory;
+        }
+        if (string.Equals(normalized, KnowledgeModuleNames.WorkflowQa, StringComparison.OrdinalIgnoreCase))
+        {
+            return KnowledgeModuleNames.WorkflowQa;
+        }
+        if (string.Equals(normalized, KnowledgeModuleNames.InternalDocs, StringComparison.OrdinalIgnoreCase))
+        {
+            return KnowledgeModuleNames.InternalDocs;
+        }
+
+        if (ContainsAny(intent ?? string.Empty, "workflow", "runbook", "sop"))
+        {
+            return KnowledgeModuleNames.WorkflowQa;
+        }
+
+        return ExtractModuleName(question);
+    }
+
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "ask", "help", "latest", "recent", "today", "this", "week", "list", "show",
@@ -320,6 +367,7 @@ public partial class AdvisoryQueryPlanner(
         string? Version,
         string? CveId,
         string? RiskFilter,
+        string? ModuleName,
         string? RetrievalQuery,
         IReadOnlyList<string>? SearchKeywords,
         IReadOnlyList<string>? Notes);

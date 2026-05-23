@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using SecurityAdvisoryBot.Data;
 using SecurityAdvisoryBot.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace SecurityAdvisoryBot.Services;
 
@@ -55,6 +56,65 @@ public class KnowledgeDocumentIngestionService(
             request.Tags,
             isMarkdown,
             cancellationToken);
+    }
+
+    public async Task SetEnabledAsync(int documentId, bool isEnabled, CancellationToken cancellationToken = default)
+    {
+        var document = await dbContext.KnowledgeDocuments
+            .FirstOrDefaultAsync(item => item.KnowledgeDocumentId == documentId, cancellationToken);
+        if (document is null)
+        {
+            return;
+        }
+
+        document.IsEnabled = isEnabled;
+        document.Status = isEnabled ? "Available" : "Disabled";
+        document.LastUpdatedTime = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(int documentId, CancellationToken cancellationToken = default)
+    {
+        var document = await dbContext.KnowledgeDocuments
+            .FirstOrDefaultAsync(item => item.KnowledgeDocumentId == documentId, cancellationToken);
+        if (document is null)
+        {
+            return;
+        }
+
+        dbContext.KnowledgeDocuments.Remove(document);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<KnowledgeDocumentIngestionResult> RebuildEmbeddingsAsync(
+        int documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var document = await dbContext.KnowledgeDocuments
+            .Include(item => item.Chunks)
+            .FirstOrDefaultAsync(item => item.KnowledgeDocumentId == documentId, cancellationToken);
+        if (document is null)
+        {
+            throw new InvalidOperationException("Knowledge document was not found.");
+        }
+
+        foreach (var chunk in document.Chunks.OrderBy(item => item.ChunkIndex))
+        {
+            var embedding = await embeddingService.BuildEmbeddingAsync(BuildEmbeddingText(document, chunk.ChunkText), cancellationToken);
+            chunk.EmbeddingJson = JsonSerializer.Serialize(embedding);
+        }
+
+        document.Status = "Available";
+        document.LastUpdatedTime = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new KnowledgeDocumentIngestionResult(
+            document.KnowledgeDocumentId,
+            document.Title,
+            document.SourceType,
+            document.ModuleName,
+            document.CharacterCount,
+            document.ChunkCount);
     }
 
     private async Task<KnowledgeDocumentIngestionResult> SaveDocumentAsync(
