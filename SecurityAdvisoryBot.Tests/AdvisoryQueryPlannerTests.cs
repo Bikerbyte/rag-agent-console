@@ -98,7 +98,7 @@ public class ResilientAdvisoryQueryPlannerTests
     {
         const string json = """
             {
-              "intent": "vulnerability_lookup",
+              "intent": "knowledge_lookup",
               "moduleName": "CveAdvisory",
               "vendor": "Citrix",
               "product": "NetScaler",
@@ -145,7 +145,7 @@ public class ResilientAdvisoryQueryPlannerTests
         const string fenced = """
             ```json
             {
-              "intent": "vulnerability_lookup",
+              "intent": "knowledge_lookup",
               "moduleName": "CveAdvisory",
               "vendor": null,
               "product": null,
@@ -178,6 +178,7 @@ public class ResilientAdvisoryQueryPlannerTests
             new FakeAiChatClient(aiResponse),
             local,
             aiOptions,
+            new FakeAppSettingsService(),
             NullLogger<ResilientAdvisoryQueryPlanner>.Instance);
     }
 
@@ -185,5 +186,27 @@ public class ResilientAdvisoryQueryPlannerTests
     {
         public Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
             => Task.FromResult(response);
+    }
+
+    private sealed class FakeAppSettingsService : IAppSettingsService
+    {
+        public Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new AiProviderOptions());
+        public Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new TelegramBotOptions());
+        public Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new DataSourceOptions());
+        public Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new PushNotificationOptions());
+        public Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new VectorStoreOptions());
+        public Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new ObservabilityOptions());
+        public Task<AgentOptions> GetAgentOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new AgentOptions());
+        public Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyDictionary<string, AppSetting>>(new Dictionary<string, AppSetting>());
+        public Task SaveAsync(IEnumerable<AppSettingUpdate> updates, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

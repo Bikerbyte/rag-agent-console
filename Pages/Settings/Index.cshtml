@@ -82,6 +82,14 @@
                 </label>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
+                        <span>Query planner prompt</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_PlannerSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.PlannerSystemPrompt)))">Reset to default</button>
+                    </div>
+                    <textarea asp-for="Input.PlannerSystemPrompt" class="form-control" rows="8" placeholder="@Model.DefaultAgentOptions.PlannerSystemPrompt"></textarea>
+                    <small>System prompt sent to the AI planner that decides what to retrieve. Swap this when changing domains.</small>
+                </div>
+                <div class="field-block field-span-2">
+                    <div class="settings-prompt-header">
                         <span>RAG system prompt</span>
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_RagSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.RagSystemPrompt)))">Reset to default</button>
                     </div>

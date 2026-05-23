@@ -206,8 +206,7 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
-            .ToLowerInvariant();
+        var searchable = AdvisoryTextScorer.BuildStructuredAdvisoryText(advisory);
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -232,7 +231,7 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags, chunkText);
+        var searchable = AdvisoryTextScorer.BuildStructuredDocumentText(document) + " " + chunkText;
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 }

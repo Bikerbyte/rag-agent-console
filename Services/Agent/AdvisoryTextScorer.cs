@@ -48,8 +48,7 @@ public sealed class AdvisoryTextScorer : IAdvisoryTextScorer
     public double ScoreDocument(AdvisoryVectorSearchRequest request, KnowledgeDocument document, string chunkText)
     {
         var score = 0d;
-        var structuredSearchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags)
-            .ToLowerInvariant();
+        var structuredSearchable = BuildStructuredDocumentText(document);
         var fullSearchable = string.Join(' ', structuredSearchable, chunkText).ToLowerInvariant();
 
         foreach (var keyword in request.Keywords)
@@ -67,7 +66,11 @@ public sealed class AdvisoryTextScorer : IAdvisoryTextScorer
         return score;
     }
 
-    private static string BuildStructuredAdvisoryText(SecurityAdvisory advisory)
+    internal static string BuildStructuredAdvisoryText(SecurityAdvisory advisory)
         => string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
+            .ToLowerInvariant();
+
+    internal static string BuildStructuredDocumentText(KnowledgeDocument document)
+        => string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags)
             .ToLowerInvariant();
 }
