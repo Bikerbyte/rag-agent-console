@@ -31,7 +31,7 @@
 <section class="knowledge-shell">
     <aside class="knowledge-sidebar" aria-label="Knowledge sections">
         <div class="knowledge-space-card">
-            <span class="knowledge-avatar">@Model.AgentName[0]</span>
+            <span class="knowledge-avatar">@(Model.AgentName.Length > 0 ? Model.AgentName[0] : 'A')</span>
             <div>
                 <strong>@Model.AgentName</strong>
                 <p>Knowledge Base</p>
