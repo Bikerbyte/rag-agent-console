@@ -2,6 +2,12 @@ using SecurityAdvisoryBot.Models;
 
 namespace SecurityAdvisoryBot.Services;
 
+public interface IAdvisoryTextScorer
+{
+    double ScoreAdvisory(AdvisoryVectorSearchRequest request, SecurityAdvisory advisory, string chunkText);
+    double ScoreDocument(AdvisoryVectorSearchRequest request, KnowledgeDocument document, string chunkText);
+}
+
 public interface IAiChatClient
 {
     Task<string?> CompleteAsync(

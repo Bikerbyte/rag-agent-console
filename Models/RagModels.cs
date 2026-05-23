@@ -12,31 +12,26 @@ public sealed record AdvisoryVectorSearchRequest(
     string? ModuleName = null,
     string RetrievalMode = RetrievalModes.Hybrid);
 
-public sealed record AdvisoryVectorSearchCandidate(
-    SecurityAdvisory? Advisory,
-    KnowledgeDocument? Document,
+public abstract record AdvisoryVectorSearchCandidate(
+    string ChunkText,
+    float[] Embedding,
+    double TextScore);
+
+public sealed record AdvisoryCandidate(
+    SecurityAdvisory Advisory,
     string ChunkText,
     float[] Embedding,
     double TextScore)
-{
-    public AdvisoryVectorSearchCandidate(
-        SecurityAdvisory advisory,
-        string chunkText,
-        float[] embedding,
-        double textScore)
-        : this(advisory, null, chunkText, embedding, textScore)
-    {
-    }
+    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
 
-    public AdvisoryVectorSearchCandidate(
-        KnowledgeDocument document,
-        string chunkText,
-        float[] embedding,
-        double textScore)
-        : this(null, document, chunkText, embedding, textScore)
-    {
-    }
-}
+public sealed record DocumentCandidate(
+    KnowledgeDocument Document,
+    string ChunkText,
+    float[] Embedding,
+    double TextScore)
+    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
+
+public enum PlannerStrategy { Ai, LocalHeuristic }
 
 public sealed record AdvisoryQueryPlan(
     string OriginalQuestion,
@@ -49,7 +44,8 @@ public sealed record AdvisoryQueryPlan(
     string? RiskFilter,
     IReadOnlyList<string> SearchKeywords,
     IReadOnlyList<string> Notes,
-    string ModuleName = KnowledgeModuleNames.CveAdvisory)
+    string ModuleName = KnowledgeModuleNames.CveAdvisory,
+    PlannerStrategy Strategy = PlannerStrategy.LocalHeuristic)
 {
     public bool KevOnly => string.Equals(RiskFilter, "known_exploited", StringComparison.OrdinalIgnoreCase);
 

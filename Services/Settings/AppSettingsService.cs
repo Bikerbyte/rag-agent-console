@@ -12,7 +12,8 @@ public class AppSettingsService(
     IOptions<DataSourceOptions> dataSourceOptions,
     IOptions<PushNotificationOptions> pushOptions,
     IOptions<VectorStoreOptions> vectorStoreOptions,
-    IOptions<ObservabilityOptions> observabilityOptions) : IAppSettingsService
+    IOptions<ObservabilityOptions> observabilityOptions,
+    IOptions<AgentOptions> agentOptions) : IAppSettingsService
 {
     public async Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default)
         => await dbContext.AppSettings
@@ -97,6 +98,19 @@ public class AppSettingsService(
         options.EnableOpenTelemetry = GetBool(values, "Observability:EnableOpenTelemetry", options.EnableOpenTelemetry);
         options.EnableConsoleExporter = GetBool(values, "Observability:EnableConsoleExporter", options.EnableConsoleExporter);
         options.ServiceName = Get(values, "Observability:ServiceName", options.ServiceName);
+        return options;
+    }
+
+    public async Task<AgentOptions> GetAgentOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        var values = await GetAllAsync(cancellationToken);
+        var options = Clone(agentOptions.Value);
+        options.AgentName = Get(values, "Agent:AgentName", options.AgentName);
+        options.AgentTagline = Get(values, "Agent:AgentTagline", options.AgentTagline);
+        options.ChatPlaceholder = Get(values, "Agent:ChatPlaceholder", options.ChatPlaceholder);
+        options.RagSystemPrompt = Get(values, "Agent:RagSystemPrompt", options.RagSystemPrompt);
+        options.GeneralSystemPrompt = Get(values, "Agent:GeneralSystemPrompt", options.GeneralSystemPrompt);
+        options.UnavailableReply = Get(values, "Agent:UnavailableReply", options.UnavailableReply);
         return options;
     }
 
@@ -192,5 +206,14 @@ public class AppSettingsService(
             EnableOpenTelemetry = source.EnableOpenTelemetry,
             EnableConsoleExporter = source.EnableConsoleExporter,
             ServiceName = source.ServiceName
+        };
+
+    private static AgentOptions Clone(AgentOptions source)
+        => new()
+        {
+            AgentName = source.AgentName,
+            RagSystemPrompt = source.RagSystemPrompt,
+            GeneralSystemPrompt = source.GeneralSystemPrompt,
+            UnavailableReply = source.UnavailableReply
         };
 }

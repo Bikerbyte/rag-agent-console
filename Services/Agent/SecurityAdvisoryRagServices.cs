@@ -74,13 +74,12 @@ public partial class SecurityAdvisorySearchService(
                 continue;
             }
 
-            ranked.Add(new SecurityAdvisorySearchResult(
-                candidate.Advisory,
-                candidate.Document,
-                candidate.ChunkText,
-                score,
-                vectorScore,
-                candidate.TextScore));
+            ranked.Add(candidate switch
+            {
+                AdvisoryCandidate a => new SecurityAdvisorySearchResult(a.Advisory, null, a.ChunkText, score, vectorScore, a.TextScore),
+                DocumentCandidate d => new SecurityAdvisorySearchResult(null, d.Document, d.ChunkText, score, vectorScore, d.TextScore),
+                _ => throw new InvalidOperationException($"Unexpected candidate type: {candidate.GetType().Name}")
+            });
         }
 
         logger.LogDebug(
@@ -121,6 +120,7 @@ public partial class SecurityAdvisorySearchService(
 
 public class SecurityAdvisoryAnswerService(
     ISecurityAdvisorySearchService searchService,
+    IAppSettingsService appSettingsService,
     IOptions<SecurityAdvisoryOptions> options,
     IOptions<AiProviderOptions> aiProviderOptions,
     IAiChatClient aiChatClient) : ISecurityAdvisoryAnswerService
@@ -137,23 +137,21 @@ public class SecurityAdvisoryAnswerService(
         CancellationToken cancellationToken = default)
     {
         var aiOptions = aiProviderOptions.Value;
-        if (!LooksLikeSecurityQuestion(question))
-        {
-            var generalReply = await TryGenerateGeneralAnswerAsync(question, history, cancellationToken);
-            return new AgentAnswerResult(
-                string.IsNullOrWhiteSpace(generalReply) ? BuildAiUnavailableReply() : generalReply,
-                null);
-        }
+        var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
 
         var searchResponse = await searchService.SearchWithTraceAsync(question, history, options.Value.RagMaxChunks, cancellationToken: cancellationToken);
         var results = searchResponse.Results;
         var trace = BuildTrace(question, searchResponse);
+
         if (results.Count == 0)
         {
-            return new AgentAnswerResult("目前資料庫裡找不到足夠相關的弱點資料。可以先同步資料，或換成較明確的產品、廠商、CVE ID 再問一次。", trace);
+            var generalReply = await TryGenerateGeneralAnswerAsync(question, history, agentOptions.GeneralSystemPrompt, cancellationToken);
+            return new AgentAnswerResult(
+                string.IsNullOrWhiteSpace(generalReply) ? agentOptions.UnavailableReply : generalReply,
+                trace);
         }
 
-        var generated = await TryGenerateAnswerAsync(question, results, history, cancellationToken);
+        var generated = await TryGenerateAnswerAsync(question, results, history, agentOptions.RagSystemPrompt, cancellationToken);
         if (!string.IsNullOrWhiteSpace(generated))
         {
             return new AgentAnswerResult(generated, trace);
@@ -167,7 +165,7 @@ public class SecurityAdvisoryAnswerService(
         }
         else
         {
-            builder.AppendLine("根據目前已同步的弱點資料，整理如下：");
+            builder.AppendLine("根據目前已同步的資料，整理如下：");
         }
 
         if (ContainsVersionLike(question))
@@ -210,6 +208,7 @@ public class SecurityAdvisoryAnswerService(
         string question,
         IReadOnlyList<SecurityAdvisorySearchResult> results,
         IReadOnlyList<AdvisoryConversationMessage>? history,
+        string systemPrompt,
         CancellationToken cancellationToken)
     {
         var contextBuilder = new StringBuilder();
@@ -229,20 +228,6 @@ public class SecurityAdvisoryAnswerService(
             contextBuilder.AppendLine();
         }
 
-        var systemPrompt = """
-        You are a security advisory assistant for a Telegram bot.
-        Answer in Traditional Chinese unless the user asks otherwise.
-        Use only the provided advisory context.
-        Do not claim facts that are not present in the context.
-        If the user asks about a specific product version but the advisory context does not include affected version ranges, say the current data is insufficient to confirm whether that exact version is affected.
-        Use the conversation history only to resolve follow-up references such as omitted vendor or product names.
-        The current user question always has priority over conversation history. If the current question contains a version, that version replaces any earlier version in the history.
-        Do not merge an older version from conversation history with a newer follow-up version.
-        For list questions, prioritize what should be handled first and explain why.
-        Be concise, operational, and clear about uncertainty.
-        Include CVE IDs, affected vendors/products, severity, exploitation status, recommended action, and sources when available.
-        """;
-
         var userPrompt = $"""
         Conversation history:
         {BuildHistoryText(history)}
@@ -253,7 +238,7 @@ public class SecurityAdvisoryAnswerService(
         User question:
         {question}
 
-        Advisory context:
+        Context:
         {contextBuilder}
         """;
 
@@ -263,15 +248,9 @@ public class SecurityAdvisoryAnswerService(
     private async Task<string?> TryGenerateGeneralAnswerAsync(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history,
+        string systemPrompt,
         CancellationToken cancellationToken)
     {
-        var systemPrompt = """
-        You are a security advisory assistant inside an operations console.
-        Answer in Traditional Chinese.
-        If the user is greeting or testing the chat, briefly explain that you can help analyze CVEs, KEV items, vendors, products, and watchlists.
-        Do not invent vulnerability facts without retrieved context.
-        """;
-
         var userPrompt = $"""
         Conversation history:
         {BuildHistoryText(history)}
@@ -340,18 +319,6 @@ public class SecurityAdvisoryAnswerService(
                 result.VectorScore,
                 result.TextScore,
                 Trim(result.ChunkText, 260))).ToList());
-
-    private static bool LooksLikeSecurityQuestion(string question)
-        => ContainsAny(question,
-            "cve", "kev", "cvss", "critical", "漏洞", "弱點", "資安", "風險",
-            "修補", "攻擊", "利用", "廠商", "產品", "高風險", "嚴重", "cisa", "nvd",
-            "cisco", "fortinet", "microsoft", "windows", "azure", "linux", "openssl",
-            "router", "firewall", "vpn", "exchange", "office", "adobe", "oracle", "citrix",
-            "workflow", "runbook", "sop", "procedure", "policy", "compliance", "memo",
-            "流程", "作業", "步驟", "政策", "合規", "內部文件");
-
-    private static bool ContainsAny(string value, params string[] tokens)
-        => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     private static bool ContainsVersionLike(string value)
         => Regex.IsMatch(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
@@ -428,21 +395,9 @@ public class SecurityAdvisoryAnswerService(
         return builder.ToString().TrimEnd();
     }
 
-    private static string BuildAiUnavailableReply()
-        => """
-        目前尚未啟用 AI 對話模型，所以我不能像一般聊天機器人一樣接續閒聊。
-
-        你現在仍可以測試 RAG / 弱點資料流程，例如：
-        - CVE-2024-3094 有什麼風險？
-        - 最近 Cisco 有哪些高風險 CVE？
-        - 今天有沒有 CISA KEV 新增項目？
-
-        若要啟用完整對話能力，請設定 OpenAI 或 Ollama，並將 AiProvider:EnableChatGeneration 設為 true。
-        """;
-
     private static readonly HashSet<string> CommonContextWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "cve", "kev", "cvss", "risk", "high", "critical", "version",
-        "漏洞", "弱點", "版本", "風險", "有弱點嗎"
+        "the", "and", "or", "for", "with", "about", "what", "how", "is", "are", "has", "have",
+        "漏洞", "弱點", "版本", "風險", "有", "嗎", "哪些", "最近"
     };
 }

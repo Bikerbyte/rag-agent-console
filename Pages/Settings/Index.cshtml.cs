@@ -24,6 +24,8 @@ public class IndexModel(
     [TempData]
     public string? StatusMessage { get; set; }
 
+    public AgentOptions DefaultAgentOptions { get; } = new();
+
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         await LoadAsync(cancellationToken);
@@ -90,8 +92,15 @@ public class IndexModel(
             string.IsNullOrWhiteSpace(Input.WebhookSecretToken) ? currentTelegram.WebhookSecretToken : Input.WebhookSecretToken,
             IsSecret: true));
 
+        updates.Add(new AppSettingUpdate("Agent:AgentName", Input.AgentName));
+        updates.Add(new AppSettingUpdate("Agent:AgentTagline", Input.AgentTagline));
+        updates.Add(new AppSettingUpdate("Agent:ChatPlaceholder", Input.ChatPlaceholder));
+        updates.Add(new AppSettingUpdate("Agent:RagSystemPrompt", Input.RagSystemPrompt));
+        updates.Add(new AppSettingUpdate("Agent:GeneralSystemPrompt", Input.GeneralSystemPrompt));
+        updates.Add(new AppSettingUpdate("Agent:UnavailableReply", Input.UnavailableReply));
+
         await appSettingsService.SaveAsync(updates, cancellationToken);
-        StatusMessage = "設定已儲存。AI、Telegram 與 RAG retrieval 設定會在後續請求套用；worker role 與 OpenTelemetry 啟動設定需重新啟動。";
+        StatusMessage = "設定已儲存。AI、Telegram、Agent 與 RAG retrieval 設定會在後續請求套用；worker role 與 OpenTelemetry 啟動設定需重新啟動。";
         return RedirectToPage();
     }
 
@@ -103,11 +112,12 @@ public class IndexModel(
         var push = await appSettingsService.GetPushNotificationOptionsAsync(cancellationToken);
         var vectorStore = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var observability = await appSettingsService.GetObservabilityOptionsAsync(cancellationToken);
+        var agent = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
 
         HasOpenAiApiKey = !string.IsNullOrWhiteSpace(ai.OpenAiApiKey);
         BotEnabled = telegram.Enabled;
         HasTelegramBotToken = !string.IsNullOrWhiteSpace(telegram.BotToken);
-        Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability);
+        Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability, agent);
         SetAiStatus(ai);
         SetVectorStoreStatus(vectorStore);
     }
@@ -189,6 +199,12 @@ public class IndexModel(
 
     public class AppSettingsInput
     {
+        public string AgentName { get; set; } = "AI Assistant";
+        public string AgentTagline { get; set; } = new AgentOptions().AgentTagline;
+        public string ChatPlaceholder { get; set; } = new AgentOptions().ChatPlaceholder;
+        public string RagSystemPrompt { get; set; } = new AgentOptions().RagSystemPrompt;
+        public string GeneralSystemPrompt { get; set; } = new AgentOptions().GeneralSystemPrompt;
+        public string UnavailableReply { get; set; } = new AgentOptions().UnavailableReply;
         public string AiProvider { get; set; } = AiProviderNames.Local;
         public bool EnableChatGeneration { get; set; }
         public bool UseLocalFallback { get; set; } = true;
@@ -225,9 +241,16 @@ public class IndexModel(
             DataSourceOptions dataSource,
             PushNotificationOptions push,
             VectorStoreOptions vectorStore,
-            ObservabilityOptions observability)
+            ObservabilityOptions observability,
+            AgentOptions agent)
             => new()
             {
+                AgentName = agent.AgentName,
+                AgentTagline = agent.AgentTagline,
+                ChatPlaceholder = agent.ChatPlaceholder,
+                RagSystemPrompt = agent.RagSystemPrompt,
+                GeneralSystemPrompt = agent.GeneralSystemPrompt,
+                UnavailableReply = agent.UnavailableReply,
                 AiProvider = ai.Provider,
                 EnableChatGeneration = ai.EnableChatGeneration,
                 UseLocalFallback = ai.UseLocalFallback,

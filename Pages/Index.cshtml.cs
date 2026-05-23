@@ -1,5 +1,6 @@
 using SecurityAdvisoryBot.Data;
 using SecurityAdvisoryBot.Models;
+using SecurityAdvisoryBot.Services;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -10,8 +11,11 @@ public class IndexModel(
     ApplicationDbContext dbContext,
     IOptions<TelegramBotOptions> telegramBotOptions,
     IOptions<AppRuntimeOptions> appRuntimeOptions,
-    IOptions<AiProviderOptions> aiProviderOptions) : PageModel
+    IOptions<AiProviderOptions> aiProviderOptions,
+    IAppSettingsService appSettingsService) : PageModel
 {
+    public string AgentName { get; private set; } = "AI Assistant";
+    public string AgentTagline { get; private set; } = "Knowledge-grounded AI agent";
     public int AdvisoryCount { get; private set; }
     public int KnownExploitedCount { get; private set; }
     public int RagChunkCount { get; private set; }
@@ -27,8 +31,12 @@ public class IndexModel(
     public string RagIndexText { get; private set; } = "No RAG chunks indexed yet.";
     public string LatestReplyText { get; private set; } = "No Telegram delivery log yet.";
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync(CancellationToken cancellationToken)
     {
+        var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+        AgentName = agentOptions.AgentName;
+        AgentTagline = agentOptions.AgentTagline;
+
         var activeThreshold = DateTimeOffset.UtcNow.AddSeconds(-45);
 
         AdvisoryCount = await dbContext.SecurityAdvisories.CountAsync();

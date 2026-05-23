@@ -6,115 +6,22 @@ using Microsoft.Extensions.Options;
 
 namespace SecurityAdvisoryBot.Services;
 
-public partial class AdvisoryQueryPlanner(
-    IAiChatClient aiChatClient,
-    IOptions<AiProviderOptions> aiProviderOptions,
-    ILogger<AdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
+/// <summary>
+/// Builds query plans using only regex/heuristic logic, with no AI dependency.
+/// </summary>
+public partial class LocalAdvisoryQueryPlanner(
+    ILogger<LocalAdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
 {
-    public async Task<AdvisoryQueryPlan> BuildPlanAsync(
+    public Task<AdvisoryQueryPlan> BuildPlanAsync(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
-        var options = aiProviderOptions.Value;
-        if (options.EnableChatGeneration &&
-            !string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
-        {
-            var aiPlan = await TryBuildWithAiAsync(question, history, cancellationToken);
-            if (aiPlan is not null)
-            {
-                return aiPlan;
-            }
-        }
-
-        return BuildLocalPlan(question, history);
+        logger.LogDebug("Building local heuristic query plan for question length {Length}.", question.Length);
+        return Task.FromResult(BuildLocalPlan(question, history));
     }
 
-    private async Task<AdvisoryQueryPlan?> TryBuildWithAiAsync(
-        string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
-        CancellationToken cancellationToken)
-    {
-        var systemPrompt = """
-        You are a CVE RAG query planner.
-        Return JSON only. Do not include markdown fences.
-        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
-        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
-        Use CveAdvisory for vulnerability, CVE, KEV, vendor security advisory, and product exposure questions.
-        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
-        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
-        riskFilter must be one of: known_exploited, critical, high_risk, none.
-        Version must be supporting context only; do not include it in searchKeywords unless the advisory context explicitly has version range fields.
-        RetrievalQuery should be concise English keywords for vector retrieval.
-        """;
-
-        var userPrompt = $$"""
-        Conversation history:
-        {{BuildHistoryText(history)}}
-
-        User question:
-        {{question}}
-
-        Expected JSON shape:
-        {
-          "intent": "vulnerability_lookup",
-          "moduleName": "CveAdvisory",
-          "vendor": "Citrix",
-          "product": "NetScaler",
-          "version": "59.22",
-          "cveId": null,
-          "riskFilter": "none",
-          "retrievalQuery": "Citrix NetScaler vulnerabilities",
-          "searchKeywords": ["citrix", "netscaler"],
-          "notes": ["version is supporting context, not a hard retrieval filter"]
-        }
-        """;
-
-        var response = await aiChatClient.CompleteAsync(systemPrompt, userPrompt, cancellationToken);
-        if (string.IsNullOrWhiteSpace(response))
-        {
-            return null;
-        }
-
-        try
-        {
-            var json = StripJsonFence(response);
-            var dto = JsonSerializer.Deserialize<QueryPlanDto>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            if (dto is null)
-            {
-                return null;
-            }
-
-            var keywords = NormalizeKeywords(dto.SearchKeywords, dto.Version);
-            var retrievalQuery = string.IsNullOrWhiteSpace(dto.RetrievalQuery)
-                ? BuildRetrievalQuery(dto.CveId, keywords, dto.RiskFilter)
-                : dto.RetrievalQuery.Trim();
-
-            return new AdvisoryQueryPlan(
-                question,
-                retrievalQuery,
-                NormalizeNullable(dto.Intent),
-                NormalizeNullable(dto.Vendor),
-                NormalizeNullable(dto.Product),
-                NormalizeNullable(dto.Version),
-                NormalizeCve(dto.CveId),
-                NormalizeRiskFilter(dto.RiskFilter),
-                keywords,
-                dto.Notes?.Where(note => !string.IsNullOrWhiteSpace(note)).Select(note => note.Trim()).ToList() ?? [],
-                NormalizeModuleName(dto.ModuleName, dto.Intent, question));
-        }
-        catch (JsonException exception)
-        {
-            logger.LogDebug(exception, "AI query planner returned invalid JSON.");
-            return null;
-        }
-    }
-
-    private static AdvisoryQueryPlan BuildLocalPlan(
+    internal static AdvisoryQueryPlan BuildLocalPlan(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history)
     {
@@ -156,10 +63,11 @@ public partial class AdvisoryQueryPlanner(
             riskFilter,
             keywords,
             notes,
-            moduleName);
+            moduleName,
+            PlannerStrategy.LocalHeuristic);
     }
 
-    private static string BuildRetrievalQuery(string? cveId, IReadOnlyList<string> keywords, string? riskFilter)
+    internal static string BuildRetrievalQuery(string? cveId, IReadOnlyList<string> keywords, string? riskFilter)
     {
         if (!string.IsNullOrWhiteSpace(cveId))
         {
@@ -185,6 +93,47 @@ public partial class AdvisoryQueryPlanner(
         builder.Append("vulnerabilities");
         return builder.ToString().Trim();
     }
+
+    internal static IReadOnlyList<string> NormalizeKeywords(IEnumerable<string>? keywords, string? version)
+        => (keywords ?? [])
+            .Select(keyword => keyword.Trim().Trim('.', ':', '-').ToLowerInvariant())
+            .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
+            .Where(keyword => !StopWords.Contains(keyword))
+            .Where(keyword => !IsVersionKeyword(keyword, version))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+
+    internal static string? NormalizeCve(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
+
+    internal static string ExtractModuleName(string question)
+    {
+        if (ContainsAny(question, "workflow", "runbook", "process", "procedure", "sop", "流程", "作業", "步驟"))
+        {
+            return KnowledgeModuleNames.WorkflowQa;
+        }
+
+        if (ContainsAny(question, "memo", "policy", "compliance", "內部", "政策", "合規"))
+        {
+            return KnowledgeModuleNames.InternalDocs;
+        }
+
+        return KnowledgeModuleNames.CveAdvisory;
+    }
+
+    internal static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
+    {
+        if (history is null || history.Count == 0)
+        {
+            return "(none)";
+        }
+
+        return string.Join(Environment.NewLine, history.TakeLast(6).Select(item => $"{item.Role}: {item.Content}"));
+    }
+
+    internal static bool ContainsAny(string value, params string[] tokens)
+        => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyList<string> ExtractKeywords(string question, string? version)
     {
@@ -230,16 +179,6 @@ public partial class AdvisoryQueryPlanner(
             .ToList();
     }
 
-    private static IReadOnlyList<string> NormalizeKeywords(IEnumerable<string>? keywords, string? version)
-        => (keywords ?? [])
-            .Select(keyword => keyword.Trim().Trim('.', ':', '-').ToLowerInvariant())
-            .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
-            .Where(keyword => !StopWords.Contains(keyword))
-            .Where(keyword => !IsVersionKeyword(keyword, version))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(8)
-            .ToList();
-
     private static string? ExtractVersion(string question)
     {
         var match = VersionRegex().Match(question);
@@ -266,22 +205,141 @@ public partial class AdvisoryQueryPlanner(
         return "none";
     }
 
-    private static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
-    {
-        if (history is null || history.Count == 0)
-        {
-            return "(none)";
-        }
-
-        return string.Join(Environment.NewLine, history.TakeLast(6).Select(item => $"{item.Role}: {item.Content}"));
-    }
-
     private static bool IsVersionKeyword(string keyword, string? version)
         => (!string.IsNullOrWhiteSpace(version) && string.Equals(keyword, version, StringComparison.OrdinalIgnoreCase)) ||
            VersionRegex().IsMatch(keyword);
 
-    private static bool ContainsAny(string value, params string[] tokens)
-        => tokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
+    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ask", "help", "latest", "recent", "today", "this", "week", "list", "show",
+        "risk", "high", "critical", "kev", "cve", "sync", "watch", "follow", "version",
+        "has", "have", "with", "about", "vulnerability", "vulnerabilities", "known",
+        "exploited", "版本", "弱點", "漏洞", "有", "嗎", "哪些", "最近"
+    };
+
+    [GeneratedRegex("cve-\\d{4}-\\d{4,}", RegexOptions.IgnoreCase)]
+    internal static partial Regex CveRegex();
+
+    [GeneratedRegex("(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase)]
+    private static partial Regex VersionRegex();
+
+    [GeneratedRegex("[a-z0-9_.:-]{2,}")]
+    private static partial Regex KeywordRegex();
+}
+
+/// <summary>
+/// Tries the AI planner first; falls back to local heuristics on failure or when AI is disabled.
+/// Sets PlannerStrategy on the returned plan so callers know which path was used.
+/// </summary>
+public partial class ResilientAdvisoryQueryPlanner(
+    IAiChatClient aiChatClient,
+    LocalAdvisoryQueryPlanner localPlanner,
+    IOptions<AiProviderOptions> aiProviderOptions,
+    ILogger<ResilientAdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
+{
+    public async Task<AdvisoryQueryPlan> BuildPlanAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default)
+    {
+        var options = aiProviderOptions.Value;
+        if (options.EnableChatGeneration &&
+            !string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            var aiPlan = await TryBuildWithAiAsync(question, history, cancellationToken);
+            if (aiPlan is not null)
+            {
+                return aiPlan;
+            }
+        }
+
+        return await localPlanner.BuildPlanAsync(question, history, cancellationToken);
+    }
+
+    private async Task<AdvisoryQueryPlan?> TryBuildWithAiAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history,
+        CancellationToken cancellationToken)
+    {
+        var systemPrompt = """
+        You are a CVE RAG query planner.
+        Return JSON only. Do not include markdown fences.
+        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
+        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
+        Use CveAdvisory for vulnerability, CVE, KEV, vendor security advisory, and product exposure questions.
+        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
+        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
+        riskFilter must be one of: known_exploited, critical, high_risk, none.
+        Version must be supporting context only; do not include it in searchKeywords unless the advisory context explicitly has version range fields.
+        RetrievalQuery should be concise English keywords for vector retrieval.
+        """;
+
+        var userPrompt = $$"""
+        Conversation history:
+        {{LocalAdvisoryQueryPlanner.BuildHistoryText(history)}}
+
+        User question:
+        {{question}}
+
+        Expected JSON shape:
+        {
+          "intent": "vulnerability_lookup",
+          "moduleName": "CveAdvisory",
+          "vendor": "Citrix",
+          "product": "NetScaler",
+          "version": "59.22",
+          "cveId": null,
+          "riskFilter": "none",
+          "retrievalQuery": "Citrix NetScaler vulnerabilities",
+          "searchKeywords": ["citrix", "netscaler"],
+          "notes": ["version is supporting context, not a hard retrieval filter"]
+        }
+        """;
+
+        var response = await aiChatClient.CompleteAsync(systemPrompt, userPrompt, cancellationToken);
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = StripJsonFence(response);
+            var dto = JsonSerializer.Deserialize<QueryPlanDto>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (dto is null)
+            {
+                return null;
+            }
+
+            var keywords = LocalAdvisoryQueryPlanner.NormalizeKeywords(dto.SearchKeywords, dto.Version);
+            var retrievalQuery = string.IsNullOrWhiteSpace(dto.RetrievalQuery)
+                ? LocalAdvisoryQueryPlanner.BuildRetrievalQuery(dto.CveId, keywords, dto.RiskFilter)
+                : dto.RetrievalQuery.Trim();
+
+            return new AdvisoryQueryPlan(
+                question,
+                retrievalQuery,
+                NormalizeNullable(dto.Intent),
+                NormalizeNullable(dto.Vendor),
+                NormalizeNullable(dto.Product),
+                NormalizeNullable(dto.Version),
+                LocalAdvisoryQueryPlanner.NormalizeCve(dto.CveId),
+                NormalizeRiskFilter(dto.RiskFilter),
+                keywords,
+                dto.Notes?.Where(note => !string.IsNullOrWhiteSpace(note)).Select(note => note.Trim()).ToList() ?? [],
+                NormalizeModuleName(dto.ModuleName, dto.Intent, question),
+                PlannerStrategy.Ai);
+        }
+        catch (JsonException exception)
+        {
+            logger.LogDebug(exception, "AI query planner returned invalid JSON.");
+            return null;
+        }
+    }
 
     private static string StripJsonFence(string value)
     {
@@ -298,26 +356,8 @@ public partial class AdvisoryQueryPlanner(
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string? NormalizeCve(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
-
     private static string NormalizeRiskFilter(string? value)
         => string.IsNullOrWhiteSpace(value) ? "none" : value.Trim().ToLowerInvariant();
-
-    private static string ExtractModuleName(string question)
-    {
-        if (ContainsAny(question, "workflow", "runbook", "process", "procedure", "sop", "流程", "作業", "步驟"))
-        {
-            return KnowledgeModuleNames.WorkflowQa;
-        }
-
-        if (ContainsAny(question, "memo", "policy", "compliance", "內部", "政策", "合規"))
-        {
-            return KnowledgeModuleNames.InternalDocs;
-        }
-
-        return KnowledgeModuleNames.CveAdvisory;
-    }
 
     private static string NormalizeModuleName(string? value, string? intent, string question)
     {
@@ -335,30 +375,13 @@ public partial class AdvisoryQueryPlanner(
             return KnowledgeModuleNames.InternalDocs;
         }
 
-        if (ContainsAny(intent ?? string.Empty, "workflow", "runbook", "sop"))
+        if (LocalAdvisoryQueryPlanner.ContainsAny(intent ?? string.Empty, "workflow", "runbook", "sop"))
         {
             return KnowledgeModuleNames.WorkflowQa;
         }
 
-        return ExtractModuleName(question);
+        return LocalAdvisoryQueryPlanner.ExtractModuleName(question);
     }
-
-    private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ask", "help", "latest", "recent", "today", "this", "week", "list", "show",
-        "risk", "high", "critical", "kev", "cve", "sync", "watch", "follow", "version",
-        "has", "have", "with", "about", "vulnerability", "vulnerabilities", "known",
-        "exploited", "版本", "弱點", "漏洞", "有", "嗎", "哪些", "最近"
-    };
-
-    [GeneratedRegex("cve-\\d{4}-\\d{4,}", RegexOptions.IgnoreCase)]
-    private static partial Regex CveRegex();
-
-    [GeneratedRegex("(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase)]
-    private static partial Regex VersionRegex();
-
-    [GeneratedRegex("[a-z0-9_.:-]{2,}")]
-    private static partial Regex KeywordRegex();
 
     private sealed record QueryPlanDto(
         string? Intent,

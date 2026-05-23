@@ -1,7 +1,6 @@
 using SecurityAdvisoryBot.Models;
 using SecurityAdvisoryBot.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace SecurityAdvisoryBot.Tests;
@@ -67,23 +66,16 @@ public class AdvisoryQueryPlannerTests
         Assert.Equal(expectedModule, plan.ModuleName);
     }
 
-    private static AdvisoryQueryPlanner CreatePlanner()
-        => new(
-            new FakeAiChatClient(),
-            Options.Create(new AiProviderOptions
-            {
-                Provider = AiProviderNames.Local,
-                EnableChatGeneration = false,
-                UseLocalFallback = true
-            }),
-            NullLogger<AdvisoryQueryPlanner>.Instance);
-
-    private sealed class FakeAiChatClient : IAiChatClient
+    [Fact]
+    public async Task BuildPlanAsync_LocalHeuristic_SetsStrategyField()
     {
-        public Task<string?> CompleteAsync(
-            string systemPrompt,
-            string userPrompt,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<string?>(null);
+        var planner = CreatePlanner();
+
+        var plan = await planner.BuildPlanAsync("最近 Cisco 有哪些高風險 CVE");
+
+        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
     }
+
+    private static LocalAdvisoryQueryPlanner CreatePlanner()
+        => new(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
 }
