@@ -35,7 +35,7 @@
         <div class="settings-health-list">
             @foreach (var item in Model.AiHealthItems)
             {
-                <div class="settings-health-item @(item.IsReady ? "is-ready" : "is-missing")">
+                <div class="settings-health-item @item.StatusClass">
                     <span></span>
                     <div>
                         <strong>@item.Label</strong>

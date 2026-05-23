@@ -131,9 +131,9 @@ public class IndexModel(
 
         AiHealthItems =
         [
-            new("Provider", !isLocal, isLocal ? "目前仍是 Local fallback" : options.Provider),
-            new("Chat generation", options.EnableChatGeneration, options.EnableChatGeneration ? "已開啟" : "尚未開啟"),
-            new("Credential", credentialReady, isOpenAi && !hasOpenAiKey ? "OpenAI API key 尚未儲存" : "可用")
+            new("Provider", isLocal ? "is-neutral" : "is-ready", isLocal ? "Local fallback" : options.Provider),
+            new("Chat generation", options.EnableChatGeneration ? "is-ready" : isLocal ? "is-neutral" : "is-missing", options.EnableChatGeneration ? "已開啟" : "尚未開啟"),
+            new("Credential", credentialReady ? "is-ready" : "is-missing", isOpenAi && !hasOpenAiKey ? "OpenAI API key 尚未儲存" : "可用")
         ];
 
         if (isAiChatEnabled && credentialReady)
@@ -185,7 +185,7 @@ public class IndexModel(
         }
     }
 
-    public sealed record SettingsHealthItem(string Label, bool IsReady, string Detail);
+    public sealed record SettingsHealthItem(string Label, string StatusClass, string Detail);
 
     public class AppSettingsInput
     {
