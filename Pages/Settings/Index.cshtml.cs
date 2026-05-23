@@ -95,6 +95,7 @@ public class IndexModel(
         updates.Add(new AppSettingUpdate("Agent:AgentName", Input.AgentName));
         updates.Add(new AppSettingUpdate("Agent:AgentTagline", Input.AgentTagline));
         updates.Add(new AppSettingUpdate("Agent:ChatPlaceholder", Input.ChatPlaceholder));
+        updates.Add(new AppSettingUpdate("Agent:PlannerSystemPrompt", Input.PlannerSystemPrompt));
         updates.Add(new AppSettingUpdate("Agent:RagSystemPrompt", Input.RagSystemPrompt));
         updates.Add(new AppSettingUpdate("Agent:GeneralSystemPrompt", Input.GeneralSystemPrompt));
         updates.Add(new AppSettingUpdate("Agent:UnavailableReply", Input.UnavailableReply));
@@ -202,6 +203,7 @@ public class IndexModel(
         public string AgentName { get; set; } = "AI Assistant";
         public string AgentTagline { get; set; } = new AgentOptions().AgentTagline;
         public string ChatPlaceholder { get; set; } = new AgentOptions().ChatPlaceholder;
+        public string PlannerSystemPrompt { get; set; } = new AgentOptions().PlannerSystemPrompt;
         public string RagSystemPrompt { get; set; } = new AgentOptions().RagSystemPrompt;
         public string GeneralSystemPrompt { get; set; } = new AgentOptions().GeneralSystemPrompt;
         public string UnavailableReply { get; set; } = new AgentOptions().UnavailableReply;
@@ -248,6 +250,7 @@ public class IndexModel(
                 AgentName = agent.AgentName,
                 AgentTagline = agent.AgentTagline,
                 ChatPlaceholder = agent.ChatPlaceholder,
+                PlannerSystemPrompt = agent.PlannerSystemPrompt,
                 RagSystemPrompt = agent.RagSystemPrompt,
                 GeneralSystemPrompt = agent.GeneralSystemPrompt,
                 UnavailableReply = agent.UnavailableReply,

@@ -41,6 +41,11 @@ public partial class LocalAdvisoryQueryPlanner(
 
         keywords = keywords.Take(8).ToList();
         var retrievalQuery = BuildRetrievalQuery(cveId, keywords, riskFilter);
+        if (string.IsNullOrWhiteSpace(retrievalQuery))
+        {
+            retrievalQuery = question.Trim();
+        }
+
         var notes = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(version))
@@ -55,7 +60,7 @@ public partial class LocalAdvisoryQueryPlanner(
         return new AdvisoryQueryPlan(
             question,
             retrievalQuery,
-            "vulnerability_lookup",
+            "knowledge_lookup",
             keywords.ElementAtOrDefault(0),
             keywords.ElementAtOrDefault(1),
             version,
@@ -90,7 +95,6 @@ public partial class LocalAdvisoryQueryPlanner(
             builder.Append("critical high risk ");
         }
 
-        builder.Append("vulnerabilities");
         return builder.ToString().Trim();
     }
 
@@ -212,9 +216,9 @@ public partial class LocalAdvisoryQueryPlanner(
     private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "ask", "help", "latest", "recent", "today", "this", "week", "list", "show",
-        "risk", "high", "critical", "kev", "cve", "sync", "watch", "follow", "version",
-        "has", "have", "with", "about", "vulnerability", "vulnerabilities", "known",
-        "exploited", "版本", "弱點", "漏洞", "有", "嗎", "哪些", "最近"
+        "risk", "high", "critical", "sync", "watch", "follow", "version",
+        "has", "have", "with", "about", "known", "exploited",
+        "版本", "有", "嗎", "哪些", "最近"
     };
 
     [GeneratedRegex("cve-\\d{4}-\\d{4,}", RegexOptions.IgnoreCase)]
@@ -235,6 +239,7 @@ public partial class ResilientAdvisoryQueryPlanner(
     IAiChatClient aiChatClient,
     LocalAdvisoryQueryPlanner localPlanner,
     IOptions<AiProviderOptions> aiProviderOptions,
+    IAppSettingsService appSettingsService,
     ILogger<ResilientAdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
 {
     public async Task<AdvisoryQueryPlan> BuildPlanAsync(
@@ -261,18 +266,8 @@ public partial class ResilientAdvisoryQueryPlanner(
         IReadOnlyList<AdvisoryConversationMessage>? history,
         CancellationToken cancellationToken)
     {
-        var systemPrompt = """
-        You are a CVE RAG query planner.
-        Return JSON only. Do not include markdown fences.
-        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
-        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
-        Use CveAdvisory for vulnerability, CVE, KEV, vendor security advisory, and product exposure questions.
-        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
-        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
-        riskFilter must be one of: known_exploited, critical, high_risk, none.
-        Version must be supporting context only; do not include it in searchKeywords unless the advisory context explicitly has version range fields.
-        RetrievalQuery should be concise English keywords for vector retrieval.
-        """;
+        var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+        var systemPrompt = agentOptions.PlannerSystemPrompt;
 
         var userPrompt = $$"""
         Conversation history:
@@ -283,7 +278,7 @@ public partial class ResilientAdvisoryQueryPlanner(
 
         Expected JSON shape:
         {
-          "intent": "vulnerability_lookup",
+          "intent": "knowledge_lookup",
           "moduleName": "CveAdvisory",
           "vendor": "Citrix",
           "product": "NetScaler",

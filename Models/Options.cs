@@ -123,6 +123,20 @@ public class AgentOptions
 
     public string ChatPlaceholder { get; set; } = "Ask a question about the knowledge base...";
 
+    public string PlannerSystemPrompt { get; set; } =
+        """
+        You are a knowledge base query planner for a RAG agent.
+        Return JSON only. Do not include markdown fences.
+        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
+        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
+        Use CveAdvisory for the primary knowledge domain — technical advisories, product details, and domain-specific queries.
+        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
+        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
+        riskFilter must be one of: known_exploited, critical, high_risk, none.
+        Version must be supporting context only; do not include it in searchKeywords.
+        RetrievalQuery should be concise English keywords for vector retrieval.
+        """;
+
     public string RagSystemPrompt { get; set; } =
         """
         You are an AI assistant helping users query a knowledge base.

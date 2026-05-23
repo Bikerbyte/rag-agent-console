@@ -108,6 +108,7 @@ public class AppSettingsService(
         options.AgentName = Get(values, "Agent:AgentName", options.AgentName);
         options.AgentTagline = Get(values, "Agent:AgentTagline", options.AgentTagline);
         options.ChatPlaceholder = Get(values, "Agent:ChatPlaceholder", options.ChatPlaceholder);
+        options.PlannerSystemPrompt = Get(values, "Agent:PlannerSystemPrompt", options.PlannerSystemPrompt);
         options.RagSystemPrompt = Get(values, "Agent:RagSystemPrompt", options.RagSystemPrompt);
         options.GeneralSystemPrompt = Get(values, "Agent:GeneralSystemPrompt", options.GeneralSystemPrompt);
         options.UnavailableReply = Get(values, "Agent:UnavailableReply", options.UnavailableReply);
