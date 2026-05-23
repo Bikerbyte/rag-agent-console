@@ -127,6 +127,7 @@
 
         createMessage("user", message);
         const thinking = createMessage("assistant", "", { thinking: true });
+        const thinkingStartedAt = Date.now();
         messageInput.value = "";
         setBusy(true);
 
@@ -148,6 +149,10 @@
 
             const payload = await response.json();
             historyInput.value = payload.historyJson || "";
+            const remainingThinkingTime = Math.max(0, 650 - (Date.now() - thinkingStartedAt));
+            if (remainingThinkingTime > 0) {
+                await new Promise((resolve) => setTimeout(resolve, remainingThinkingTime));
+            }
             thinking.remove();
 
             for (const item of payload.newMessages || []) {

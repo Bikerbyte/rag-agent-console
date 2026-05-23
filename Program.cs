@@ -136,6 +136,7 @@ builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncSer
 builder.Services.AddScoped<EfAdvisoryVectorStore>();
 builder.Services.AddScoped<PgVectorAdvisoryVectorStore>();
 builder.Services.AddScoped<IAdvisoryVectorStore, ConfiguredAdvisoryVectorStore>();
+builder.Services.AddScoped<IAdvisoryQueryPlanner, AdvisoryQueryPlanner>();
 builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
 builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
 builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTextExtractor>();

@@ -40,4 +40,12 @@ public interface ISecurityAdvisorySearchService
         CancellationToken cancellationToken = default);
 }
 
+public interface IAdvisoryQueryPlanner
+{
+    Task<AdvisoryQueryPlan> BuildPlanAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record AdvisoryConversationMessage(string Role, string Content);
