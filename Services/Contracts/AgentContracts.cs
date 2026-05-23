@@ -38,6 +38,12 @@ public interface ISecurityAdvisorySearchService
         string question,
         int maxResults = 5,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IAdvisoryQueryPlanner
