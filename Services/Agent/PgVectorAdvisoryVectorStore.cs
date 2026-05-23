@@ -10,6 +10,7 @@ namespace SecurityAdvisoryBot.Services;
 public class PgVectorAdvisoryVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
+    IAdvisoryTextScorer scorer,
     ILogger<PgVectorAdvisoryVectorStore> logger) : IAdvisoryVectorStore
 {
     public async Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
@@ -60,11 +61,11 @@ public class PgVectorAdvisoryVectorStore(
                     continue;
                 }
 
-                candidates.Add(new AdvisoryVectorSearchCandidate(
+                candidates.Add(new AdvisoryCandidate(
                     chunk.Advisory,
                     chunk.ChunkText,
                     vector,
-                    ScoreAdvisoryTextMatch(request, chunk.Advisory, chunk.ChunkText)));
+                    scorer.ScoreAdvisory(request, chunk.Advisory, chunk.ChunkText)));
             }
         }
 
@@ -98,11 +99,11 @@ public class PgVectorAdvisoryVectorStore(
                 continue;
             }
 
-            candidates.Add(new AdvisoryVectorSearchCandidate(
+            candidates.Add(new DocumentCandidate(
                 chunk.Document,
                 chunk.ChunkText,
                 vector,
-                ScoreDocumentTextMatch(request, chunk.Document, chunk.ChunkText)));
+                scorer.ScoreDocument(request, chunk.Document, chunk.ChunkText)));
         }
 
         logger.LogDebug("PgVector search produced {CandidateCount} candidates.", candidates.Count);
@@ -205,7 +206,8 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = BuildStructuredSearchableText(advisory);
+        var searchable = string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
+            .ToLowerInvariant();
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -233,72 +235,6 @@ public class PgVectorAdvisoryVectorStore(
         var searchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags, chunkText);
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
-
-    private static double ScoreAdvisoryTextMatch(
-        AdvisoryVectorSearchRequest request,
-        SecurityAdvisory advisory,
-        string chunkText)
-    {
-        var score = 0d;
-        var structuredSearchable = BuildStructuredSearchableText(advisory);
-        var fullSearchable = string.Join(' ', structuredSearchable, advisory.Description, chunkText).ToLowerInvariant();
-
-        foreach (var keyword in request.Keywords)
-        {
-            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 2;
-            }
-            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 0.25;
-            }
-        }
-
-        if (request.KevOnly && advisory.IsKnownExploited)
-        {
-            score += 1.5;
-        }
-
-        if (request.HighRiskOnly &&
-            (advisory.IsKnownExploited ||
-             advisory.CvssScore >= 9 ||
-             string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase)))
-        {
-            score += 1.5;
-        }
-
-        return score;
-    }
-
-    private static double ScoreDocumentTextMatch(
-        AdvisoryVectorSearchRequest request,
-        KnowledgeDocument document,
-        string chunkText)
-    {
-        var score = 0d;
-        var structuredSearchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags)
-            .ToLowerInvariant();
-        var fullSearchable = string.Join(' ', structuredSearchable, chunkText).ToLowerInvariant();
-
-        foreach (var keyword in request.Keywords)
-        {
-            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 2;
-            }
-            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 0.25;
-            }
-        }
-
-        return score;
-    }
-
-    private static string BuildStructuredSearchableText(SecurityAdvisory advisory)
-        => string.Join(' ', advisory.CveId, advisory.ExternalId, advisory.Title, advisory.Vendor, advisory.Product, advisory.Tags)
-            .ToLowerInvariant();
 }
 
 public sealed class PgVectorUnavailableException(string message) : InvalidOperationException(message);

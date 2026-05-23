@@ -1,16 +1,21 @@
 @using SecurityAdvisoryBot.Models
+@using SecurityAdvisoryBot.Services
 @using Microsoft.Extensions.Options
 @inject IOptions<AppRuntimeOptions> AppRuntimeOptions
+@inject IAppSettingsService AppSettingsService
 @{
     var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? string.Empty;
     var currentInstanceName = AppRuntimeOptions.Value.InstanceName;
+    var layoutAgentOptions = await AppSettingsService.GetAgentOptionsAsync(Context.RequestAborted);
+    var layoutAgentName = layoutAgentOptions.AgentName;
+    var layoutAgentTagline = layoutAgentOptions.AgentTagline;
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Security Advisory Bot</title>
+    <title>@ViewData["Title"] - @layoutAgentName</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
@@ -23,8 +28,8 @@
             <a class="app-brand" asp-area="" asp-page="/Index">
                 <span class="app-brand-mark">S</span>
                 <span class="app-brand-copy">
-                    <strong>Advisory Bot</strong>
-                    <span>Security RAG</span>
+                    <strong>@layoutAgentName</strong>
+                    <span>@layoutAgentTagline</span>
                 </span>
             </a>
 
@@ -61,13 +66,11 @@
         <div class="app-main">
             <header class="app-topbar">
                 <div>
-                    <p class="topbar-label">Security Advisory Console</p>
+                    <p class="topbar-label">@layoutAgentName</p>
                     <h1 class="topbar-title">@ViewData["Title"]</h1>
                 </div>
                 <div class="topbar-meta">
                     <span class="topbar-chip">Node: @currentInstanceName</span>
-                    <span class="topbar-chip">CVE / KEV</span>
-                    <span class="topbar-chip">Telegram</span>
                 </div>
             </header>
 
@@ -76,8 +79,8 @@
             </main>
 
             <footer class="app-footer">
-                <span>Security Advisory Bot</span>
-                <span>Production-oriented CVE RAG and Telegram notification console</span>
+                <span>@layoutAgentName</span>
+                <span>@layoutAgentTagline</span>
             </footer>
         </div>
     </div>

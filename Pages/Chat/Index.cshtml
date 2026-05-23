@@ -27,7 +27,13 @@
             @if (Model.AgentMessages.Count == 0)
             {
                 <div class="agent-empty" data-agent-empty>
-                    <strong>No messages</strong>
+                    <strong>Start a conversation</strong>
+                    <p>Type a question below or pick a starter:</p>
+                    <div class="agent-starter-chips">
+                        <button type="button" class="agent-starter-chip" data-starter-text="What are the latest high-risk advisories?">Latest high-risk advisories</button>
+                        <button type="button" class="agent-starter-chip" data-starter-text="Summarise what you know about this topic.">Summarise a topic</button>
+                        <button type="button" class="agent-starter-chip" data-starter-text="How can you help me?">What can you help with?</button>
+                    </div>
                 </div>
             }
             else
@@ -83,7 +89,7 @@
             <form method="post" asp-page-handler="AskAgent" class="agent-compose" id="agentComposeForm">
                 <input type="hidden" asp-for="AgentHistoryJson" id="agentHistoryJson" />
                 <label asp-for="AgentInput.Message" class="visually-hidden">Message</label>
-                <textarea asp-for="AgentInput.Message" class="form-control" rows="3" placeholder="Ask about CVE risk, vendor exposure, or recent high-risk advisories."></textarea>
+                <textarea asp-for="AgentInput.Message" class="form-control" rows="3" placeholder="@Model.ChatPlaceholder" id="agentMessageInput"></textarea>
                 <button type="submit" class="btn btn-primary">Send</button>
             </form>
 

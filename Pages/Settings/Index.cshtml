@@ -46,6 +46,7 @@
         </div>
 
         <nav class="settings-anchor-nav" aria-label="Settings sections">
+            <a href="#settings-agent">Agent</a>
             <a href="#settings-ai">AI Provider</a>
             <a href="#settings-rag">RAG</a>
             <a href="#settings-telegram">Telegram</a>
@@ -55,6 +56,56 @@
 
     <form method="post" asp-page-handler="Save" class="settings-editor">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="settings-card" id="settings-agent">
+            <div class="settings-card-header">
+                <div>
+                    <span class="section-kicker">Agent</span>
+                    <h3>Agent identity and prompts</h3>
+                </div>
+            </div>
+            <div class="settings-control-grid">
+                <label class="field-block">
+                    <span>Agent name</span>
+                    <input asp-for="Input.AgentName" class="form-control" placeholder="AI Assistant" />
+                    <small>Displayed in the sidebar, topbar, and footer.</small>
+                </label>
+                <label class="field-block">
+                    <span>Agent tagline</span>
+                    <input asp-for="Input.AgentTagline" class="form-control" placeholder="@Model.DefaultAgentOptions.AgentTagline" />
+                    <small>Short description shown beside the agent name.</small>
+                </label>
+                <label class="field-block field-span-2">
+                    <span>Chat placeholder</span>
+                    <input asp-for="Input.ChatPlaceholder" class="form-control" placeholder="@Model.DefaultAgentOptions.ChatPlaceholder" />
+                    <small>Hint text shown in the chat input when empty.</small>
+                </label>
+                <div class="field-block field-span-2">
+                    <div class="settings-prompt-header">
+                        <span>RAG system prompt</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_RagSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.RagSystemPrompt)))">Reset to default</button>
+                    </div>
+                    <textarea asp-for="Input.RagSystemPrompt" class="form-control" rows="10" placeholder="@Model.DefaultAgentOptions.RagSystemPrompt"></textarea>
+                    <small>Used when the knowledge base returns relevant results. Leave blank to use the built-in default.</small>
+                </div>
+                <div class="field-block field-span-2">
+                    <div class="settings-prompt-header">
+                        <span>General system prompt</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_GeneralSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.GeneralSystemPrompt)))">Reset to default</button>
+                    </div>
+                    <textarea asp-for="Input.GeneralSystemPrompt" class="form-control" rows="6" placeholder="@Model.DefaultAgentOptions.GeneralSystemPrompt"></textarea>
+                    <small>Used for greetings and queries with no matching knowledge base results.</small>
+                </div>
+                <div class="field-block field-span-2">
+                    <div class="settings-prompt-header">
+                        <span>Unavailable reply</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_UnavailableReply', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.UnavailableReply)))">Reset to default</button>
+                    </div>
+                    <textarea asp-for="Input.UnavailableReply" class="form-control" rows="6" placeholder="@Model.DefaultAgentOptions.UnavailableReply"></textarea>
+                    <small>Shown when AI generation is disabled and there are no knowledge base results.</small>
+                </div>
+            </div>
+        </section>
 
         <section class="settings-card is-primary" id="settings-ai">
             <div class="settings-card-header">
@@ -280,3 +331,13 @@
         </div>
     </form>
 </section>
+
+@section Scripts {
+    <script>
+        function resetPrompt(id, defaultValue) {
+            const el = document.getElementById(id);
+            if (el) { el.value = defaultValue; }
+        }
+    </script>
+}
+

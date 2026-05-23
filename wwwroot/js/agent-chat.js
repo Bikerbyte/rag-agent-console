@@ -146,6 +146,15 @@
     hydrateMarkdown();
     thread.scrollTop = thread.scrollHeight;
 
+    document.querySelectorAll(".agent-starter-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+            if (messageInput) {
+                messageInput.value = chip.dataset.starterText || chip.textContent;
+                messageInput.focus();
+            }
+        });
+    });
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const message = messageInput?.value.trim();

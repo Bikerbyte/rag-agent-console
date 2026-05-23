@@ -13,6 +13,7 @@ public class IndexModel(
     ILogger<IndexModel> logger) : PageModel
 {
     public bool IsAiChatEnabled { get; private set; }
+    public string ChatPlaceholder { get; private set; } = "Ask a question...";
     public IReadOnlyList<AgentChatMessageViewModel> AgentMessages { get; private set; } = [];
 
     [BindProperty]
@@ -99,6 +100,8 @@ public class IndexModel(
         var currentAiOptions = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
         IsAiChatEnabled = currentAiOptions.EnableChatGeneration &&
             !string.Equals(currentAiOptions.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase);
+        var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+        ChatPlaceholder = agentOptions.ChatPlaceholder;
     }
 
     private IReadOnlyList<AgentChatMessageViewModel> ReadAgentHistory()

@@ -11,7 +11,8 @@ public class IndexModel(
     ApplicationDbContext dbContext,
     ISecurityAdvisorySyncService syncService,
     IKnowledgeDocumentIngestionService knowledgeIngestionService,
-    ISecurityAdvisorySearchService searchService) : PageModel
+    ISecurityAdvisorySearchService searchService,
+    IAppSettingsService appSettingsService) : PageModel
 {
     public IReadOnlyList<SecurityAdvisory> Advisories { get; private set; } = [];
     public IReadOnlyList<SecurityAdvisoryChunk> PreviewChunks { get; private set; } = [];
@@ -26,6 +27,7 @@ public class IndexModel(
     public string? RetrievalQuery { get; private set; }
     public int RetrievalTopK { get; private set; } = 5;
     public string? RetrievalError { get; private set; }
+    public string AgentName { get; private set; } = "AI Assistant";
 
     [BindProperty]
     public ManualKnowledgeInput ManualInput { get; set; } = new();
@@ -48,6 +50,7 @@ public class IndexModel(
     {
         RetrievalQuery = retrievalQuery;
         RetrievalTopK = Math.Clamp(topK, 1, 10);
+        AgentName = (await appSettingsService.GetAgentOptionsAsync(cancellationToken)).AgentName;
 
         var query = dbContext.SecurityAdvisories.AsQueryable();
 
