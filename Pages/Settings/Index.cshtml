@@ -44,12 +44,19 @@
                 </div>
             }
         </div>
+
+        <nav class="settings-anchor-nav" aria-label="Settings sections">
+            <a href="#settings-ai">AI Provider</a>
+            <a href="#settings-rag">RAG</a>
+            <a href="#settings-telegram">Telegram</a>
+            <a href="#settings-jobs">Jobs</a>
+        </nav>
     </div>
 
     <form method="post" asp-page-handler="Save" class="settings-editor">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        <section class="settings-card is-primary">
+        <section class="settings-card is-primary" id="settings-ai">
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">AI Provider</span>
@@ -134,7 +141,7 @@
             </div>
         </section>
 
-        <section class="settings-card">
+        <section class="settings-card" id="settings-rag">
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">RAG</span>
@@ -180,7 +187,7 @@
             </div>
         </section>
 
-        <section class="settings-card">
+        <section class="settings-card" id="settings-telegram">
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">Telegram</span>
@@ -232,7 +239,7 @@
             </div>
         </section>
 
-        <section class="settings-card">
+        <section class="settings-card" id="settings-jobs">
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">Jobs</span>
