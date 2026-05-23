@@ -37,6 +37,43 @@
                     <div class="chat-message @(message.Role == "user" ? "is-user" : "is-agent")">
                         <span>@(message.Role == "user" ? "You" : "Agent")</span>
                         <div class="chat-bubble agent-markdown" data-markdown="@message.Content"></div>
+                        @if (message.Role == "assistant" && message.Trace is not null)
+                        {
+                            <details class="agent-trace">
+                                <summary>Retrieval trace</summary>
+                                <dl>
+                                    <div>
+                                        <dt>Intent</dt>
+                                        <dd>@message.Trace.Intent</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Module</dt>
+                                        <dd>@message.Trace.ModuleName</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Query</dt>
+                                        <dd>@message.Trace.RetrievalQuery</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Mode</dt>
+                                        <dd>@message.Trace.RetrievalMode</dd>
+                                    </div>
+                                </dl>
+                                @if (message.Trace.Matches.Count > 0)
+                                {
+                                    <div class="trace-match-list">
+                                        @foreach (var match in message.Trace.Matches.Take(5))
+                                        {
+                                            <div class="trace-match-row">
+                                                <span>#@match.Rank</span>
+                                                <strong>@match.Label</strong>
+                                                <small>@match.ModuleName · @match.SourceKind · score @match.Score.ToString("0.000")</small>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </details>
+                        }
                     </div>
                 }
             }

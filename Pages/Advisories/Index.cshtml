@@ -5,6 +5,8 @@
     ViewData["Title"] = "Knowledge";
     var activeQuery = Request.Query["q"].ToString();
     var activeRetrievalQuery = Request.Query["retrievalQuery"].ToString();
+    var activeRetrievalModule = Request.Query["retrievalModule"].ToString();
+    var activeRetrievalMode = RetrievalModes.Normalize(Request.Query["retrievalMode"].ToString());
     var activeTopK = int.TryParse(Request.Query["topK"], out var parsedTopK) ? Math.Clamp(parsedTopK, 1, 10) : 5;
     var kevActive = string.Equals(Request.Query["kev"], "true", StringComparison.OrdinalIgnoreCase);
     var criticalActive = string.Equals(Request.Query["critical"], "true", StringComparison.OrdinalIgnoreCase);
@@ -12,7 +14,7 @@
     var activeSection = requestedSection is "sources" or "retrieval" or "settings" ? requestedSection : "documents";
     var sectionTitle = activeSection switch
     {
-        "sources" => "Data Sources",
+        "sources" => "Channels",
         "retrieval" => "Retrieval Test",
         "settings" => "Index Settings",
         _ => "Documents"
@@ -43,7 +45,7 @@
             </a>
             <a class="knowledge-section-link @(activeSection == "sources" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="sources">
                 <span>＋</span>
-                <strong>Data Sources</strong>
+                <strong>Channels</strong>
             </a>
             <a class="knowledge-section-link @(activeSection == "retrieval" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="retrieval">
                 <span>◎</span>
@@ -119,9 +121,20 @@
                                             <strong>@document.Title</strong>
                                             <p>@document.ModuleName · @document.SourceType · @document.CharacterCount.ToString("N0") chars · @document.ChunkCount chunks</p>
                                         </div>
-                                        <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
-                                            @(document.IsEnabled ? "Available" : "Disabled")
-                                        </span>
+                                        <div class="document-actions">
+                                            <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
+                                                @(document.IsEnabled ? "Available" : "Disabled")
+                                            </span>
+                                            <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
+                                                <button class="icon-button" type="submit" title="@(document.IsEnabled ? "Disable" : "Enable")">@(document.IsEnabled ? "||" : ">")</button>
+                                            </form>
+                                            <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
+                                                <button class="icon-button" type="submit" title="Re-index">R</button>
+                                            </form>
+                                            <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
+                                                <button class="icon-button is-danger" type="submit" title="Delete">X</button>
+                                            </form>
+                                        </div>
                                     </article>
                                 }
                             }
@@ -360,6 +373,23 @@
                             <span>Query</span>
                             <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="例如：最近 Cisco 有哪些高風險 CVE" />
                         </label>
+                        <label class="field-block">
+                            <span>Module</span>
+                            <select class="form-select" name="retrievalModule">
+                                <option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">All modules</option>
+                                <option value="@KnowledgeModuleNames.CveAdvisory" selected="@(activeRetrievalModule == KnowledgeModuleNames.CveAdvisory)">CVE Advisory</option>
+                                <option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">Workflow QA</option>
+                                <option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">Internal Docs</option>
+                            </select>
+                        </label>
+                        <label class="field-block">
+                            <span>Mode</span>
+                            <select class="form-select" name="retrievalMode">
+                                <option value="@RetrievalModes.Hybrid" selected="@(activeRetrievalMode == RetrievalModes.Hybrid)">Hybrid</option>
+                                <option value="@RetrievalModes.Vector" selected="@(activeRetrievalMode == RetrievalModes.Vector)">Vector</option>
+                                <option value="@RetrievalModes.Keyword" selected="@(activeRetrievalMode == RetrievalModes.Keyword)">Keyword</option>
+                            </select>
+                        </label>
                         <label class="field-block topk-field">
                             <span>Top K</span>
                             <input class="form-control" type="number" min="1" max="10" name="topK" value="@activeTopK" />
@@ -384,30 +414,41 @@
                         @for (var index = 0; index < Model.RetrievalResults.Count; index++)
                         {
                             var result = Model.RetrievalResults[index];
-                            var advisory = result.Advisory;
                             <article class="retrieval-result-card">
                                 <div class="retrieval-result-head">
                                     <div>
                                         <span class="chunk-rank"># @((index + 1).ToString("000"))</span>
-                                        <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
+                                        <strong>@(result.CveId ?? result.Title)</strong>
                                     </div>
-                                    <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                    <span class="status-pill @(result.IsKnownExploited || result.CvssScore >= 9 ? "is-danger" : "is-neutral")">
                                         Score @FormatScore(result.Score)
                                     </span>
                                 </div>
-                                <p class="retrieval-title">@advisory.Title</p>
+                                <p class="retrieval-title">@result.Title</p>
                                 <dl class="retrieval-meta">
                                     <div>
+                                        <dt>Module</dt>
+                                        <dd>@result.ModuleName</dd>
+                                    </div>
+                                    <div>
                                         <dt>Vendor</dt>
-                                        <dd>@(string.IsNullOrWhiteSpace(advisory.Vendor) ? "-" : advisory.Vendor)</dd>
+                                        <dd>@(string.IsNullOrWhiteSpace(result.Vendor) ? "-" : result.Vendor)</dd>
                                     </div>
                                     <div>
                                         <dt>Product</dt>
-                                        <dd>@(string.IsNullOrWhiteSpace(advisory.Product) ? "-" : advisory.Product)</dd>
+                                        <dd>@(string.IsNullOrWhiteSpace(result.Product) ? "-" : result.Product)</dd>
                                     </div>
                                     <div>
                                         <dt>Risk</dt>
-                                        <dd>@BuildRisk(advisory)</dd>
+                                        <dd>@BuildRisk(result)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Vector</dt>
+                                        <dd>@FormatScore(result.VectorScore)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Text</dt>
+                                        <dd>@FormatScore(result.TextScore)</dd>
                                     </div>
                                 </dl>
                                 <p class="retrieval-chunk">@TrimPreview(result.ChunkText)</p>
@@ -551,18 +592,18 @@
     private static string FormatScore(double value)
         => value.ToString("0.000");
 
-    private static string BuildRisk(SecurityAdvisory advisory)
+    private static string BuildRisk(SecurityAdvisorySearchResult result)
     {
         var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(advisory.Severity))
+        if (!string.IsNullOrWhiteSpace(result.Severity))
         {
-            parts.Add(advisory.Severity);
+            parts.Add(result.Severity);
         }
-        if (advisory.CvssScore.HasValue)
+        if (result.CvssScore.HasValue)
         {
-            parts.Add($"CVSS {advisory.CvssScore:0.0}");
+            parts.Add($"CVSS {result.CvssScore:0.0}");
         }
-        if (advisory.IsKnownExploited)
+        if (result.IsKnownExploited)
         {
             parts.Add("KEV");
         }

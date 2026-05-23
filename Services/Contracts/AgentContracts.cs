@@ -22,11 +22,22 @@ public interface ISecurityAdvisoryAgentService
         string? chatId = null,
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
+
+    Task<AgentAnswerResult> BuildReplyWithTraceAsync(
+        string messageText,
+        string? chatId = null,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ISecurityAdvisoryAnswerService
 {
     Task<string> BuildAnswerAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+
+    Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
@@ -43,6 +54,14 @@ public interface ISecurityAdvisorySearchService
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history,
         int maxResults = 5,
+        CancellationToken cancellationToken = default);
+
+    Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(
+        string question,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        int maxResults = 5,
+        string? moduleName = null,
+        string retrievalMode = RetrievalModes.Hybrid,
         CancellationToken cancellationToken = default);
 }
 

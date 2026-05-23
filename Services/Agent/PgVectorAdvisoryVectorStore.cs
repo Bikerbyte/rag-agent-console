@@ -26,12 +26,53 @@ public class PgVectorAdvisoryVectorStore(
         var queryVector = BuildVectorLiteral(request.QueryEmbedding);
         var vectorStoreOptions = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var limit = Math.Clamp(vectorStoreOptions.CandidateLimit, 50, 10000);
+        var candidates = new List<AdvisoryVectorSearchCandidate>();
 
-        var chunks = await dbContext.SecurityAdvisoryChunks
+        if (ShouldSearchAdvisories(request))
+        {
+            var chunks = await dbContext.SecurityAdvisoryChunks
+                .FromSqlRaw(
+                    """
+                    SELECT *
+                    FROM "SecurityAdvisoryChunks"
+                    WHERE "EmbeddingJson" IS NOT NULL AND "EmbeddingJson" <> ''
+                      AND vector_dims("EmbeddingJson"::vector) = {2}
+                    ORDER BY "EmbeddingJson"::vector <=> CAST({0} AS vector)
+                    LIMIT {1}
+                    """,
+                    queryVector,
+                    limit,
+                    request.QueryEmbedding.Length)
+                .Include(chunk => chunk.Advisory)
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+
+            foreach (var chunk in chunks)
+            {
+                if (chunk.Advisory is null || !MatchesAdvisoryRequest(request, chunk.Advisory, chunk.ChunkText))
+                {
+                    continue;
+                }
+
+                var vector = TryReadVector(chunk.EmbeddingJson, "advisory", chunk.SecurityAdvisoryChunkId);
+                if (vector is null)
+                {
+                    continue;
+                }
+
+                candidates.Add(new AdvisoryVectorSearchCandidate(
+                    chunk.Advisory,
+                    chunk.ChunkText,
+                    vector,
+                    ScoreAdvisoryTextMatch(request, chunk.Advisory, chunk.ChunkText)));
+            }
+        }
+
+        var documentChunks = await dbContext.KnowledgeDocumentChunks
             .FromSqlRaw(
                 """
                 SELECT *
-                FROM "SecurityAdvisoryChunks"
+                FROM "KnowledgeDocumentChunks"
                 WHERE "EmbeddingJson" IS NOT NULL AND "EmbeddingJson" <> ''
                   AND vector_dims("EmbeddingJson"::vector) = {2}
                 ORDER BY "EmbeddingJson"::vector <=> CAST({0} AS vector)
@@ -40,39 +81,28 @@ public class PgVectorAdvisoryVectorStore(
                 queryVector,
                 limit,
                 request.QueryEmbedding.Length)
-            .Include(chunk => chunk.Advisory)
+            .Include(chunk => chunk.Document)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        var candidates = new List<AdvisoryVectorSearchCandidate>();
-        foreach (var chunk in chunks)
+        foreach (var chunk in documentChunks)
         {
-            if (chunk.Advisory is null || !MatchesRequest(request, chunk.Advisory, chunk.ChunkText))
+            if (chunk.Document is null || !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText))
             {
                 continue;
             }
 
-            float[]? vector;
-            try
-            {
-                vector = JsonSerializer.Deserialize<float[]>(chunk.EmbeddingJson);
-            }
-            catch (JsonException exception)
-            {
-                logger.LogDebug(exception, "Skipping malformed pgvector candidate embedding for chunk {ChunkId}.", chunk.SecurityAdvisoryChunkId);
-                continue;
-            }
-
-            if (vector is null || vector.Length == 0)
+            var vector = TryReadVector(chunk.EmbeddingJson, "knowledge document", chunk.KnowledgeDocumentChunkId);
+            if (vector is null)
             {
                 continue;
             }
 
             candidates.Add(new AdvisoryVectorSearchCandidate(
-                chunk.Advisory,
+                chunk.Document,
                 chunk.ChunkText,
                 vector,
-                ScoreTextMatch(request, chunk.Advisory, chunk.ChunkText)));
+                ScoreDocumentTextMatch(request, chunk.Document, chunk.ChunkText)));
         }
 
         logger.LogDebug("PgVector search produced {CandidateCount} candidates.", candidates.Count);
@@ -134,7 +164,25 @@ public class PgVectorAdvisoryVectorStore(
     private static string BuildVectorLiteral(IReadOnlyList<float> vector)
         => "[" + string.Join(',', vector.Select(value => value.ToString("R", CultureInfo.InvariantCulture))) + "]";
 
-    private static bool MatchesRequest(
+    private float[]? TryReadVector(string embeddingJson, string sourceKind, int chunkId)
+    {
+        try
+        {
+            var vector = JsonSerializer.Deserialize<float[]>(embeddingJson);
+            return vector is { Length: > 0 } ? vector : null;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogDebug(exception, "Skipping malformed pgvector {SourceKind} embedding for chunk {ChunkId}.", sourceKind, chunkId);
+            return null;
+        }
+    }
+
+    private static bool ShouldSearchAdvisories(AdvisoryVectorSearchRequest request)
+        => string.IsNullOrWhiteSpace(request.ModuleName) ||
+           string.Equals(request.ModuleName, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesAdvisoryRequest(
         AdvisoryVectorSearchRequest request,
         SecurityAdvisory advisory,
         string chunkText)
@@ -161,7 +209,32 @@ public class PgVectorAdvisoryVectorStore(
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static double ScoreTextMatch(
+    private static bool MatchesDocumentRequest(
+        AdvisoryVectorSearchRequest request,
+        KnowledgeDocument document,
+        string chunkText)
+    {
+        if (!document.IsEnabled)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ModuleName) &&
+            !string.Equals(request.ModuleName, document.ModuleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (request.Keywords.Count == 0)
+        {
+            return true;
+        }
+
+        var searchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags, chunkText);
+        return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static double ScoreAdvisoryTextMatch(
         AdvisoryVectorSearchRequest request,
         SecurityAdvisory advisory,
         string chunkText)
@@ -193,6 +266,31 @@ public class PgVectorAdvisoryVectorStore(
              string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase)))
         {
             score += 1.5;
+        }
+
+        return score;
+    }
+
+    private static double ScoreDocumentTextMatch(
+        AdvisoryVectorSearchRequest request,
+        KnowledgeDocument document,
+        string chunkText)
+    {
+        var score = 0d;
+        var structuredSearchable = string.Join(' ', document.Title, document.ModuleName, document.SourceType, document.Vendor, document.Product, document.Tags)
+            .ToLowerInvariant();
+        var fullSearchable = string.Join(' ', structuredSearchable, chunkText).ToLowerInvariant();
+
+        foreach (var keyword in request.Keywords)
+        {
+            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 2;
+            }
+            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 0.25;
+            }
         }
 
         return score;

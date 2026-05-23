@@ -1366,10 +1366,45 @@ hr {
   font-size: 0.84rem;
 }
 
+.document-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.document-actions form {
+  margin: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-soft);
+  font-weight: 800;
+}
+
+.icon-button:hover {
+  color: var(--accent);
+  border-color: #bfd3ff;
+  background: #eef4ff;
+}
+
+.icon-button.is-danger:hover {
+  color: #8b3626;
+  border-color: rgba(167, 67, 49, 0.24);
+  background: var(--danger-soft);
+}
+
 .retrieval-test-form {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: minmax(0, 1fr) 112px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.3fr) minmax(140px, 0.25fr) 112px auto;
   align-items: end;
   padding: 1rem;
   border: 1px solid rgba(37, 99, 235, 0.22);
@@ -1440,7 +1475,7 @@ hr {
 .retrieval-meta {
   display: grid;
   gap: 0.55rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 0.8rem 0 0;
 }
 
@@ -1977,6 +2012,83 @@ hr {
   color: var(--text-soft);
   font-style: normal;
   font-weight: 700;
+}
+
+.agent-trace {
+  overflow: hidden;
+  border: 1px solid rgba(24, 36, 44, 0.08);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.chat-message.is-user .agent-trace {
+  display: none;
+}
+
+.agent-trace summary {
+  cursor: pointer;
+  padding: 0.62rem 0.75rem;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.agent-trace dl {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.agent-trace dt {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.agent-trace dd {
+  margin: 0.12rem 0 0;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.trace-match-list {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(24, 36, 44, 0.08);
+}
+
+.trace-match-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.trace-match-row span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.trace-match-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-match-row small {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 0.72rem;
 }
 
 @keyframes thinkingPulse {

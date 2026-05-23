@@ -41,6 +41,8 @@ public class IndexModel(
         bool kev = false,
         bool critical = false,
         string? retrievalQuery = null,
+        string? retrievalModule = null,
+        string retrievalMode = RetrievalModes.Hybrid,
         int topK = 5,
         CancellationToken cancellationToken = default)
     {
@@ -92,7 +94,13 @@ public class IndexModel(
         {
             try
             {
-                RetrievalResults = await searchService.SearchAsync(RetrievalQuery, RetrievalTopK, cancellationToken);
+                var response = await searchService.SearchWithTraceAsync(
+                    RetrievalQuery,
+                    maxResults: RetrievalTopK,
+                    moduleName: NormalizeModuleFilter(retrievalModule),
+                    retrievalMode: retrievalMode,
+                    cancellationToken: cancellationToken);
+                RetrievalResults = response.Results;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -170,6 +178,36 @@ public class IndexModel(
         StatusMessage = $"Knowledge file imported. Title: {result.Title}. Chunks: {result.ChunkCount}.";
         return RedirectToPage();
     }
+
+    public async Task<IActionResult> OnPostToggleDocumentAsync(int id, bool enabled, CancellationToken cancellationToken)
+    {
+        await knowledgeIngestionService.SetEnabledAsync(id, enabled, cancellationToken);
+        StatusMessage = enabled ? "Knowledge document enabled." : "Knowledge document disabled.";
+        return RedirectToPage(new { section = "documents" });
+    }
+
+    public async Task<IActionResult> OnPostReindexDocumentAsync(int id, CancellationToken cancellationToken)
+    {
+        var result = await knowledgeIngestionService.RebuildEmbeddingsAsync(id, cancellationToken);
+        StatusMessage = $"Knowledge document re-indexed. Title: {result.Title}. Chunks: {result.ChunkCount}.";
+        return RedirectToPage(new { section = "documents" });
+    }
+
+    public async Task<IActionResult> OnPostDeleteDocumentAsync(int id, CancellationToken cancellationToken)
+    {
+        await knowledgeIngestionService.DeleteAsync(id, cancellationToken);
+        StatusMessage = "Knowledge document deleted.";
+        return RedirectToPage(new { section = "documents" });
+    }
+
+    private static string? NormalizeModuleFilter(string? value)
+        => value switch
+        {
+            KnowledgeModuleNames.CveAdvisory => KnowledgeModuleNames.CveAdvisory,
+            KnowledgeModuleNames.WorkflowQa => KnowledgeModuleNames.WorkflowQa,
+            KnowledgeModuleNames.InternalDocs => KnowledgeModuleNames.InternalDocs,
+            _ => null
+        };
 
     public class ManualKnowledgeInput
     {

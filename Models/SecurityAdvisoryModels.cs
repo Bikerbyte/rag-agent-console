@@ -98,11 +98,6 @@ public sealed record SecurityAdvisoryCandidate(
     DateTimeOffset? LastModifiedAt,
     string SourceUrl);
 
-public sealed record SecurityAdvisorySearchResult(
-    SecurityAdvisory Advisory,
-    string ChunkText,
-    double Score);
-
 public sealed record SecurityAdvisorySyncResult(
     int SourceCount,
     int FetchedCount,

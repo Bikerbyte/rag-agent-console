@@ -11,11 +11,18 @@ public class SecurityAdvisoryAgentService(
         string? chatId = null,
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
+        => (await BuildReplyWithTraceAsync(messageText, chatId, history, cancellationToken)).Content;
+
+    public async Task<AgentAnswerResult> BuildReplyWithTraceAsync(
+        string messageText,
+        string? chatId = null,
+        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeMessage(messageText);
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            return BuildCapabilitiesReply();
+            return new AgentAnswerResult(BuildCapabilitiesReply(), null);
         }
 
         logger.LogInformation(
@@ -23,7 +30,7 @@ public class SecurityAdvisoryAgentService(
             chatId,
             history is { Count: > 0 });
 
-        return await answerService.BuildAnswerAsync(normalized, history, cancellationToken);
+        return await answerService.BuildAnswerWithTraceAsync(normalized, history, cancellationToken);
     }
 
     private static string NormalizeMessage(string value)
