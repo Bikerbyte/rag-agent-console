@@ -134,6 +134,9 @@ builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<CisaKevAdvisorySource>());
 builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<NvdAdvisorySource>());
 builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncService>();
+builder.Services.AddSingleton<ITokenizer, MixedScriptTokenizer>();
+builder.Services.AddSingleton<IBm25Index, InMemoryBm25Index>();
+builder.Services.AddHostedService<Bm25IndexInitializationService>();
 builder.Services.AddScoped<IAdvisoryTextScorer, AdvisoryTextScorer>();
 builder.Services.AddScoped<EfAdvisoryVectorStore>();
 builder.Services.AddScoped<PgVectorAdvisoryVectorStore>();
@@ -141,6 +144,7 @@ builder.Services.AddScoped<IAdvisoryVectorStore, ConfiguredAdvisoryVectorStore>(
 builder.Services.AddScoped<LocalAdvisoryQueryPlanner>();
 builder.Services.AddScoped<IAdvisoryQueryPlanner, ResilientAdvisoryQueryPlanner>();
 builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
+builder.Services.AddScoped<IRetrievalEvaluationService, RetrievalEvaluationService>();
 builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
 builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTextExtractor>();
 builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingService>();

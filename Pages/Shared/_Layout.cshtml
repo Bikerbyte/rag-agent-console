@@ -50,6 +50,10 @@
                     <span class="app-nav-eyebrow">Bot ops</span>
                     <strong>Operations</strong>
                 </a>
+                <a class="app-nav-link @(currentPage == "/Operations/Evaluation" ? "is-active" : string.Empty)" asp-area="" asp-page="/Operations/Evaluation">
+                    <span class="app-nav-eyebrow">RAG quality</span>
+                    <strong>Evaluation</strong>
+                </a>
                 <a class="app-nav-link @(currentPage == "/Settings/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Settings/Index">
                     <span class="app-nav-eyebrow">Config</span>
                     <strong>Settings</strong>

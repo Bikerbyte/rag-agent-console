@@ -12,6 +12,7 @@ public class KnowledgeDocumentIngestionService(
     IKnowledgeDocumentTextExtractor textExtractor,
     IKnowledgeTextChunkingService chunkingService,
     IAdvisoryEmbeddingService embeddingService,
+    IBm25Index bm25Index,
     ILogger<KnowledgeDocumentIngestionService> logger) : IKnowledgeDocumentIngestionService
 {
     public async Task<KnowledgeDocumentIngestionResult> ImportTextAsync(
@@ -84,6 +85,19 @@ public class KnowledgeDocumentIngestionService(
 
         dbContext.KnowledgeDocuments.Remove(document);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await TryRefreshBm25IndexAsync(cancellationToken);
+    }
+
+    private async Task TryRefreshBm25IndexAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await bm25Index.RebuildAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "BM25 index refresh after knowledge document change failed; sparse retrieval will use the previous snapshot.");
+        }
     }
 
     public async Task<KnowledgeDocumentIngestionResult> RebuildEmbeddingsAsync(
@@ -175,6 +189,8 @@ public class KnowledgeDocumentIngestionService(
 
         dbContext.KnowledgeDocuments.Add(document);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await TryRefreshBm25IndexAsync(cancellationToken);
 
         logger.LogInformation(
             "Imported knowledge document {DocumentId} into module {ModuleName}. Chunks={ChunkCount}.",
