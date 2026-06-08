@@ -96,7 +96,7 @@ public class ObservabilityOptions
 
     public bool EnableOpenTelemetry { get; set; }
     public bool EnableConsoleExporter { get; set; }
-    public string ServiceName { get; set; } = "SecurityAdvisoryBot";
+    public string ServiceName { get; set; } = "RagAgentConsole";
 }
 
 public class TelegramBotOptions

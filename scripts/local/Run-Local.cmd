@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Security Advisory Bot Console
+title RAG Agent Console
 echo ============================================================
-echo Security Advisory Bot
+echo RAG Agent Console
 echo.
 echo This window stays open so you can always see the running PID
 echo and stop the site cleanly with Ctrl+C.

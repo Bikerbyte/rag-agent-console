@@ -1,6 +1,6 @@
 # 開源元件使用清單
 
-本文件列出 Security Advisory Bot 目前使用到的開源元件、用途，以及主要程式碼位置。專案原則是：能用成熟開源元件處理的解析、chunking、資料庫、telemetry 與本機模型能力，不自行重刻。
+本文件列出 RAG Agent Console 目前使用到的開源元件、用途，以及主要程式碼位置。專案原則是：能用成熟開源元件處理的解析、chunking、資料庫、telemetry 與本機模型能力，不自行重刻。
 
 ## Runtime / Web
 
@@ -17,6 +17,7 @@
 | 元件 | 用途 | 主要位置 |
 | --- | --- | --- |
 | PostgreSQL pgvector | 向量檢索 extension，支援 `PgVector` vector store | `Services/Agent/PgVectorAdvisoryVectorStore.cs`、`docker-compose.yml` |
+| BM25 | sparse retrieval scoring，支援 hybrid retrieval 與 evaluation | `Services/Agent/Retrieval/Bm25Index.cs`、`Services/Agent/AdvisoryTextScorer.cs` |
 | Microsoft Semantic Kernel TextChunker | 文件 chunking，避免自行維護分段演算法 | `Services/Knowledge/KnowledgeTextChunkingService.cs` |
 | Markdig | Markdown 文字解析 | `Services/Knowledge/KnowledgeDocumentTextExtractor.cs` |
 | HtmlAgilityPack | HTML 文字抽取 | `Services/Knowledge/KnowledgeDocumentTextExtractor.cs` |
