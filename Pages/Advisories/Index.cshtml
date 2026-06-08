@@ -2,7 +2,7 @@
 @using SecurityAdvisoryBot.Models
 @model SecurityAdvisoryBot.Pages.Advisories.IndexModel
 @{
-    ViewData["Title"] = "Knowledge";
+    ViewData["Title"] = L["知識庫"].Value;
     var activeQuery = Request.Query["q"].ToString();
     var activeRetrievalQuery = Request.Query["retrievalQuery"].ToString();
     var activeRetrievalModule = Request.Query["retrievalModule"].ToString();
@@ -14,17 +14,17 @@
     var activeSection = requestedSection is "sources" or "retrieval" or "settings" ? requestedSection : "documents";
     var sectionTitle = activeSection switch
     {
-        "sources" => "Channels",
-        "retrieval" => "Retrieval Test",
-        "settings" => "Index Settings",
-        _ => "Documents"
+        "sources" => L["匯入來源"].Value,
+        "retrieval" => L["檢索測試"].Value,
+        "settings" => L["索引設定"].Value,
+        _ => L["文件"].Value
     };
     var sectionSummary = activeSection switch
     {
-        "sources" => "同步內建 sample connector，或匯入任意領域文件與檔案。",
-        "retrieval" => "先驗證知識庫命中的 chunks，再交給 Agent 產生回答。",
-        "settings" => "管理 chunk、embedding 與 retrieval 策略。",
-        _ => "管理 sample connector records 與 user-managed documents。"
+        "sources" => L["同步內建範例連接器，或上傳你自己的文件。"].Value,
+        "retrieval" => L["先確認知識庫命中的片段，再交給 Agent 產生回答。"].Value,
+        "settings" => L["檢視 chunk、embedding 與檢索策略。"].Value,
+        _ => L["管理上傳的文件與範例連接器資料。"].Value
     };
 }
 
@@ -34,43 +34,38 @@
             <span class="knowledge-avatar">@(Model.AgentName.Length > 0 ? Model.AgentName[0] : 'A')</span>
             <div>
                 <strong>@Model.AgentName</strong>
-                <p>Knowledge Base</p>
+                <p>@L["知識庫"]</p>
             </div>
         </div>
 
         <nav class="knowledge-section-nav">
             <a class="knowledge-section-link @(activeSection == "documents" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="documents">
                 <span>▣</span>
-                <strong>Documents</strong>
+                <strong>@L["文件"]</strong>
             </a>
             <a class="knowledge-section-link @(activeSection == "sources" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="sources">
                 <span>＋</span>
-                <strong>Channels</strong>
+                <strong>@L["匯入來源"]</strong>
             </a>
             <a class="knowledge-section-link @(activeSection == "retrieval" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="retrieval">
                 <span>◎</span>
-                <strong>Retrieval Test</strong>
+                <strong>@L["檢索測試"]</strong>
             </a>
             <a class="knowledge-section-link @(activeSection == "settings" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="settings">
                 <span>⚙</span>
-                <strong>Index Settings</strong>
+                <strong>@L["索引設定"]</strong>
             </a>
         </nav>
 
         <div class="knowledge-sidebar-stats">
             <div>
                 <strong>@Model.ManagedDocumentCount.ToString("N0")</strong>
-                <span>Documents</span>
+                <span>@L["文件"]</span>
             </div>
             <div>
                 <strong>@Model.ChunkCount.ToString("N0")</strong>
-                <span>Chunks</span>
+                <span>@L["檢索片段"]</span>
             </div>
-        </div>
-
-        <div class="knowledge-access-card">
-            <span class="summary-label">Access API</span>
-            <strong>Telegram / Web Chat</strong>
         </div>
     </aside>
 
@@ -82,15 +77,12 @@
 
         <header class="knowledge-workspace-header">
             <div>
-                <p class="eyebrow">Knowledge Base</p>
                 <h1>@sectionTitle</h1>
                 <p>@sectionSummary</p>
             </div>
             <div class="knowledge-header-actions">
-                <a class="btn btn-outline-secondary" asp-page="/Advisories/Index" asp-route-section="retrieval">Test retrieval</a>
-                <form method="post" asp-page-handler="Sync">
-                    <button class="btn btn-primary" type="submit">Sync sample data</button>
-                </form>
+                <a class="btn btn-outline-secondary" asp-page="/Advisories/Index" asp-route-section="retrieval">@L["檢索測試"]</a>
+                <a class="btn btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
             </div>
         </header>
 
@@ -101,38 +93,39 @@
                     <article class="knowledge-card">
                         <div class="knowledge-card-header">
                             <div>
-                                <h2>Managed documents</h2>
-                                <p>User-managed documents are module-aware and reusable by future QA modules.</p>
+                                <h2>@L["文件"]</h2>
+                                <p>@L["點選任一文件即可在右側檢視內容範例。"]</p>
                             </div>
-                            <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">Add document</a>
+                            <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
                         </div>
 
                         <div class="managed-document-list">
                             @if (Model.ManagedDocuments.Count == 0)
                             {
-                                <p class="empty-copy">No managed documents yet.</p>
+                                <p class="empty-copy">@L["尚未有任何文件。"]</p>
                             }
                             else
                             {
                                 @foreach (var document in Model.ManagedDocuments)
                                 {
-                                    <article class="managed-document-row">
-                                        <div>
+                                    var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
+                                    <article class="managed-document-row @(isSelected ? "is-selected" : string.Empty)">
+                                        <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
                                             <strong>@document.Title</strong>
-                                            <p>@document.ModuleName · @document.SourceType · @document.CharacterCount.ToString("N0") chars · @document.ChunkCount chunks</p>
-                                        </div>
+                                            <p>@document.ModuleName · @document.CharacterCount.ToString("N0") @L["字"] · @document.ChunkCount @L["片段"]</p>
+                                        </a>
                                         <div class="document-actions">
                                             <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
-                                                @(document.IsEnabled ? "Available" : "Disabled")
+                                                @(document.IsEnabled ? L["啟用"] : L["停用"])
                                             </span>
                                             <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
-                                                <button class="icon-button" type="submit" title="@(document.IsEnabled ? "Disable" : "Enable")">@(document.IsEnabled ? "||" : ">")</button>
+                                                <button class="icon-button" type="submit" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
                                             </form>
                                             <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                                <button class="icon-button" type="submit" title="Re-index">R</button>
+                                                <button class="icon-button" type="submit" title="@L["重新索引"].Value">R</button>
                                             </form>
                                             <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                                <button class="icon-button is-danger" type="submit" title="Delete">X</button>
+                                                <button class="icon-button is-danger" type="submit" title="@L["刪除"].Value">X</button>
                                             </form>
                                         </div>
                                     </article>
@@ -144,35 +137,35 @@
                     <article class="knowledge-card">
                         <div class="knowledge-card-header">
                             <div>
-                                <h2>Sample connector data</h2>
-                                <p>CISA KEV and NVD are included as the cybersecurity sample domain; uploaded documents use the same RAG pipeline.</p>
+                                <h2>@L["範例連接器資料"]</h2>
+                                <p>@L["內建 CISA KEV / NVD 作為範例領域，與上傳文件共用同一套 RAG 流程。"]</p>
                             </div>
                         </div>
 
                         <form class="knowledge-filter" method="get">
                             <input type="hidden" name="section" value="documents" />
-                            <input class="form-control" type="search" name="q" placeholder="Search sample record / vendor / product" value="@activeQuery" />
+                            <input class="form-control" type="search" name="q" placeholder="@L["搜尋範例資料 / 廠商 / 產品"].Value" value="@activeQuery" />
                             <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
                                 <input type="checkbox" name="kev" value="true" checked="@kevActive" />
                                 KEV
                             </label>
                             <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
                                 <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
-                                Critical
+                                @L["高危"]
                             </label>
-                            <button class="btn btn-outline-secondary" type="submit">Apply</button>
+                            <button class="btn btn-outline-secondary" type="submit">@L["套用"]</button>
                         </form>
 
                         <div class="knowledge-table">
                             @if (Model.Advisories.Count == 0)
                             {
                                 <div class="empty-state">
-                                    <p class="empty-copy">目前沒有符合條件的 sample records。可以先同步資料或調整搜尋條件。</p>
+                                    <p class="empty-copy">@L["目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。"]</p>
                                 </div>
                             }
                             else
                             {
-                                @foreach (var advisory in Model.Advisories.Take(12))
+                                @foreach (var advisory in Model.Advisories.Take(10))
                                 {
                                     var riskParts = new List<string>();
                                     if (!string.IsNullOrWhiteSpace(advisory.Severity))
@@ -194,7 +187,7 @@
                                             <p>@advisory.Title</p>
                                         </div>
                                         <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
-                                            @(riskParts.Count == 0 ? "未標示" : string.Join(" / ", riskParts))
+                                            @(riskParts.Count == 0 ? L["未標示"].Value : string.Join(" / ", riskParts))
                                         </span>
                                     </article>
                                 }
@@ -203,21 +196,30 @@
                     </article>
                 </div>
 
-                <aside class="knowledge-preview-panel" aria-label="Knowledge summary">
-                    <div class="preview-stats is-vertical">
-                        <article>
-                            <span>Sample records</span>
-                            <strong>@Model.TotalCount.ToString("N0")</strong>
-                        </article>
-                        <article>
-                            <span>Documents</span>
-                            <strong>@Model.ManagedDocumentCount.ToString("N0")</strong>
-                        </article>
-                        <article>
-                            <span>High signal</span>
-                            <strong>@Model.KevCount.ToString("N0")</strong>
-                        </article>
-                    </div>
+                <aside class="knowledge-preview-panel" aria-label="Document preview">
+                    @if (Model.SelectedDocument is { } selected)
+                    {
+                        <div class="doc-preview">
+                            <div class="doc-preview-head">
+                                <strong>@selected.Title</strong>
+                                <span class="status-pill @(selected.IsEnabled ? "is-success" : "is-neutral")">
+                                    @(selected.IsEnabled ? L["啟用"] : L["停用"])
+                                </span>
+                            </div>
+                            <p class="doc-preview-meta">
+                                @selected.ModuleName · @selected.SourceType · @selected.CharacterCount.ToString("N0") @L["字"] · @selected.ChunkCount @L["片段"]
+                            </p>
+                            <div class="doc-preview-sample">@Model.SelectedDocumentSample</div>
+                            <p class="doc-preview-foot">@L["僅顯示前段內容範例。"]</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="doc-preview is-empty">
+                            <strong>@L["文件預覽"]</strong>
+                            <p>@L["從左側選擇一份文件以檢視內容範例。"]</p>
+                        </div>
+                    }
                 </aside>
             </section>
         }
@@ -227,8 +229,8 @@
                 <article class="knowledge-card">
                     <div class="knowledge-card-header">
                         <div>
-                            <h2>Data sources</h2>
-                            <p>Built-in sample connectors and user-managed document imports.</p>
+                            <h2>@L["資料來源"]</h2>
+                            <p>@L["同步內建範例，或上傳檔案建立你自己的知識庫。"]</p>
                         </div>
                     </div>
 
@@ -236,124 +238,69 @@
                         <article class="source-card is-active">
                             <span class="option-icon">C</span>
                             <div>
-                                <strong>Cybersecurity sample connector</strong>
-                                <p>CISA KEV / NVD normalize public records into a CVE Advisory sample module.</p>
+                                <strong>@L["資安範例連接器"]</strong>
+                                <p>@L["從 CISA KEV / NVD 正規化公開資料，建立 CVE Advisory 範例模組。"]</p>
                             </div>
                             <form method="post" asp-page-handler="Sync">
-                                <button class="btn btn-sm btn-primary" type="submit">Sync</button>
+                                <button class="btn btn-sm btn-primary" type="submit">@L["同步"]</button>
                             </form>
                         </article>
 
                         <article class="source-card">
                             <span class="option-icon">F</span>
                             <div>
-                                <strong>Upload file</strong>
-                                <p>Markdown, TXT, HTML, CSV, and DOCX are parsed with open-source libraries.</p>
-                            </div>
-                        </article>
-
-                        <article class="source-card">
-                            <span class="option-icon">T</span>
-                            <div>
-                                <strong>Paste text</strong>
-                                <p>Create a managed document from SOPs, HR policies, product notes, or internal memos.</p>
+                                <strong>@L["上傳檔案"]</strong>
+                                <p>@L["支援 Markdown、TXT、HTML、CSV、DOCX，以開源套件解析。"]</p>
                             </div>
                         </article>
                     </div>
                 </article>
 
-                <div class="knowledge-form-grid">
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>Upload file</h2>
-                                <p>Files are extracted, chunked, embedded, and stored as managed documents.</p>
-                            </div>
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header">
+                        <div>
+                            <h2>@L["上傳檔案"]</h2>
+                            <p>@L["檔案會自動抽取、切塊、建立向量，並存成可檢索的文件。"]</p>
                         </div>
+                    </div>
 
-                        <form class="knowledge-ingest-form is-flat" method="post" asp-page-handler="UploadFile" enctype="multipart/form-data">
-                            <div class="form-row">
-                                <label class="field-block">
-                                    <span>Title</span>
-                                    <input asp-for="FileInput.Title" class="form-control" placeholder="Onboarding policy, SOP, product FAQ" />
-                                </label>
-                                <label class="field-block">
-                                    <span>Module</span>
-                                    <select asp-for="FileInput.ModuleName" class="form-select">
-                                        <option value="@KnowledgeModuleNames.InternalDocs">Internal Docs</option>
-                                        <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
-                                        <option value="@KnowledgeModuleNames.WorkflowQa">Workflow QA</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div class="form-row">
-                                <label class="field-block">
-                                    <span>Vendor</span>
-                                    <input asp-for="FileInput.Vendor" class="form-control" />
-                                </label>
-                                <label class="field-block">
-                                    <span>Product</span>
-                                    <input asp-for="FileInput.Product" class="form-control" />
-                                </label>
-                            </div>
+                    <form class="knowledge-ingest-form is-flat" method="post" asp-page-handler="UploadFile" enctype="multipart/form-data">
+                        <div class="form-row">
                             <label class="field-block">
-                                <span>Tags</span>
-                                <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, product, faq" />
+                                <span>@L["標題"]</span>
+                                <input asp-for="FileInput.Title" class="form-control" placeholder="@L["新人政策、SOP、產品 FAQ"].Value" />
                             </label>
-                            <label class="upload-zone">
-                                <input asp-for="FileInput.Upload" type="file" accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
-                                <strong>Choose file</strong>
-                                <span>Supported: Markdown, TXT, HTML, CSV, DOCX. Max 15 MB.</span>
+                            <label class="field-block">
+                                <span>@L["模組"]</span>
+                                <select asp-for="FileInput.ModuleName" class="form-select">
+                                    <option value="@KnowledgeModuleNames.InternalDocs">@L["內部文件"]</option>
+                                    <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
+                                    <option value="@KnowledgeModuleNames.WorkflowQa">@L["流程問答"]</option>
+                                </select>
                             </label>
-                            <button class="btn btn-primary" type="submit">Import file</button>
-                        </form>
-                    </article>
-
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>Create from text</h2>
-                                <p>Paste policies, SOPs, product notes, or internal memos directly into the knowledge base.</p>
-                            </div>
                         </div>
-
-                        <form class="knowledge-ingest-form is-flat" method="post" asp-page-handler="ImportText">
-                            <div class="form-row">
-                                <label class="field-block">
-                                    <span>Title</span>
-                                    <input asp-for="ManualInput.Title" class="form-control" />
-                                </label>
-                                <label class="field-block">
-                                    <span>Module</span>
-                                    <select asp-for="ManualInput.ModuleName" class="form-select">
-                                        <option value="@KnowledgeModuleNames.InternalDocs">Internal Docs</option>
-                                        <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
-                                        <option value="@KnowledgeModuleNames.WorkflowQa">Workflow QA</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div class="form-row">
-                                <label class="field-block">
-                                    <span>Vendor</span>
-                                    <input asp-for="ManualInput.Vendor" class="form-control" />
-                                </label>
-                                <label class="field-block">
-                                    <span>Product</span>
-                                    <input asp-for="ManualInput.Product" class="form-control" />
-                                </label>
-                            </div>
+                        <div class="form-row">
                             <label class="field-block">
-                                <span>Tags</span>
-                                <input asp-for="ManualInput.Tags" class="form-control" />
+                                <span>@L["廠商"]</span>
+                                <input asp-for="FileInput.Vendor" class="form-control" />
                             </label>
                             <label class="field-block">
-                                <span>Content</span>
-                                <textarea asp-for="ManualInput.Text" class="form-control" rows="8"></textarea>
+                                <span>@L["產品"]</span>
+                                <input asp-for="FileInput.Product" class="form-control" />
                             </label>
-                            <button class="btn btn-primary" type="submit">Import text</button>
-                        </form>
-                    </article>
-                </div>
+                        </div>
+                        <label class="field-block">
+                            <span>@L["標籤"]</span>
+                            <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, product, faq" />
+                        </label>
+                        <label class="upload-zone">
+                            <input asp-for="FileInput.Upload" type="file" accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
+                            <strong>@L["選擇檔案"]</strong>
+                            <span>@L["支援 Markdown、TXT、HTML、CSV、DOCX，上限 15 MB。"]</span>
+                        </label>
+                        <button class="btn btn-primary" type="submit">@L["匯入檔案"]</button>
+                    </form>
+                </article>
             </section>
         }
         else if (activeSection == "retrieval")
@@ -362,39 +309,39 @@
                 <article class="knowledge-card">
                     <div class="knowledge-card-header">
                         <div>
-                            <h2>Retrieval test</h2>
-                            <p>Run a natural-language query and inspect the chunks that would be used as Agent context.</p>
+                            <h2>@L["檢索測試"]</h2>
+                            <p>@L["輸入自然語言查詢，檢視會被當作 Agent context 的片段。"]</p>
                         </div>
                     </div>
 
                     <form class="retrieval-test-form is-flat" method="get">
                         <input type="hidden" name="section" value="retrieval" />
                         <label class="field-block">
-                            <span>Query</span>
-                            <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="例如：remote work policy approval 或 latest Cisco risk records" />
+                            <span>@L["查詢"]</span>
+                            <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="@L["例如：遠端工作核准流程 或 最新 Cisco 風險"].Value" />
                         </label>
                         <label class="field-block">
-                            <span>Module</span>
+                            <span>@L["模組"]</span>
                             <select class="form-select" name="retrievalModule">
-                                <option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">All modules</option>
+                                <option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">@L["全部模組"]</option>
                                 <option value="@KnowledgeModuleNames.CveAdvisory" selected="@(activeRetrievalModule == KnowledgeModuleNames.CveAdvisory)">CVE Advisory</option>
-                                <option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">Workflow QA</option>
-                                <option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">Internal Docs</option>
+                                <option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">@L["流程問答"]</option>
+                                <option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">@L["內部文件"]</option>
                             </select>
                         </label>
                         <label class="field-block">
-                            <span>Mode</span>
+                            <span>@L["模式"]</span>
                             <select class="form-select" name="retrievalMode">
-                                <option value="@RetrievalModes.Hybrid" selected="@(activeRetrievalMode == RetrievalModes.Hybrid)">Hybrid</option>
-                                <option value="@RetrievalModes.Vector" selected="@(activeRetrievalMode == RetrievalModes.Vector)">Vector</option>
-                                <option value="@RetrievalModes.Keyword" selected="@(activeRetrievalMode == RetrievalModes.Keyword)">Keyword</option>
+                                <option value="@RetrievalModes.Hybrid" selected="@(activeRetrievalMode == RetrievalModes.Hybrid)">@L["混合"]</option>
+                                <option value="@RetrievalModes.Vector" selected="@(activeRetrievalMode == RetrievalModes.Vector)">@L["向量"]</option>
+                                <option value="@RetrievalModes.Keyword" selected="@(activeRetrievalMode == RetrievalModes.Keyword)">@L["關鍵字"]</option>
                             </select>
                         </label>
                         <label class="field-block topk-field">
                             <span>Top K</span>
                             <input class="form-control" type="number" min="1" max="10" name="topK" value="@activeTopK" />
                         </label>
-                        <button class="btn btn-primary" type="submit">Run retrieval</button>
+                        <button class="btn btn-primary" type="submit">@L["執行檢索"]</button>
                     </form>
                 </article>
 
@@ -405,7 +352,7 @@
                 else if (!string.IsNullOrWhiteSpace(Model.RetrievalQuery) && Model.RetrievalResults.Count == 0)
                 {
                     <div class="retrieval-empty">
-                        <p>目前沒有命中的 chunk。可以先同步 sample data、匯入文件，或改用更明確的主題/關鍵字測試。</p>
+                        <p>@L["目前沒有命中的片段。可以先同步範例資料、上傳文件，或改用更明確的關鍵字。"]</p>
                     </div>
                 }
                 else if (Model.RetrievalResults.Count > 0)
@@ -427,20 +374,8 @@
                                 <p class="retrieval-title">@result.Title</p>
                                 <dl class="retrieval-meta">
                                     <div>
-                                        <dt>Module</dt>
+                                        <dt>@L["模組"]</dt>
                                         <dd>@result.ModuleName</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Vendor</dt>
-                                        <dd>@(string.IsNullOrWhiteSpace(result.Vendor) ? "-" : result.Vendor)</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Product</dt>
-                                        <dd>@(string.IsNullOrWhiteSpace(result.Product) ? "-" : result.Product)</dd>
-                                    </div>
-                                    <div>
-                                        <dt>Risk</dt>
-                                        <dd>@BuildRisk(result)</dd>
                                     </div>
                                     <div>
                                         <dt>Vector</dt>
@@ -460,123 +395,39 @@
         }
         else
         {
-            <section class="knowledge-content-grid">
-                <div class="knowledge-primary-column">
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>Chunk settings</h2>
-                                <p>Automatic chunking is active for sample connector records and managed documents.</p>
-                            </div>
+            <section class="knowledge-primary-column">
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header">
+                        <div>
+                            <h2>@L["切塊與索引"]</h2>
+                            <p>@L["範例資料與上傳文件都會自動切塊並建立向量索引。"]</p>
                         </div>
-
-                        <div class="option-stack">
-                            <label class="dify-option is-selected">
-                                <input type="radio" checked disabled />
-                                <span class="option-icon">A</span>
-                                <span>
-                                    <strong>Automatic</strong>
-                                    <small>根據結構化 record 或文件段落自動建立 chunk。適合 connector data、SOP、FAQ 與政策文件。</small>
-                                </span>
-                            </label>
-                            <label class="dify-option is-disabled">
-                                <input type="radio" disabled />
-                                <span class="option-icon">C</span>
-                                <span>
-                                    <strong>Custom</strong>
-                                    <small>自訂 chunk 長度、欄位權重與 preprocessing rules。保留給後續版本。</small>
-                                </span>
-                            </label>
-                        </div>
-                    </article>
-
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>Index mode</h2>
-                                <p>Embedding provider can be OpenAI, Ollama, or local fallback.</p>
-                            </div>
-                        </div>
-
-                        <div class="index-grid">
-                            <article class="index-option is-selected">
-                                <div>
-                                    <span class="option-icon hot">H</span>
-                                    <strong>High Quality</strong>
-                                    <span class="recommend-badge">Recommended</span>
-                                </div>
-                                <p>使用 provider embedding 建立索引，讓 Agent 能更準確抓到不同領域文件與 sample records 的脈絡。</p>
-                                <dl>
-                                    <dt>Estimation</dt>
-                                    <dd>@Model.EstimatedTokenCount.ToString("N0") tokens</dd>
-                                </dl>
-                            </article>
-                            <article class="index-option">
-                                <div>
-                                    <span class="option-icon">E</span>
-                                    <strong>Economical</strong>
-                                </div>
-                                <p>使用 local hash fallback，不需要 API key，適合本機開發、離線驗證與基礎流程測試。</p>
-                                <dl>
-                                    <dt>Cost</dt>
-                                    <dd>0 external tokens</dd>
-                                </dl>
-                            </article>
-                        </div>
-                    </article>
-
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>Retrieval strategy</h2>
-                                <p>Agent retrieves context before answer generation.</p>
-                            </div>
-                        </div>
-
-                        <div class="retrieval-panel">
-                            <div>
-                                <span class="summary-label">Search strategy</span>
-                                <strong>Hybrid RAG retrieval</strong>
-                                <p>結合 embedding score、BM25 keyword、module filter 與 domain-specific signals 進行排序。</p>
-                            </div>
-                            <div class="retrieval-slider" aria-hidden="true">
-                                <span style="width: 72%"></span>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-
-                <aside class="knowledge-preview-panel" aria-label="Chunk preview">
-                    <div class="preview-header">
-                        <strong>Chunk preview</strong>
                     </div>
-                    <div class="chunk-stack">
-                        @if (Model.PreviewChunks.Count == 0)
-                        {
-                            <article class="chunk-card">
-                                <div class="chunk-meta">
-                                    <span># 000</span>
-                                    <span>0 characters</span>
-                                </div>
-                                <p>尚未建立 chunk。同步後會建立 preview。</p>
-                            </article>
-                        }
-                        else
-                        {
-                            @foreach (var chunk in Model.PreviewChunks)
-                            {
-                                <article class="chunk-card">
-                                    <div class="chunk-meta">
-                                        <span># @chunk.SecurityAdvisoryChunkId.ToString("000")</span>
-                                        <span>@chunk.ChunkText.Length.ToString("N0") characters</span>
-                                    </div>
-                                    <strong>@(chunk.Advisory?.CveId ?? chunk.Advisory?.ExternalId ?? chunk.ChunkKind)</strong>
-                                    <p>@TrimPreview(chunk.ChunkText)</p>
-                                </article>
-                            }
-                        }
+
+                    <div class="settings-readout">
+                        <div class="readout-row">
+                            <div>
+                                <strong>@L["切塊方式"]</strong>
+                                <p>@L["依結構化記錄或文件段落自動建立 chunk。"]</p>
+                            </div>
+                            <span class="status-pill is-success">@L["自動"]</span>
+                        </div>
+                        <div class="readout-row">
+                            <div>
+                                <strong>@L["索引模式"]</strong>
+                                <p>@L["使用 provider embedding；無 API key 時自動切換本機備援。"]</p>
+                            </div>
+                            <span class="status-pill is-neutral">@Model.EstimatedTokenCount.ToString("N0") tokens</span>
+                        </div>
+                        <div class="readout-row">
+                            <div>
+                                <strong>@L["檢索策略"]</strong>
+                                <p>@L["結合向量分數、BM25 關鍵字與模組過濾進行排序。"]</p>
+                            </div>
+                            <span class="status-pill is-neutral">Hybrid</span>
+                        </div>
                     </div>
-                </aside>
+                </article>
             </section>
         }
     </main>
@@ -591,23 +442,4 @@
 
     private static string FormatScore(double value)
         => value.ToString("0.000");
-
-    private static string BuildRisk(SecurityAdvisorySearchResult result)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(result.Severity))
-        {
-            parts.Add(result.Severity);
-        }
-        if (result.CvssScore.HasValue)
-        {
-            parts.Add($"CVSS {result.CvssScore:0.0}");
-        }
-        if (result.IsKnownExploited)
-        {
-            parts.Add("KEV");
-        }
-
-        return parts.Count == 0 ? "-" : string.Join(" / ", parts);
-    }
 }

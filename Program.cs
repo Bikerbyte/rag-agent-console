@@ -1,7 +1,9 @@
+using System.Globalization;
 using SecurityAdvisoryBot.Data;
 using SecurityAdvisoryBot.Models;
 using SecurityAdvisoryBot.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
@@ -127,6 +129,19 @@ builder.Services.AddHttpClient<IAdvisoryEmbeddingService, AdvisoryEmbeddingServi
 });
 builder.Services.AddHttpClient();
 
+// Add Service Area - 多語系（繁中為預設，提供 中/英 切換）
+// 採用 IStringLocalizer，以「繁中原文」作為 resource key：
+// 預設 zh-Hant 直接顯示 key 本身，en 文化則查 Resources/SharedResource.en.resx。
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+var supportedCultures = new[] { new CultureInfo("zh-Hant"), new CultureInfo("en") };
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("zh-Hant");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.ApplyCurrentCultureToResponseHeaders = true;
+});
+
 // Add Service Area - 應用服務
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<ITelegramPushService, TelegramPushService>();
@@ -214,6 +229,7 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRequestLocalization();
 app.UseAuthorization();
 
 // 每台節點都回傳自己的 instance name，方便在 Nginx、瀏覽器與後台一起追 request 落點。
@@ -364,6 +380,17 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("Use Run-Local.cmd to keep a visible console.");
     app.Logger.LogInformation("Use Status-Local.cmd or Stop-Local.cmd if the port stays occupied.");
     app.Logger.LogInformation("============================================================");
+});
+
+// 語言切換：寫入 culture cookie 後導回原頁。
+app.MapGet("/set-culture", (string culture, string? returnUrl, HttpContext httpContext) =>
+{
+    httpContext.Response.Cookies.Append(
+        CookieRequestCultureProvider.DefaultCookieName,
+        CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, Path = "/" });
+
+    return Results.LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
 });
 
 app.MapRazorPages();

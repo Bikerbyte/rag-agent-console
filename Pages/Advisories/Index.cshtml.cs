@@ -28,9 +28,8 @@ public class IndexModel(
     public int RetrievalTopK { get; private set; } = 5;
     public string? RetrievalError { get; private set; }
     public string AgentName { get; private set; } = "AI Assistant";
-
-    [BindProperty]
-    public ManualKnowledgeInput ManualInput { get; set; } = new();
+    public KnowledgeDocument? SelectedDocument { get; private set; }
+    public string? SelectedDocumentSample { get; private set; }
 
     [BindProperty]
     public FileKnowledgeInput FileInput { get; set; } = new();
@@ -46,6 +45,7 @@ public class IndexModel(
         string? retrievalModule = null,
         string retrievalMode = RetrievalModes.Hybrid,
         int topK = 5,
+        int? doc = null,
         CancellationToken cancellationToken = default)
     {
         RetrievalQuery = retrievalQuery;
@@ -93,6 +93,18 @@ public class IndexModel(
             .Take(12)
             .ToListAsync(cancellationToken);
 
+        if (doc is int selectedDocumentId)
+        {
+            SelectedDocument = await dbContext.KnowledgeDocuments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(document => document.KnowledgeDocumentId == selectedDocumentId, cancellationToken);
+
+            if (SelectedDocument is not null)
+            {
+                SelectedDocumentSample = BuildSample(SelectedDocument.ExtractedText);
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(RetrievalQuery))
         {
             try
@@ -124,30 +136,7 @@ public class IndexModel(
     public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)
     {
         var result = await syncService.SyncAsync(cancellationToken);
-        StatusMessage = $"Sample connector sync completed. Fetched {result.FetchedCount}, added {result.AddedCount}, updated {result.UpdatedCount}, indexed {result.ChunkCount} chunks.";
-        return RedirectToPage();
-    }
-
-    public async Task<IActionResult> OnPostImportTextAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(ManualInput.Title) || string.IsNullOrWhiteSpace(ManualInput.Text))
-        {
-            StatusMessage = "Title and content are required.";
-            return RedirectToPage();
-        }
-
-        var result = await knowledgeIngestionService.ImportTextAsync(
-            new KnowledgeDocumentImportRequest(
-                ManualInput.Title,
-                ManualInput.Text,
-                ManualInput.ModuleName,
-                "ManualText",
-                ManualInput.Vendor,
-                ManualInput.Product,
-                ManualInput.Tags),
-            cancellationToken);
-
-        StatusMessage = $"Knowledge document imported. Title: {result.Title}. Chunks: {result.ChunkCount}.";
+        StatusMessage = $"範例連接器同步完成：取得 {result.FetchedCount} 筆、新增 {result.AddedCount} 筆、更新 {result.UpdatedCount} 筆、索引 {result.ChunkCount} 個片段。";
         return RedirectToPage();
     }
 
@@ -155,13 +144,13 @@ public class IndexModel(
     {
         if (FileInput.Upload is null || FileInput.Upload.Length == 0)
         {
-            StatusMessage = "Please choose a file to upload.";
+            StatusMessage = "請選擇要上傳的檔案。";
             return RedirectToPage();
         }
 
         if (FileInput.Upload.Length > 15 * 1024 * 1024)
         {
-            StatusMessage = "File is too large. Maximum size is 15 MB.";
+            StatusMessage = "檔案過大，上限為 15 MB。";
             return RedirectToPage();
         }
 
@@ -178,28 +167,28 @@ public class IndexModel(
                 FileInput.Tags),
             cancellationToken);
 
-        StatusMessage = $"Knowledge file imported. Title: {result.Title}. Chunks: {result.ChunkCount}.";
+        StatusMessage = $"檔案匯入完成：{result.Title}，共 {result.ChunkCount} 個片段。";
         return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostToggleDocumentAsync(int id, bool enabled, CancellationToken cancellationToken)
     {
         await knowledgeIngestionService.SetEnabledAsync(id, enabled, cancellationToken);
-        StatusMessage = enabled ? "Knowledge document enabled." : "Knowledge document disabled.";
+        StatusMessage = enabled ? "文件已啟用。" : "文件已停用。";
         return RedirectToPage(new { section = "documents" });
     }
 
     public async Task<IActionResult> OnPostReindexDocumentAsync(int id, CancellationToken cancellationToken)
     {
         var result = await knowledgeIngestionService.RebuildEmbeddingsAsync(id, cancellationToken);
-        StatusMessage = $"Knowledge document re-indexed. Title: {result.Title}. Chunks: {result.ChunkCount}.";
+        StatusMessage = $"文件已重新索引：{result.Title}，共 {result.ChunkCount} 個片段。";
         return RedirectToPage(new { section = "documents" });
     }
 
     public async Task<IActionResult> OnPostDeleteDocumentAsync(int id, CancellationToken cancellationToken)
     {
         await knowledgeIngestionService.DeleteAsync(id, cancellationToken);
-        StatusMessage = "Knowledge document deleted.";
+        StatusMessage = "文件已刪除。";
         return RedirectToPage(new { section = "documents" });
     }
 
@@ -212,14 +201,11 @@ public class IndexModel(
             _ => null
         };
 
-    public class ManualKnowledgeInput
+    private static string BuildSample(string? value)
     {
-        public string ModuleName { get; set; } = KnowledgeModuleNames.InternalDocs;
-        public string? Title { get; set; }
-        public string? Vendor { get; set; }
-        public string? Product { get; set; }
-        public string? Tags { get; set; }
-        public string? Text { get; set; }
+        var compact = string.Join(' ', (value ?? string.Empty)
+            .Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return compact.Length <= 700 ? compact : compact[..700] + "…";
     }
 
     public class FileKnowledgeInput

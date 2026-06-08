@@ -1,3 +1,4 @@
+@using System.Globalization
 @using SecurityAdvisoryBot.Models
 @using SecurityAdvisoryBot.Services
 @using Microsoft.Extensions.Options
@@ -9,13 +10,16 @@
     var layoutAgentOptions = await AppSettingsService.GetAgentOptionsAsync(Context.RequestAborted);
     var layoutAgentName = layoutAgentOptions.AgentName;
     var layoutAgentTagline = layoutAgentOptions.AgentTagline;
+    var isEnglish = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en";
+    var returnPath = Uri.EscapeDataString(Context.Request.Path + Context.Request.QueryString);
+    string NavClass(string page) => currentPage == page ? "app-nav-link is-active" : "app-nav-link";
 }
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="@CultureInfo.CurrentUICulture.Name">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - @layoutAgentName</title>
+    <title>@ViewData["Title"] · @layoutAgentName</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet" />
@@ -24,9 +28,9 @@
 </head>
 <body>
     <div class="app-shell">
-        <header class="app-sidebar">
+        <aside class="app-sidebar">
             <a class="app-brand" asp-area="" asp-page="/Index">
-                <span class="app-brand-mark">R</span>
+                <span class="app-brand-mark">@(layoutAgentName.Length > 0 ? char.ToUpperInvariant(layoutAgentName[0]) : 'R')</span>
                 <span class="app-brand-copy">
                     <strong>@layoutAgentName</strong>
                     <span>@layoutAgentTagline</span>
@@ -34,58 +38,45 @@
             </a>
 
             <nav class="app-nav" aria-label="Primary">
-                <a class="app-nav-link @(currentPage == "/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Index">
-                    <span class="app-nav-eyebrow">Overview</span>
-                    <strong>Dashboard</strong>
+                <a class="@NavClass("/Index")" asp-area="" asp-page="/Index">
+                    <span class="app-nav-icon">▦</span><span>@L["儀表板"]</span>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Advisories/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Advisories/Index">
-                    <span class="app-nav-eyebrow">RAG data</span>
-                    <strong>Knowledge Base</strong>
+                <a class="@NavClass("/Advisories/Index")" asp-area="" asp-page="/Advisories/Index">
+                    <span class="app-nav-icon">▤</span><span>@L["知識庫"]</span>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Chat/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Chat/Index">
-                    <span class="app-nav-eyebrow">Agent</span>
-                    <strong>Chat</strong>
+                <a class="@NavClass("/Chat/Index")" asp-area="" asp-page="/Chat/Index">
+                    <span class="app-nav-icon">◍</span><span>@L["對話"]</span>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Operations/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Operations/Index">
-                    <span class="app-nav-eyebrow">Runtime</span>
-                    <strong>Operations</strong>
+                <a class="@NavClass("/Operations/Index")" asp-area="" asp-page="/Operations/Index">
+                    <span class="app-nav-icon">◆</span><span>@L["營運"]</span>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Operations/Evaluation" ? "is-active" : string.Empty)" asp-area="" asp-page="/Operations/Evaluation">
-                    <span class="app-nav-eyebrow">RAG quality</span>
-                    <strong>Evaluation</strong>
+                <a class="@NavClass("/Operations/Evaluation")" asp-area="" asp-page="/Operations/Evaluation">
+                    <span class="app-nav-icon">◎</span><span>@L["檢索評估"]</span>
                 </a>
-                <a class="app-nav-link @(currentPage == "/Settings/Index" ? "is-active" : string.Empty)" asp-area="" asp-page="/Settings/Index">
-                    <span class="app-nav-eyebrow">Config</span>
-                    <strong>Settings</strong>
+                <a class="@NavClass("/Settings/Index")" asp-area="" asp-page="/Settings/Index">
+                    <span class="app-nav-icon">⚙</span><span>@L["設定"]</span>
                 </a>
             </nav>
 
-            <section class="sidebar-note">
-                <span class="topbar-chip">TEAM</span>
-                <span class="user-avatar">I</span>
-                <span>Ian</span>
-            </section>
-        </header>
+            <div class="app-sidebar-footer">
+                <div class="lang-toggle" role="group" aria-label="Language">
+                    <a class="lang-btn @(isEnglish ? string.Empty : "is-active")" href="/set-culture?culture=zh-Hant&returnUrl=@returnPath">中文</a>
+                    <a class="lang-btn @(isEnglish ? "is-active" : string.Empty)" href="/set-culture?culture=en&returnUrl=@returnPath">EN</a>
+                </div>
+                <div class="sidebar-user">
+                    <span class="user-avatar">@(layoutAgentName.Length > 0 ? char.ToUpperInvariant(layoutAgentName[0]) : 'A')</span>
+                    <div>
+                        <strong>@layoutAgentName</strong>
+                        <span>@L["節點"]: @currentInstanceName</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
 
         <div class="app-main">
-            <header class="app-topbar">
-                <div>
-                    <p class="topbar-label">@layoutAgentName</p>
-                    <h1 class="topbar-title">@ViewData["Title"]</h1>
-                </div>
-                <div class="topbar-meta">
-                    <span class="topbar-chip">Node: @currentInstanceName</span>
-                </div>
-            </header>
-
             <main role="main" class="app-content">
                 @RenderBody()
             </main>
-
-            <footer class="app-footer">
-                <span>@layoutAgentName</span>
-                <span>@layoutAgentTagline</span>
-            </footer>
         </div>
     </div>
 
