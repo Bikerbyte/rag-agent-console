@@ -1,24 +1,24 @@
 @page
 @model SecurityAdvisoryBot.Pages.Chat.IndexModel
 @{
-    ViewData["Title"] = "Agent Chat";
+    ViewData["Title"] = L["對話"].Value;
 }
 
 <section class="chat-page">
     <div class="chat-heading">
         <div>
-            <p class="eyebrow">Agent runtime</p>
-            <h1>Agent Chat</h1>
+            <p class="eyebrow">@L["Agent 執行"]</p>
+            <h1>@L["對話"]</h1>
         </div>
         <span class="status-pill @(Model.IsAiChatEnabled ? "is-success" : "is-warning")">
-            @(Model.IsAiChatEnabled ? "AI enabled" : "AI not connected")
+            @(Model.IsAiChatEnabled ? L["AI 已啟用"] : L["AI 未連接"])
         </span>
     </div>
 
     @if (!Model.IsAiChatEnabled)
     {
         <div class="agent-notice">
-            AI provider is not connected.
+            @L["尚未連接 AI 供應商，目前以本機備援回覆。"]
         </div>
     }
 
@@ -27,12 +27,12 @@
             @if (Model.AgentMessages.Count == 0)
             {
                 <div class="agent-empty" data-agent-empty>
-                    <strong>Start a conversation</strong>
-                    <p>Type a question below or pick a starter:</p>
+                    <strong>@L["開始對話"]</strong>
+                    <p>@L["在下方輸入問題，或選一個範例："]</p>
                     <div class="agent-starter-chips">
-                        <button type="button" class="agent-starter-chip" data-starter-text="Summarise the onboarding policy sample.">Onboarding summary</button>
-                        <button type="button" class="agent-starter-chip" data-starter-text="What does the knowledge base know about remote work approvals?">Policy QA</button>
-                        <button type="button" class="agent-starter-chip" data-starter-text="What are the latest high-signal sample records?">Sample records</button>
+                        <button type="button" class="agent-starter-chip" data-starter-text="@L["幫我摘要新人政策範例。"].Value">@L["新人政策摘要"]</button>
+                        <button type="button" class="agent-starter-chip" data-starter-text="@L["知識庫對遠端工作核准有哪些資訊？"].Value">@L["政策問答"]</button>
+                        <button type="button" class="agent-starter-chip" data-starter-text="@L["最近有哪些高風險的範例資料？"].Value">@L["範例資料"]</button>
                     </div>
                 </div>
             }
@@ -41,27 +41,27 @@
                 @foreach (var message in Model.AgentMessages)
                 {
                     <div class="chat-message @(message.Role == "user" ? "is-user" : "is-agent")">
-                        <span>@(message.Role == "user" ? "You" : "Agent")</span>
+                        <span>@(message.Role == "user" ? L["你"] : "Agent")</span>
                         <div class="chat-bubble agent-markdown" data-markdown="@message.Content"></div>
                         @if (message.Role == "assistant" && message.Trace is not null)
                         {
                             <details class="agent-trace">
-                                <summary>Retrieval trace</summary>
+                                <summary>@L["檢索軌跡"]</summary>
                                 <dl>
                                     <div>
-                                        <dt>Intent</dt>
+                                        <dt>@L["意圖"]</dt>
                                         <dd>@message.Trace.Intent</dd>
                                     </div>
                                     <div>
-                                        <dt>Module</dt>
+                                        <dt>@L["模組"]</dt>
                                         <dd>@message.Trace.ModuleName</dd>
                                     </div>
                                     <div>
-                                        <dt>Query</dt>
+                                        <dt>@L["查詢"]</dt>
                                         <dd>@message.Trace.RetrievalQuery</dd>
                                     </div>
                                     <div>
-                                        <dt>Mode</dt>
+                                        <dt>@L["模式"]</dt>
                                         <dd>@message.Trace.RetrievalMode</dd>
                                     </div>
                                 </dl>
@@ -88,13 +88,13 @@
         <div class="chat-compose-bar">
             <form method="post" asp-page-handler="AskAgent" class="agent-compose" id="agentComposeForm">
                 <input type="hidden" asp-for="AgentHistoryJson" id="agentHistoryJson" />
-                <label asp-for="AgentInput.Message" class="visually-hidden">Message</label>
+                <label asp-for="AgentInput.Message" class="visually-hidden">@L["訊息"]</label>
                 <textarea asp-for="AgentInput.Message" class="form-control" rows="3" placeholder="@Model.ChatPlaceholder" id="agentMessageInput"></textarea>
-                <button type="submit" class="btn btn-primary">Send</button>
+                <button type="submit" class="btn btn-primary">@L["送出"]</button>
             </form>
 
             <form method="post" asp-page-handler="ClearAgent">
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Clear conversation</button>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">@L["清除對話"]</button>
             </form>
         </div>
     </section>

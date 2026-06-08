@@ -1,84 +1,62 @@
 @page
 @model IndexModel
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = L["儀表板"].Value;
 }
 
-<section class="dashboard-hero compact-hero">
+<section class="dashboard-hero">
     <div>
         <p class="eyebrow">@Model.AgentTagline</p>
         <h1 class="display-title">@Model.AgentName</h1>
         <p class="dashboard-copy">
-            提供多領域文件匯入、sample connector 同步、RAG 索引、Chat runtime 與節點狀態的營運檢視。
+            @L["可換領域的 RAG Agent 平台：匯入文件、混合檢索、產生回答，並透過 Web 與 Telegram 對外服務。"]
         </p>
         <div class="hero-actions">
-            <a class="btn btn-primary" asp-page="/Advisories/Index">Open knowledge base</a>
-            <a class="btn btn-outline-secondary" asp-page="/Operations/Index">Runtime operations</a>
+            <a class="btn btn-primary" asp-page="/Advisories/Index">@L["開啟知識庫"]</a>
+            <a class="btn btn-outline-secondary" asp-page="/Chat/Index">@L["開始對話"]</a>
         </div>
     </div>
 </section>
 
 <section class="compact-metrics">
     <article class="metric-strip">
-        <span class="metric-label">Sample data</span>
-        <strong>@Model.AdvisoryCount</strong>
-        <p>@Model.KnownExploitedCount high-signal records · @Model.RagChunkCount RAG chunks</p>
+        <span class="metric-label">@L["知識庫"]</span>
+        <strong>@Model.AdvisoryCount.ToString("N0")</strong>
+        <p>@Model.KnownExploitedCount.ToString("N0") @L["高風險"] · @Model.RagChunkCount.ToString("N0") @L["檢索片段"]</p>
     </article>
     <article class="metric-strip">
-        <span class="metric-label">Telegram</span>
-        <strong>@(Model.BotEnabled && Model.HasBotToken ? "Ready" : "Needs config")</strong>
-        <p>@Model.ChatCount chats · @Model.PendingTelegramUpdateCount queued updates</p>
-    </article>
-    <article class="metric-strip">
-        <span class="metric-label">AI provider</span>
+        <span class="metric-label">@L["AI 供應商"]</span>
         <strong>@Model.AiProviderText</strong>
-        <p>OpenAI, Ollama, or local fallback</p>
+        <p>@L["OpenAI、Ollama 或本機備援"]</p>
     </article>
     <article class="metric-strip">
-        <span class="metric-label">Runtime</span>
+        <span class="metric-label">@L["執行環境"]</span>
         <strong>@Model.InstanceName</strong>
-        <p>@Model.ActiveNodeCount online node(s) · @Model.EnvironmentName</p>
+        <p>@Model.ActiveNodeCount @L["個線上節點"] · @Model.EnvironmentName</p>
     </article>
 </section>
 
-<section class="ops-grid mt-4">
-    <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">Latest state</span>
-                <h2 class="panel-title">RAG pipeline</h2>
-            </div>
+<section class="panel">
+    <div class="panel-header">
+        <div class="panel-title-group">
+            <span class="section-kicker">@L["最新狀態"]</span>
+            <h2 class="panel-title">@L["RAG 流程現況"]</h2>
         </div>
+        <a class="btn btn-sm btn-outline-secondary" asp-page="/Operations/Index">@L["前往營運"]</a>
+    </div>
 
-        <div class="detail-stack">
-            <div class="detail-row">
-                <strong>Sample connector sync</strong>
-                <p class="muted-line">@Model.LatestAdvisorySyncText</p>
-            </div>
-            <div class="detail-row">
-                <strong>Index</strong>
-                <p class="muted-line">@Model.RagIndexText</p>
-            </div>
-            <div class="detail-row">
-                <strong>Last Telegram delivery</strong>
-                <p class="muted-line">@Model.LatestReplyText</p>
-            </div>
+    <div class="detail-stack">
+        <div class="detail-row">
+            <strong>@L["範例連接器同步"]</strong>
+            <p class="muted-line">@Model.LatestAdvisorySyncText</p>
         </div>
-    </article>
-
-    <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">Operations</span>
-                <h2 class="panel-title">Command reference</h2>
-            </div>
+        <div class="detail-row">
+            <strong>@L["索引"]</strong>
+            <p class="muted-line">@Model.RagIndexText</p>
         </div>
-
-        <ul class="panel-list">
-            <li><code>最近有什麼新資訊？</code> 查詢最新 sample connector 或上傳文件內容</li>
-            <li><code>幫我整理 [主題] 的重點</code> 摘要任一領域文件</li>
-            <li><code>這份 SOP 的處理步驟是什麼？</code> 操作指引查詢</li>
-            <li><code>docker compose up -d</code> 啟動站台、PostgreSQL 與背景 worker</li>
-        </ul>
-    </article>
+        <div class="detail-row">
+            <strong>@L["最近一次 Telegram 推送"]</strong>
+            <p class="muted-line">@Model.LatestReplyText</p>
+        </div>
+    </div>
 </section>

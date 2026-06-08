@@ -1,13 +1,13 @@
 @page
 @model SecurityAdvisoryBot.Pages.Settings.IndexModel
 @{
-    ViewData["Title"] = "Settings";
+    ViewData["Title"] = L["設定"].Value;
 }
 
 <section class="page-header compact-header">
     <div>
-        <p class="eyebrow">Application configuration</p>
-        <h1>Settings</h1>
+        <p class="eyebrow">@L["應用設定"]</p>
+        <h1>@L["設定"]</h1>
     </div>
 </section>
 
@@ -18,39 +18,26 @@
 
 <section class="panel settings-panel settings-workbench">
     <div class="settings-rail">
-        <span class="section-kicker">Runtime settings</span>
-        <h2 class="panel-title">Configuration state</h2>
+        <span class="section-kicker">@L["執行設定"]</span>
+        <h2 class="panel-title">@L["設定狀態"]</h2>
 
         <div class="settings-status-card">
-            <span class="metric-label">AI connection</span>
+            <span class="metric-label">@L["AI 連線"]</span>
             <strong>@Model.AiStatusLabel</strong>
             <p>@Model.AiStatusDetail</p>
         </div>
 
         <div class="settings-status-card">
-            <span class="metric-label">Vector store</span>
+            <span class="metric-label">@L["向量資料庫"]</span>
             <strong>@Model.VectorStoreStatusLabel</strong>
         </div>
 
-        <div class="settings-health-list">
-            @foreach (var item in Model.AiHealthItems)
-            {
-                <div class="settings-health-item @item.StatusClass">
-                    <span></span>
-                    <div>
-                        <strong>@item.Label</strong>
-                        <p>@item.Detail</p>
-                    </div>
-                </div>
-            }
-        </div>
-
         <nav class="settings-anchor-nav" aria-label="Settings sections">
-            <a href="#settings-agent">Agent</a>
-            <a href="#settings-ai">AI Provider</a>
+            <a href="#settings-agent">@L["Agent"]</a>
+            <a href="#settings-ai">@L["AI 供應商"]</a>
             <a href="#settings-rag">RAG</a>
             <a href="#settings-telegram">Telegram</a>
-            <a href="#settings-jobs">Jobs</a>
+            <a href="#settings-jobs">@L["背景工作"]</a>
         </nav>
     </div>
 
@@ -61,56 +48,52 @@
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">Agent</span>
-                    <h3>Agent identity and prompts</h3>
+                    <h3>@L["Agent 識別與提示詞"]</h3>
                 </div>
             </div>
             <div class="settings-control-grid">
                 <label class="field-block">
-                    <span>Agent name</span>
+                    <span>@L["Agent 名稱"]</span>
                     <input asp-for="Input.AgentName" class="form-control" placeholder="AI Assistant" />
-                    <small>Displayed in the sidebar, topbar, and footer.</small>
                 </label>
                 <label class="field-block">
-                    <span>Agent tagline</span>
+                    <span>@L["Agent 標語"]</span>
                     <input asp-for="Input.AgentTagline" class="form-control" placeholder="@Model.DefaultAgentOptions.AgentTagline" />
-                    <small>Short description shown beside the agent name.</small>
                 </label>
                 <label class="field-block field-span-2">
-                    <span>Chat placeholder</span>
+                    <span>@L["對話輸入提示"]</span>
                     <input asp-for="Input.ChatPlaceholder" class="form-control" placeholder="@Model.DefaultAgentOptions.ChatPlaceholder" />
-                    <small>Hint text shown in the chat input when empty.</small>
                 </label>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
-                        <span>Query planner prompt</span>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_PlannerSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.PlannerSystemPrompt)))">Reset to default</button>
+                        <span>@L["查詢規劃提示詞"]</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_PlannerSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.PlannerSystemPrompt)))">@L["還原預設"]</button>
                     </div>
-                    <textarea asp-for="Input.PlannerSystemPrompt" class="form-control" rows="8" placeholder="@Model.DefaultAgentOptions.PlannerSystemPrompt"></textarea>
-                    <small>System prompt sent to the AI planner that decides what to retrieve. Swap this when changing domains.</small>
+                    <textarea asp-for="Input.PlannerSystemPrompt" class="form-control" rows="6" placeholder="@Model.DefaultAgentOptions.PlannerSystemPrompt"></textarea>
+                    <small>@L["決定要檢索什麼的系統提示詞；換領域時一併調整。"]</small>
                 </div>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
-                        <span>RAG system prompt</span>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_RagSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.RagSystemPrompt)))">Reset to default</button>
+                        <span>@L["RAG 系統提示詞"]</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_RagSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.RagSystemPrompt)))">@L["還原預設"]</button>
                     </div>
-                    <textarea asp-for="Input.RagSystemPrompt" class="form-control" rows="10" placeholder="@Model.DefaultAgentOptions.RagSystemPrompt"></textarea>
-                    <small>Used when the knowledge base returns relevant results. Leave blank to use the built-in default.</small>
+                    <textarea asp-for="Input.RagSystemPrompt" class="form-control" rows="8" placeholder="@Model.DefaultAgentOptions.RagSystemPrompt"></textarea>
+                    <small>@L["知識庫有命中時使用；留空則用內建預設。"]</small>
                 </div>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
-                        <span>General system prompt</span>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_GeneralSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.GeneralSystemPrompt)))">Reset to default</button>
+                        <span>@L["一般系統提示詞"]</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_GeneralSystemPrompt', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.GeneralSystemPrompt)))">@L["還原預設"]</button>
                     </div>
-                    <textarea asp-for="Input.GeneralSystemPrompt" class="form-control" rows="6" placeholder="@Model.DefaultAgentOptions.GeneralSystemPrompt"></textarea>
-                    <small>Used for greetings and queries with no matching knowledge base results.</small>
+                    <textarea asp-for="Input.GeneralSystemPrompt" class="form-control" rows="5" placeholder="@Model.DefaultAgentOptions.GeneralSystemPrompt"></textarea>
+                    <small>@L["用於問候語與沒有命中知識庫的查詢。"]</small>
                 </div>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
-                        <span>Unavailable reply</span>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_UnavailableReply', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.UnavailableReply)))">Reset to default</button>
+                        <span>@L["無法回答時的回覆"]</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('Input_UnavailableReply', @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DefaultAgentOptions.UnavailableReply)))">@L["還原預設"]</button>
                     </div>
-                    <textarea asp-for="Input.UnavailableReply" class="form-control" rows="6" placeholder="@Model.DefaultAgentOptions.UnavailableReply"></textarea>
-                    <small>Shown when AI generation is disabled and there are no knowledge base results.</small>
+                    <textarea asp-for="Input.UnavailableReply" class="form-control" rows="4" placeholder="@Model.DefaultAgentOptions.UnavailableReply"></textarea>
                 </div>
             </div>
         </section>
@@ -118,32 +101,28 @@
         <section class="settings-card is-primary" id="settings-ai">
             <div class="settings-card-header">
                 <div>
-                    <span class="section-kicker">AI Provider</span>
-                    <h3>Model and retrieval runtime</h3>
+                    <span class="section-kicker">@L["AI 供應商"]</span>
+                    <h3>@L["模型與檢索執行"]</h3>
                 </div>
                 <span class="status-pill @Model.AiStatusClass">@Model.AiStatusLabel</span>
             </div>
 
             <div class="settings-control-grid">
                 <label class="field-block field-span-2">
-                    <span>Provider</span>
+                    <span>@L["供應商"]</span>
                     <select asp-for="Input.AiProvider" class="form-select">
-                        <option value="Local">Local fallback</option>
+                        <option value="Local">@L["本機備援"]</option>
                         <option value="OpenAI">OpenAI</option>
                         <option value="Ollama">Ollama</option>
                     </select>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.EnableChatGeneration" class="form-check-input" />
-                    <span>
-                        <strong>Chat generation</strong>
-                    </span>
+                    <span><strong>@L["回答生成"]</strong></span>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.UseLocalFallback" class="form-check-input" />
-                    <span>
-                        <strong>Local fallback</strong>
-                    </span>
+                    <span><strong>@L["本機備援"]</strong></span>
                 </label>
             </div>
 
@@ -152,12 +131,12 @@
                     <div class="provider-box-header">
                         <strong>OpenAI</strong>
                         <span class="status-pill @(Model.HasOpenAiApiKey ? "is-success" : "is-neutral")">
-                            @(Model.HasOpenAiApiKey ? "Key saved" : "No key")
+                            @(Model.HasOpenAiApiKey ? L["已儲存金鑰"] : L["未設金鑰"])
                         </span>
                     </div>
                     <div class="settings-control-grid">
                         <label class="field-block field-span-2">
-                            <span>API key</span>
+                            <span>@L["API 金鑰"]</span>
                             <input asp-for="Input.OpenAiApiKey" class="form-control" type="password" autocomplete="off" />
                         </label>
                         <label class="field-block field-span-2">
@@ -166,11 +145,11 @@
                             <span asp-validation-for="Input.OpenAiApiBaseUrl" class="text-danger"></span>
                         </label>
                         <label class="field-block">
-                            <span>Chat model</span>
+                            <span>@L["對話模型"]</span>
                             <input asp-for="Input.OpenAiChatModel" class="form-control" />
                         </label>
                         <label class="field-block">
-                            <span>Embedding model</span>
+                            <span>@L["向量模型"]</span>
                             <input asp-for="Input.OpenAiEmbeddingModel" class="form-control" />
                         </label>
                     </div>
@@ -179,7 +158,7 @@
                 <div class="provider-box">
                     <div class="provider-box-header">
                         <strong>Ollama</strong>
-                        <span class="status-pill is-neutral">Local endpoint</span>
+                        <span class="status-pill is-neutral">@L["本機端點"]</span>
                     </div>
                     <div class="settings-control-grid">
                         <label class="field-block field-span-2">
@@ -188,11 +167,11 @@
                             <span asp-validation-for="Input.OllamaApiBaseUrl" class="text-danger"></span>
                         </label>
                         <label class="field-block">
-                            <span>Chat model</span>
+                            <span>@L["對話模型"]</span>
                             <input asp-for="Input.OllamaChatModel" class="form-control" />
                         </label>
                         <label class="field-block">
-                            <span>Embedding model</span>
+                            <span>@L["向量模型"]</span>
                             <input asp-for="Input.OllamaEmbeddingModel" class="form-control" />
                         </label>
                     </div>
@@ -204,43 +183,37 @@
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">RAG</span>
-                    <h3>Retrieval and observability</h3>
+                    <h3>@L["檢索與可觀測性"]</h3>
                 </div>
                 <span class="status-pill @Model.VectorStoreStatusClass">@Model.VectorStoreStatusLabel</span>
             </div>
 
             <div class="settings-control-grid">
                 <label class="field-block">
-                    <span>Vector store</span>
+                    <span>@L["向量資料庫"]</span>
                     <select asp-for="Input.VectorStoreProvider" class="form-select">
                         <option value="EfJson">EF JSON</option>
                         <option value="PgVector">PgVector</option>
                     </select>
                 </label>
                 <label class="field-block">
-                    <span>Candidate limit</span>
+                    <span>@L["候選上限"]</span>
                     <input asp-for="Input.VectorStoreCandidateLimit" class="form-control" type="number" min="50" max="10000" />
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.VectorStoreUseJsonFallback" class="form-check-input" />
-                    <span>
-                        <strong>JSON fallback</strong>
-                    </span>
+                    <span><strong>JSON @L["備援"]</strong></span>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.EnableOpenTelemetry" class="form-check-input" />
-                    <span>
-                        <strong>OpenTelemetry</strong>
-                    </span>
+                    <span><strong>OpenTelemetry</strong></span>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.EnableOpenTelemetryConsoleExporter" class="form-check-input" />
-                    <span>
-                        <strong>Console exporter</strong>
-                    </span>
+                    <span><strong>Console exporter</strong></span>
                 </label>
                 <label class="field-block">
-                    <span>Service name</span>
+                    <span>@L["服務名稱"]</span>
                     <input asp-for="Input.OpenTelemetryServiceName" class="form-control" />
                 </label>
             </div>
@@ -250,22 +223,20 @@
             <div class="settings-card-header">
                 <div>
                     <span class="section-kicker">Telegram</span>
-                    <h3>Bot ingress and API access</h3>
+                    <h3>@L["Bot 接入與 API"]</h3>
                 </div>
                 <span class="status-pill @(Model.BotEnabled && Model.HasTelegramBotToken ? "is-success" : "is-warning")">
-                    @(Model.BotEnabled && Model.HasTelegramBotToken ? "Configured" : "Needs config")
+                    @(Model.BotEnabled && Model.HasTelegramBotToken ? L["已設定"] : L["待設定"])
                 </span>
             </div>
 
             <div class="settings-control-grid">
                 <label class="field-switch field-span-2">
                     <input asp-for="Input.TelegramEnabled" class="form-check-input" />
-                    <span>
-                        <strong>Enable Telegram bot</strong>
-                    </span>
+                    <span><strong>@L["啟用 Telegram bot"]</strong></span>
                 </label>
                 <label class="field-block">
-                    <span>Bot token @(Model.HasTelegramBotToken ? "(saved)" : "(not set)")</span>
+                    <span>@L["Bot token"] @(Model.HasTelegramBotToken ? L["（已儲存）"] : L["（未設定）"])</span>
                     <input asp-for="Input.TelegramBotToken" class="form-control" type="password" autocomplete="off" />
                 </label>
                 <label class="field-block">
@@ -275,9 +246,7 @@
                 </label>
                 <label class="field-switch field-span-2">
                     <input asp-for="Input.UseWebhookMode" class="form-check-input" />
-                    <span>
-                        <strong>Webhook mode</strong>
-                    </span>
+                    <span><strong>Webhook @L["模式"]</strong></span>
                 </label>
                 <label class="field-block">
                     <span>Webhook URL</span>
@@ -292,7 +261,7 @@
                     <input asp-for="Input.WebhookSecretToken" class="form-control" type="password" autocomplete="off" />
                 </label>
                 <label class="field-block">
-                    <span>Polling delay seconds</span>
+                    <span>@L["輪詢間隔（秒）"]</span>
                     <input asp-for="Input.PollingDelaySeconds" class="form-control" type="number" min="1" />
                 </label>
             </div>
@@ -301,41 +270,37 @@
         <section class="settings-card" id="settings-jobs">
             <div class="settings-card-header">
                 <div>
-                    <span class="section-kicker">Jobs</span>
-                    <h3>Sync and notification cadence</h3>
+                    <span class="section-kicker">@L["背景工作"]</span>
+                    <h3>@L["同步與通知頻率"]</h3>
                 </div>
             </div>
 
             <div class="settings-control-grid">
                 <label class="field-block">
-                    <span>Auto sync interval minutes</span>
+                    <span>@L["自動同步間隔（分）"]</span>
                     <input asp-for="Input.AutoSyncIntervalMinutes" class="form-control" type="number" min="5" />
                 </label>
                 <label class="field-block">
-                    <span>Push worker interval seconds</span>
+                    <span>@L["推送工作間隔（秒）"]</span>
                     <input asp-for="Input.PushWorkerIntervalSeconds" class="form-control" type="number" min="30" />
                 </label>
                 <label class="field-block">
-                    <span>Sample record lookback hours</span>
+                    <span>@L["範例資料回溯（時）"]</span>
                     <input asp-for="Input.AdvisoryLookbackHours" class="form-control" type="number" min="1" />
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.PushEnabled" class="form-check-input" />
-                    <span>
-                        <strong>Push worker behavior</strong>
-                    </span>
+                    <span><strong>@L["啟用推送工作"]</strong></span>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.SecurityAdvisoryPushEnabled" class="form-check-input" />
-                    <span>
-                        <strong>Sample record push</strong>
-                    </span>
+                    <span><strong>@L["範例資料推送"]</strong></span>
                 </label>
             </div>
         </section>
 
         <div class="settings-save-bar">
-            <button type="submit" class="btn btn-primary">Save settings</button>
+            <button type="submit" class="btn btn-primary">@L["儲存設定"]</button>
         </div>
     </form>
 </section>

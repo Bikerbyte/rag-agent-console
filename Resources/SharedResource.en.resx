@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AI 供應商" xml:space="preserve"><value>AI provider</value></data>
+  <data name="AI 已啟用" xml:space="preserve"><value>AI enabled</value></data>
+  <data name="AI 未連接" xml:space="preserve"><value>AI not connected</value></data>
+  <data name="AI 連線" xml:space="preserve"><value>AI connection</value></data>
+  <data name="API 金鑰" xml:space="preserve"><value>API key</value></data>
+  <data name="Agent" xml:space="preserve"><value>Agent</value></data>
+  <data name="Agent 名稱" xml:space="preserve"><value>Agent name</value></data>
+  <data name="Agent 執行" xml:space="preserve"><value>Agent runtime</value></data>
+  <data name="Agent 標語" xml:space="preserve"><value>Agent tagline</value></data>
+  <data name="Agent 識別與提示詞" xml:space="preserve"><value>Agent identity &amp; prompts</value></data>
+  <data name="Bot token" xml:space="preserve"><value>Bot token</value></data>
+  <data name="Bot 接入與 API" xml:space="preserve"><value>Bot ingress &amp; API</value></data>
+  <data name="OpenAI、Ollama 或本機備援" xml:space="preserve"><value>OpenAI, Ollama, or local fallback</value></data>
+  <data name="RAG 品質" xml:space="preserve"><value>RAG quality</value></data>
+  <data name="RAG 流程現況" xml:space="preserve"><value>RAG pipeline status</value></data>
+  <data name="RAG 系統提示詞" xml:space="preserve"><value>RAG system prompt</value></data>
+  <data name="一般系統提示詞" xml:space="preserve"><value>General system prompt</value></data>
+  <data name="上傳檔案" xml:space="preserve"><value>Upload file</value></data>
+  <data name="主題關鍵字" xml:space="preserve"><value>Topic keywords</value></data>
+  <data name="你" xml:space="preserve"><value>You</value></data>
+  <data name="使用 provider embedding；無 API key 時自動切換本機備援。" xml:space="preserve"><value>Uses provider embeddings; falls back to local when no API key is set.</value></data>
+  <data name="例如：遠端工作核准流程 或 最新 Cisco 風險" xml:space="preserve"><value>e.g. remote work approval flow, or latest Cisco risks</value></data>
+  <data name="供應商" xml:space="preserve"><value>Provider</value></data>
+  <data name="依結構化記錄或文件段落自動建立 chunk。" xml:space="preserve"><value>Chunks are built automatically from records or document sections.</value></data>
+  <data name="個線上節點" xml:space="preserve"><value>online node(s)</value></data>
+  <data name="個評估案例" xml:space="preserve"><value>evaluation case(s)</value></data>
+  <data name="候選上限" xml:space="preserve"><value>Candidate limit</value></data>
+  <data name="停用" xml:space="preserve"><value>Disabled</value></data>
+  <data name="備援" xml:space="preserve"><value>fallback</value></data>
+  <data name="僅顯示前段內容範例。" xml:space="preserve"><value>Showing a sample of the opening content only.</value></data>
+  <data name="儀表板" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="儲存" xml:space="preserve"><value>Save</value></data>
+  <data name="儲存設定" xml:space="preserve"><value>Save settings</value></data>
+  <data name="先確認知識庫命中的片段，再交給 Agent 產生回答。" xml:space="preserve"><value>Check which chunks the knowledge base returns before the Agent answers.</value></data>
+  <data name="內建 CISA KEV / NVD 作為範例領域，與上傳文件共用同一套 RAG 流程。" xml:space="preserve"><value>CISA KEV / NVD ship as the sample domain and share the same RAG pipeline as uploaded documents.</value></data>
+  <data name="內部文件" xml:space="preserve"><value>Internal Docs</value></data>
+  <data name="全部模組" xml:space="preserve"><value>All modules</value></data>
+  <data name="切塊方式" xml:space="preserve"><value>Chunking</value></data>
+  <data name="切塊與索引" xml:space="preserve"><value>Chunking &amp; indexing</value></data>
+  <data name="刪除" xml:space="preserve"><value>Delete</value></data>
+  <data name="前往營運" xml:space="preserve"><value>Go to Operations</value></data>
+  <data name="加入案例。" xml:space="preserve"><value>to add cases.</value></data>
+  <data name="匯入來源" xml:space="preserve"><value>Sources</value></data>
+  <data name="匯入檔案" xml:space="preserve"><value>Import file</value></data>
+  <data name="可換領域的 RAG Agent 平台：匯入文件、混合檢索、產生回答，並透過 Web 與 Telegram 對外服務。" xml:space="preserve"><value>A domain-swappable RAG agent platform: import documents, hybrid retrieval, answer generation, served over Web and Telegram.</value></data>
+  <data name="同步" xml:space="preserve"><value>Sync</value></data>
+  <data name="同步內建範例連接器，或上傳你自己的文件。" xml:space="preserve"><value>Sync the built-in sample connector, or upload your own documents.</value></data>
+  <data name="同步內建範例，或上傳檔案建立你自己的知識庫。" xml:space="preserve"><value>Sync the built-in sample, or upload files to build your own knowledge base.</value></data>
+  <data name="同步與通知頻率" xml:space="preserve"><value>Sync &amp; notification cadence</value></data>
+  <data name="向量" xml:space="preserve"><value>Vector</value></data>
+  <data name="向量模型" xml:space="preserve"><value>Embedding model</value></data>
+  <data name="向量資料庫" xml:space="preserve"><value>Vector store</value></data>
+  <data name="問題" xml:space="preserve"><value>Question</value></data>
+  <data name="啟用" xml:space="preserve"><value>Enabled</value></data>
+  <data name="啟用 Telegram bot" xml:space="preserve"><value>Enable Telegram bot</value></data>
+  <data name="啟用主題推送" xml:space="preserve"><value>Enable topic push</value></data>
+  <data name="啟用推送工作" xml:space="preserve"><value>Enable push worker</value></data>
+  <data name="回答生成" xml:space="preserve"><value>Answer generation</value></data>
+  <data name="在下方輸入問題，或選一個範例：" xml:space="preserve"><value>Type a question below, or pick a starter:</value></data>
+  <data name="執行檢索" xml:space="preserve"><value>Run retrieval</value></data>
+  <data name="執行環境" xml:space="preserve"><value>Environment</value></data>
+  <data name="執行與通知" xml:space="preserve"><value>Runtime &amp; notifications</value></data>
+  <data name="執行設定" xml:space="preserve"><value>Runtime settings</value></data>
+  <data name="執行評估" xml:space="preserve"><value>Run evaluation</value></data>
+  <data name="執行階段" xml:space="preserve"><value>Runtime</value></data>
+  <data name="套用" xml:space="preserve"><value>Apply</value></data>
+  <data name="字" xml:space="preserve"><value>chars</value></data>
+  <data name="完成於" xml:space="preserve"><value>Finished at</value></data>
+  <data name="對話" xml:space="preserve"><value>Chat</value></data>
+  <data name="對話名稱" xml:space="preserve"><value>Chat title</value></data>
+  <data name="對話模型" xml:space="preserve"><value>Chat model</value></data>
+  <data name="對話輸入提示" xml:space="preserve"><value>Chat placeholder</value></data>
+  <data name="尚未有任何文件。" xml:space="preserve"><value>No documents yet.</value></data>
+  <data name="尚未連接 AI 供應商，目前以本機備援回覆。" xml:space="preserve"><value>No AI provider connected; replying with the local fallback.</value></data>
+  <data name="尚未連接回答生成" xml:space="preserve"><value>Answer generation not connected</value></data>
+  <data name="尚無推送對象。" xml:space="preserve"><value>No push targets yet.</value></data>
+  <data name="尚無節點心跳。" xml:space="preserve"><value>No node heartbeats yet.</value></data>
+  <data name="尚無紀錄。" xml:space="preserve"><value>No logs yet.</value></data>
+  <data name="就緒" xml:space="preserve"><value>Ready</value></data>
+  <data name="已儲存金鑰" xml:space="preserve"><value>Key saved</value></data>
+  <data name="已啟用回答生成" xml:space="preserve"><value>Answer generation enabled</value></data>
+  <data name="已設定" xml:space="preserve"><value>Configured</value></data>
+  <data name="幫我摘要新人政策範例。" xml:space="preserve"><value>Summarise the onboarding policy sample.</value></data>
+  <data name="廠商" xml:space="preserve"><value>Vendor</value></data>
+  <data name="待設定" xml:space="preserve"><value>Needs config</value></data>
+  <data name="從 CISA KEV / NVD 正規化公開資料，建立 CVE Advisory 範例模組。" xml:space="preserve"><value>Normalises public CISA KEV / NVD data into a CVE Advisory sample module.</value></data>
+  <data name="從左側選擇一份文件以檢視內容範例。" xml:space="preserve"><value>Select a document on the left to preview its content.</value></data>
+  <data name="意圖" xml:space="preserve"><value>Intent</value></data>
+  <data name="應用設定" xml:space="preserve"><value>Application settings</value></data>
+  <data name="成功" xml:space="preserve"><value>success</value></data>
+  <data name="推送對象" xml:space="preserve"><value>Push targets</value></data>
+  <data name="推送工作間隔（秒）" xml:space="preserve"><value>Push worker interval (sec)</value></data>
+  <data name="推送與同步紀錄" xml:space="preserve"><value>Push &amp; sync logs</value></data>
+  <data name="搜尋範例資料 / 廠商 / 產品" xml:space="preserve"><value>Search sample data / vendor / product</value></data>
+  <data name="支援 Markdown、TXT、HTML、CSV、DOCX，上限 15 MB。" xml:space="preserve"><value>Markdown, TXT, HTML, CSV, DOCX. Up to 15 MB.</value></data>
+  <data name="支援 Markdown、TXT、HTML、CSV、DOCX，以開源套件解析。" xml:space="preserve"><value>Markdown, TXT, HTML, CSV, DOCX, parsed with open-source libraries.</value></data>
+  <data name="政策問答" xml:space="preserve"><value>Policy QA</value></data>
+  <data name="文件" xml:space="preserve"><value>Documents</value></data>
+  <data name="文件預覽" xml:space="preserve"><value>Document preview</value></data>
+  <data name="新人政策、SOP、產品 FAQ" xml:space="preserve"><value>Onboarding policy, SOP, product FAQ</value></data>
+  <data name="新人政策摘要" xml:space="preserve"><value>Onboarding summary</value></data>
+  <data name="新增" xml:space="preserve"><value>New</value></data>
+  <data name="新增文件" xml:space="preserve"><value>Add document</value></data>
+  <data name="新增訂閱" xml:space="preserve"><value>Add subscription</value></data>
+  <data name="最低嚴重度" xml:space="preserve"><value>Min severity</value></data>
+  <data name="最佳結果" xml:space="preserve"><value>Top result</value></data>
+  <data name="最新狀態" xml:space="preserve"><value>Latest state</value></data>
+  <data name="最近一次 Telegram 推送" xml:space="preserve"><value>Last Telegram delivery</value></data>
+  <data name="最近有哪些高風險的範例資料？" xml:space="preserve"><value>What are the latest high-risk sample records?</value></data>
+  <data name="服務名稱" xml:space="preserve"><value>Service name</value></data>
+  <data name="未標示" xml:space="preserve"><value>Unmarked</value></data>
+  <data name="未設金鑰" xml:space="preserve"><value>No key</value></data>
+  <data name="本機備援" xml:space="preserve"><value>Local fallback</value></data>
+  <data name="本機端點" xml:space="preserve"><value>Local endpoint</value></data>
+  <data name="查詢" xml:space="preserve"><value>Query</value></data>
+  <data name="查詢規劃提示詞" xml:space="preserve"><value>Query planner prompt</value></data>
+  <data name="標籤" xml:space="preserve"><value>Tags</value></data>
+  <data name="標題" xml:space="preserve"><value>Title</value></data>
+  <data name="模型與檢索執行" xml:space="preserve"><value>Model &amp; retrieval runtime</value></data>
+  <data name="模式" xml:space="preserve"><value>Mode</value></data>
+  <data name="模組" xml:space="preserve"><value>Module</value></data>
+  <data name="檔案會自動抽取、切塊、建立向量，並存成可檢索的文件。" xml:space="preserve"><value>Files are extracted, chunked, embedded, and stored as searchable documents.</value></data>
+  <data name="檢索測試" xml:space="preserve"><value>Retrieval test</value></data>
+  <data name="檢索片段" xml:space="preserve"><value>Chunks</value></data>
+  <data name="檢索策略" xml:space="preserve"><value>Retrieval strategy</value></data>
+  <data name="檢索與可觀測性" xml:space="preserve"><value>Retrieval &amp; observability</value></data>
+  <data name="檢索評估" xml:space="preserve"><value>Retrieval evaluation</value></data>
+  <data name="檢索軌跡" xml:space="preserve"><value>Retrieval trace</value></data>
+  <data name="檢視 chunk、embedding 與檢索策略。" xml:space="preserve"><value>Review chunk, embedding, and retrieval strategy.</value></data>
+  <data name="每個案例要求預期的 CVE / 文件至少出現在前 5 筆結果中。" xml:space="preserve"><value>Each case requires an expected CVE / document to appear in the top 5 results.</value></data>
+  <data name="決定要檢索什麼的系統提示詞；換領域時一併調整。" xml:space="preserve"><value>System prompt that decides what to retrieve; adjust it when changing domains.</value></data>
+  <data name="沒有評估案例。請在" xml:space="preserve"><value>No evaluation cases. Edit</value></data>
+  <data name="流程問答" xml:space="preserve"><value>Workflow QA</value></data>
+  <data name="混合" xml:space="preserve"><value>Hybrid</value></data>
+  <data name="清除對話" xml:space="preserve"><value>Clear conversation</value></data>
+  <data name="無法回答時的回覆" xml:space="preserve"><value>Reply when unavailable</value></data>
+  <data name="營運" xml:space="preserve"><value>Operations</value></data>
+  <data name="片段" xml:space="preserve"><value>chunks</value></data>
+  <data name="產品" xml:space="preserve"><value>Product</value></data>
+  <data name="用 golden set 對每種檢索策略計算 Hit@1、Hit@5 與 MRR。" xml:space="preserve"><value>Run the golden set against each retrieval strategy to compute Hit@1, Hit@5, and MRR.</value></data>
+  <data name="用於問候語與沒有命中知識庫的查詢。" xml:space="preserve"><value>Used for greetings and queries with no knowledge base hits.</value></data>
+  <data name="目前沒有命中的片段。可以先同步範例資料、上傳文件，或改用更明確的關鍵字。" xml:space="preserve"><value>No chunks matched. Try syncing sample data, uploading documents, or using more specific keywords.</value></data>
+  <data name="目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。" xml:space="preserve"><value>No sample data matches. Sync data or adjust your filters.</value></data>
+  <data name="知識庫" xml:space="preserve"><value>Knowledge Base</value></data>
+  <data name="知識庫對遠端工作核准有哪些資訊？" xml:space="preserve"><value>What does the knowledge base say about remote work approvals?</value></data>
+  <data name="知識庫有命中時使用；留空則用內建預設。" xml:space="preserve"><value>Used when the knowledge base has hits; leave blank for the built-in default.</value></data>
+  <data name="筆待處理更新" xml:space="preserve"><value>pending update(s)</value></data>
+  <data name="管理上傳的文件與範例連接器資料。" xml:space="preserve"><value>Manage uploaded documents and sample connector data.</value></data>
+  <data name="節點" xml:space="preserve"><value>Node</value></data>
+  <data name="範例資料" xml:space="preserve"><value>Sample data</value></data>
+  <data name="範例資料回溯（時）" xml:space="preserve"><value>Sample data lookback (hrs)</value></data>
+  <data name="範例資料推送" xml:space="preserve"><value>Sample data push</value></data>
+  <data name="範例資料與上傳文件都會自動切塊並建立向量索引。" xml:space="preserve"><value>Sample data and uploaded documents are chunked and indexed automatically.</value></data>
+  <data name="範例連接器同步" xml:space="preserve"><value>Sample connector sync</value></data>
+  <data name="範例連接器資料" xml:space="preserve"><value>Sample connector data</value></data>
+  <data name="索引" xml:space="preserve"><value>Index</value></data>
+  <data name="索引模式" xml:space="preserve"><value>Index mode</value></data>
+  <data name="索引設定" xml:space="preserve"><value>Index settings</value></data>
+  <data name="結合向量分數、BM25 關鍵字與模組過濾進行排序。" xml:space="preserve"><value>Ranks by combining vector score, BM25 keywords, and module filters.</value></data>
+  <data name="線上" xml:space="preserve"><value>Online</value></data>
+  <data name="編輯" xml:space="preserve"><value>Edit</value></data>
+  <data name="編輯訂閱" xml:space="preserve"><value>Edit subscription</value></data>
+  <data name="背景工作" xml:space="preserve"><value>Jobs</value></data>
+  <data name="自動" xml:space="preserve"><value>Automatic</value></data>
+  <data name="自動同步間隔（分）" xml:space="preserve"><value>Auto sync interval (min)</value></data>
+  <data name="訂閱清單" xml:space="preserve"><value>Subscriptions</value></data>
+  <data name="訊息" xml:space="preserve"><value>Message</value></data>
+  <data name="設定" xml:space="preserve"><value>Settings</value></data>
+  <data name="設定狀態" xml:space="preserve"><value>Configuration state</value></data>
+  <data name="資安範例連接器" xml:space="preserve"><value>Cybersecurity sample connector</value></data>
+  <data name="資料來源" xml:space="preserve"><value>Data sources</value></data>
+  <data name="輪詢間隔（秒）" xml:space="preserve"><value>Polling delay (sec)</value></data>
+  <data name="輸入自然語言查詢，檢視會被當作 Agent context 的片段。" xml:space="preserve"><value>Enter a natural-language query and inspect the chunks used as Agent context.</value></data>
+  <data name="近期活動" xml:space="preserve"><value>Recent activity</value></data>
+  <data name="送出" xml:space="preserve"><value>Send</value></data>
+  <data name="逐案明細" xml:space="preserve"><value>Per-case detail</value></data>
+  <data name="選擇檔案" xml:space="preserve"><value>Choose file</value></data>
+  <data name="還原預設" xml:space="preserve"><value>Reset to default</value></data>
+  <data name="重新索引" xml:space="preserve"><value>Re-index</value></data>
+  <data name="開" xml:space="preserve"><value>On</value></data>
+  <data name="開啟對話" xml:space="preserve"><value>Open chat</value></data>
+  <data name="開啟知識庫" xml:space="preserve"><value>Open knowledge base</value></data>
+  <data name="開始對話" xml:space="preserve"><value>Start a conversation</value></data>
+  <data name="關" xml:space="preserve"><value>Off</value></data>
+  <data name="關鍵字" xml:space="preserve"><value>Keyword</value></data>
+  <data name="預期" xml:space="preserve"><value>Expected</value></data>
+  <data name="預設高訊號資料" xml:space="preserve"><value>default high-signal records</value></data>
+  <data name="首個命中名次" xml:space="preserve"><value>First hit rank</value></data>
+  <data name="高危" xml:space="preserve"><value>Critical</value></data>
+  <data name="高風險" xml:space="preserve"><value>high-risk</value></data>
+  <data name="點選任一文件即可在右側檢視內容範例。" xml:space="preserve"><value>Click any document to preview its content on the right.</value></data>
+  <data name="（已儲存）" xml:space="preserve"><value> (saved)</value></data>
+  <data name="（未設定）" xml:space="preserve"><value> (not set)</value></data>
+</root>
