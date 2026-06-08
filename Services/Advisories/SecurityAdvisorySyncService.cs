@@ -36,7 +36,7 @@ public class SecurityAdvisorySyncService(
                 }
                 catch (Exception exception)
                 {
-                    logger.LogWarning(exception, "Security advisory source {SourceName} failed during sync.", source.SourceName);
+                    logger.LogWarning(exception, "Sample connector source {SourceName} failed during sync.", source.SourceName);
                     continue;
                 }
 

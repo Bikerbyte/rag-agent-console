@@ -26,7 +26,7 @@ public class SecurityAdvisoryAgentService(
         }
 
         logger.LogInformation(
-            "Building security advisory agent reply. ChatId={ChatId}, HasHistory={HasHistory}",
+            "Building RAG agent reply. ChatId={ChatId}, HasHistory={HasHistory}",
             chatId,
             history is { Count: > 0 });
 

@@ -340,7 +340,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
     }
 
     app.Logger.LogInformation("============================================================");
-    app.Logger.LogInformation("Security Advisory Bot started");
+    app.Logger.LogInformation("RAG Agent Console started");
     app.Logger.LogInformation("Instance: {InstanceName}", appRuntimeOptions.InstanceName);
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);

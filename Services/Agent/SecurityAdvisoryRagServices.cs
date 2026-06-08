@@ -171,7 +171,7 @@ public class SecurityAdvisoryAnswerService(
         if (ContainsVersionLike(question))
         {
             builder.AppendLine();
-            builder.AppendLine("你有提到特定版本；目前資料庫主要包含 CVE、廠商、產品與風險狀態，沒有完整版本受影響範圍，因此以下只能確認相關產品已知弱點，不能直接判定該版本一定受影響。");
+            builder.AppendLine("你有提到特定版本或年份；目前命中的 context 不一定包含完整版本/日期範圍，因此以下只能根據已索引內容回答，不能直接判定未出現在 context 中的精確條件。");
         }
 
         foreach (var result in results)
@@ -180,7 +180,7 @@ public class SecurityAdvisoryAnswerService(
             if (result.Advisory is { } advisory)
             {
                 builder.AppendLine($"- {BuildTitle(advisory)}");
-                builder.AppendLine($"  風險: {BuildRiskText(advisory)}");
+                builder.AppendLine($"  狀態: {BuildRiskText(advisory)}");
 
                 var summary = advisory.AiSummary ?? advisory.Description;
                 builder.AppendLine($"  摘要: {Trim(summary, 220)}");
@@ -398,6 +398,6 @@ public class SecurityAdvisoryAnswerService(
     private static readonly HashSet<string> CommonContextWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "the", "and", "or", "for", "with", "about", "what", "how", "is", "are", "has", "have",
-        "漏洞", "弱點", "版本", "風險", "有", "嗎", "哪些", "最近"
+        "漏洞", "弱點", "版本", "風險", "資訊", "文件", "流程", "有", "嗎", "哪些", "最近"
     };
 }

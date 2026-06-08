@@ -14,8 +14,8 @@ public class IndexModel(
     IOptions<AiProviderOptions> aiProviderOptions,
     IAppSettingsService appSettingsService) : PageModel
 {
-    public string AgentName { get; private set; } = "AI Assistant";
-    public string AgentTagline { get; private set; } = "Knowledge-grounded AI agent";
+    public string AgentName { get; private set; } = "RAG Agent Console";
+    public string AgentTagline { get; private set; } = "Domain-adaptable knowledge agent";
     public int AdvisoryCount { get; private set; }
     public int KnownExploitedCount { get; private set; }
     public int RagChunkCount { get; private set; }
@@ -27,7 +27,7 @@ public class IndexModel(
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
     public string AiProviderText { get; private set; } = string.Empty;
-    public string LatestAdvisorySyncText { get; private set; } = "No security advisory sync log yet.";
+    public string LatestAdvisorySyncText { get; private set; } = "No sample connector sync log yet.";
     public string RagIndexText { get; private set; } = "No RAG chunks indexed yet.";
     public string LatestReplyText { get; private set; } = "No Telegram delivery log yet.";
 

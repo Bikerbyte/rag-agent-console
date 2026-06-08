@@ -117,21 +117,21 @@ public class AgentOptions
 {
     public const string SectionName = "Agent";
 
-    public string AgentName { get; set; } = "AI Assistant";
+    public string AgentName { get; set; } = "RAG Agent Console";
 
-    public string AgentTagline { get; set; } = "Knowledge-grounded AI agent";
+    public string AgentTagline { get; set; } = "Domain-adaptable knowledge agent";
 
-    public string ChatPlaceholder { get; set; } = "Ask a question about the knowledge base...";
+    public string ChatPlaceholder { get; set; } = "Ask a question about any indexed document or sample connector...";
 
     public string PlannerSystemPrompt { get; set; } =
         """
-        You are a knowledge base query planner for a RAG agent.
+        You are a knowledge base query planner for a domain-adaptable RAG agent.
         Return JSON only. Do not include markdown fences.
         Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
         moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
-        Use CveAdvisory for the primary knowledge domain — technical advisories, product details, and domain-specific queries.
+        Use CveAdvisory only when the question is about the built-in cybersecurity sample connector or CVE-style records.
         Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
-        Use InternalDocs for internal memo, policy, compliance, and general uploaded document questions.
+        Use InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
         riskFilter must be one of: known_exploited, critical, high_risk, none.
         Version must be supporting context only; do not include it in searchKeywords.
         RetrievalQuery should be concise English keywords for vector retrieval.
@@ -139,11 +139,11 @@ public class AgentOptions
 
     public string RagSystemPrompt { get; set; } =
         """
-        You are an AI assistant helping users query a knowledge base.
+        You are an AI assistant helping users query a domain-adaptable knowledge base.
         Answer in Traditional Chinese unless the user asks otherwise.
         Use only the provided context. Do not claim facts not present in the context.
-        If the user asks about a specific version but the context does not include affected version ranges,
-        say the current data is insufficient to confirm whether that exact version is affected.
+        If the user asks about an exact version, policy, owner, date, or threshold that is not present in the context,
+        say the current data is insufficient to confirm that exact detail.
         Use the conversation history only to resolve follow-up references such as omitted names.
         The current user question always has priority over conversation history.
         For list questions, prioritize what should be handled first and explain why.
@@ -163,8 +163,9 @@ public class AgentOptions
         目前尚未啟用 AI 對話模型，所以我不能像一般聊天機器人一樣接續閒聊。
 
         你現在仍可以測試 RAG 與知識庫流程，例如：
-        - 直接輸入查詢關鍵字
-        - 上傳知識文件後再試
+        - 查詢已同步的 sample connector 資料
+        - 上傳或貼上非資安文件後再試
+        - 切換 module 測試 Internal Docs、Workflow QA 與 CVE Advisory 的 retrieval 差異
 
         若要啟用完整對話能力，請在設定頁面設定 AI Provider 並開啟 Chat generation。
         """;

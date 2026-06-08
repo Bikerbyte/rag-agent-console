@@ -21,10 +21,10 @@
     };
     var sectionSummary = activeSection switch
     {
-        "sources" => "同步官方弱點來源，或匯入手動文件與檔案。",
+        "sources" => "同步內建 sample connector，或匯入任意領域文件與檔案。",
         "retrieval" => "先驗證知識庫命中的 chunks，再交給 Agent 產生回答。",
         "settings" => "管理 chunk、embedding 與 retrieval 策略。",
-        _ => "管理已同步 advisory 與 user-managed documents。"
+        _ => "管理 sample connector records 與 user-managed documents。"
     };
 }
 
@@ -89,7 +89,7 @@
             <div class="knowledge-header-actions">
                 <a class="btn btn-outline-secondary" asp-page="/Advisories/Index" asp-route-section="retrieval">Test retrieval</a>
                 <form method="post" asp-page-handler="Sync">
-                    <button class="btn btn-primary" type="submit">Sync advisories</button>
+                    <button class="btn btn-primary" type="submit">Sync sample data</button>
                 </form>
             </div>
         </header>
@@ -144,14 +144,14 @@
                     <article class="knowledge-card">
                         <div class="knowledge-card-header">
                             <div>
-                                <h2>Official advisory data</h2>
-                                <p>CISA KEV and NVD records normalized into the CVE Advisory module.</p>
+                                <h2>Sample connector data</h2>
+                                <p>CISA KEV and NVD are included as the cybersecurity sample domain; uploaded documents use the same RAG pipeline.</p>
                             </div>
                         </div>
 
                         <form class="knowledge-filter" method="get">
                             <input type="hidden" name="section" value="documents" />
-                            <input class="form-control" type="search" name="q" placeholder="Search CVE / vendor / product" value="@activeQuery" />
+                            <input class="form-control" type="search" name="q" placeholder="Search sample record / vendor / product" value="@activeQuery" />
                             <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
                                 <input type="checkbox" name="kev" value="true" checked="@kevActive" />
                                 KEV
@@ -167,7 +167,7 @@
                             @if (Model.Advisories.Count == 0)
                             {
                                 <div class="empty-state">
-                                    <p class="empty-copy">目前沒有符合條件的弱點資料。可以先同步資料或調整搜尋條件。</p>
+                                    <p class="empty-copy">目前沒有符合條件的 sample records。可以先同步資料或調整搜尋條件。</p>
                                 </div>
                             }
                             else
@@ -206,7 +206,7 @@
                 <aside class="knowledge-preview-panel" aria-label="Knowledge summary">
                     <div class="preview-stats is-vertical">
                         <article>
-                            <span>Advisories</span>
+                            <span>Sample records</span>
                             <strong>@Model.TotalCount.ToString("N0")</strong>
                         </article>
                         <article>
@@ -214,7 +214,7 @@
                             <strong>@Model.ManagedDocumentCount.ToString("N0")</strong>
                         </article>
                         <article>
-                            <span>KEV</span>
+                            <span>High signal</span>
                             <strong>@Model.KevCount.ToString("N0")</strong>
                         </article>
                     </div>
@@ -228,7 +228,7 @@
                     <div class="knowledge-card-header">
                         <div>
                             <h2>Data sources</h2>
-                            <p>Official advisory connectors and user-managed document imports.</p>
+                            <p>Built-in sample connectors and user-managed document imports.</p>
                         </div>
                     </div>
 
@@ -236,8 +236,8 @@
                         <article class="source-card is-active">
                             <span class="option-icon">C</span>
                             <div>
-                                <strong>Official CVE sources</strong>
-                                <p>CISA KEV / NVD connectors normalize advisories and create CVE chunks.</p>
+                                <strong>Cybersecurity sample connector</strong>
+                                <p>CISA KEV / NVD normalize public records into a CVE Advisory sample module.</p>
                             </div>
                             <form method="post" asp-page-handler="Sync">
                                 <button class="btn btn-sm btn-primary" type="submit">Sync</button>
@@ -256,7 +256,7 @@
                             <span class="option-icon">T</span>
                             <div>
                                 <strong>Paste text</strong>
-                                <p>Create a managed document from advisory notes, SOPs, or internal memos.</p>
+                                <p>Create a managed document from SOPs, HR policies, product notes, or internal memos.</p>
                             </div>
                         </article>
                     </div>
@@ -275,7 +275,7 @@
                             <div class="form-row">
                                 <label class="field-block">
                                     <span>Title</span>
-                                    <input asp-for="FileInput.Title" class="form-control" placeholder="Vendor advisory or SOP title" />
+                                    <input asp-for="FileInput.Title" class="form-control" placeholder="Onboarding policy, SOP, product FAQ" />
                                 </label>
                                 <label class="field-block">
                                     <span>Module</span>
@@ -298,7 +298,7 @@
                             </div>
                             <label class="field-block">
                                 <span>Tags</span>
-                                <input asp-for="FileInput.Tags" class="form-control" placeholder="sop, incident, vpn" />
+                                <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, product, faq" />
                             </label>
                             <label class="upload-zone">
                                 <input asp-for="FileInput.Upload" type="file" accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
@@ -313,7 +313,7 @@
                         <div class="knowledge-card-header">
                             <div>
                                 <h2>Create from text</h2>
-                                <p>Paste advisory notes, SOPs, or internal memos directly into the knowledge base.</p>
+                                <p>Paste policies, SOPs, product notes, or internal memos directly into the knowledge base.</p>
                             </div>
                         </div>
 
@@ -371,7 +371,7 @@
                         <input type="hidden" name="section" value="retrieval" />
                         <label class="field-block">
                             <span>Query</span>
-                            <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="例如：最近 Cisco 有哪些高風險 CVE" />
+                            <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="例如：remote work policy approval 或 latest Cisco risk records" />
                         </label>
                         <label class="field-block">
                             <span>Module</span>
@@ -405,7 +405,7 @@
                 else if (!string.IsNullOrWhiteSpace(Model.RetrievalQuery) && Model.RetrievalResults.Count == 0)
                 {
                     <div class="retrieval-empty">
-                        <p>目前沒有命中的 chunk。可以先同步資料，或改用更明確的 CVE ID、廠商、產品名稱測試。</p>
+                        <p>目前沒有命中的 chunk。可以先同步 sample data、匯入文件，或改用更明確的主題/關鍵字測試。</p>
                     </div>
                 }
                 else if (Model.RetrievalResults.Count > 0)
@@ -466,7 +466,7 @@
                         <div class="knowledge-card-header">
                             <div>
                                 <h2>Chunk settings</h2>
-                                <p>Automatic chunking is active for official advisory records.</p>
+                                <p>Automatic chunking is active for sample connector records and managed documents.</p>
                             </div>
                         </div>
 
@@ -476,7 +476,7 @@
                                 <span class="option-icon">A</span>
                                 <span>
                                     <strong>Automatic</strong>
-                                    <small>根據 advisory 欄位自動建立 chunk。適合 CISA KEV / NVD 這類結構化來源。</small>
+                                    <small>根據結構化 record 或文件段落自動建立 chunk。適合 connector data、SOP、FAQ 與政策文件。</small>
                                 </span>
                             </label>
                             <label class="dify-option is-disabled">
@@ -505,7 +505,7 @@
                                     <strong>High Quality</strong>
                                     <span class="recommend-badge">Recommended</span>
                                 </div>
-                                <p>使用 provider embedding 建立索引，讓 Agent 能更準確抓到相關 CVE 與產品脈絡。</p>
+                                <p>使用 provider embedding 建立索引，讓 Agent 能更準確抓到不同領域文件與 sample records 的脈絡。</p>
                                 <dl>
                                     <dt>Estimation</dt>
                                     <dd>@Model.EstimatedTokenCount.ToString("N0") tokens</dd>
@@ -537,7 +537,7 @@
                             <div>
                                 <span class="summary-label">Search strategy</span>
                                 <strong>Hybrid RAG retrieval</strong>
-                                <p>結合 embedding score、CVE ID、vendor/product keyword、KEV 與 Critical 條件進行排序。</p>
+                                <p>結合 embedding score、BM25 keyword、module filter 與 domain-specific signals 進行排序。</p>
                             </div>
                             <div class="retrieval-slider" aria-hidden="true">
                                 <span style="width: 72%"></span>

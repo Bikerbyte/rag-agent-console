@@ -19,7 +19,7 @@ public class SecurityAdvisoryNotificationDispatchService(
         var options = pushOptions.Value;
         if (!options.Enabled || !options.EnableSecurityAdvisoryPush)
         {
-            logger.LogDebug("Security advisory push notifications are disabled.");
+            logger.LogDebug("Sample connector push notifications are disabled.");
             return;
         }
 
@@ -30,7 +30,7 @@ public class SecurityAdvisoryNotificationDispatchService(
 
         if (subscriptions.Count == 0)
         {
-            logger.LogDebug("No Telegram chats are subscribed to security advisory pushes.");
+            logger.LogDebug("No Telegram chats are subscribed to sample connector pushes.");
             return;
         }
 
