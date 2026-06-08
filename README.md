@@ -1,40 +1,61 @@
 # RAG Agent Console
 
-RAG Agent Console 是一個以 Telegram 與 Web Console 為入口的模組化 RAG Agent 框架。核心設計目標是：**換掉資料來源和文件，就能切換應用領域**，不需要動 Agent 邏輯或 RAG pipeline。
+RAG Agent Console 是一個可換領域的 RAG Agent 平台。它把資料匯入、chunking、embedding、hybrid retrieval、answer generation、Web Chat、Telegram runtime 與營運後台放在同一個可部署範例中。
 
-目前預設部署為資安弱點助理（CVE / CISA KEV），但 Agent 名稱、系統提示詞、知識庫內容和 AI planner prompt 都可以從設定頁面直接調整。
+目前 repository 內建一個 cybersecurity connector（CISA KEV / NVD）作為 sample domain，讓系統一啟動就有公開、可重現的資料可測。但核心設計不是綁定資安：你可以上傳 HR policy、SOP、產品 FAQ、內部 memo、法遵文件或任何 Markdown / TXT / HTML / CSV / DOCX 文件，使用同一套 RAG pipeline 做問答。
 
 ## 專案定位
 
 - GitHub repository：`Bikerbyte/rag-agent-console`
-- Telegram 是主要互動介面，Operations Console 提供後台管理。
-- 使用者以自然語言提問，Agent 透過 RAG 從知識庫找到相關內容後回答。
-- AI Provider 可切換 OpenAI API、Ollama 本機模型，或不依賴 API key 的 local fallback。
-- 知識庫支援官方資料來源同步和手動文件上傳（PDF、DOCX、CSV、Markdown、HTML、純文字）。
-- Agent 名稱、planner prompt、RAG system prompt 和 chat placeholder 都可從 Settings 頁面動態調整，不需重啟。
+- Web Console 是主要營運介面，Telegram 是可選的 runtime channel。
+- 使用者以自然語言提問，Agent 透過 RAG 從已索引的知識庫找到相關 context 後回答。
+- AI Provider 可切換 OpenAI API、外部或本機 Ollama，或不依賴 API key 的 local fallback。
+- Vector store 可使用 PostgreSQL + pgvector，並保留 EF JSON fallback。
+- Agent 名稱、planner prompt、RAG system prompt、retrieval mode、AI provider 都可從 Settings 頁面調整。
+
+## Demo Domains
+
+內建資料分成兩類：
+
+- **Sample connector data**：CISA KEV / NVD，匯入到 `CveAdvisory` module，適合展示公開資料同步、structured records、risk signal 與 retrieval evaluation。
+- **Managed documents**：使用者上傳或貼上的文件，預設進入 `InternalDocs` 或 `WorkflowQa` module，適合展示 HR、SOP、產品文件、客服 FAQ、法遵政策等非資安情境。
+
+非資安範例文件放在：
+
+```text
+docs/demo-corpus/onboarding-policy.zh-TW.md
+```
+
+可以在 Knowledge Base > Channels 匯入，module 選 `InternalDocs`，然後用 Retrieval Test 查詢：
+
+```text
+remote work approval
+新人前三十天目標
+誰負責準備第一個任務
+```
 
 ## 架構
 
 ```mermaid
 flowchart LR
-    User["Telegram 使用者"] --> Telegram["Telegram Bot API"]
-    Telegram --> Ingress["Webhook / Polling 入口"]
-    Ingress --> Queue["TelegramUpdateInbox"]
-    Queue --> Agent["Agent Service"]
+    User["Web Chat / Telegram 使用者"] --> Runtime["Runtime Channel"]
+    Runtime --> Agent["Agent Service"]
 
-    Agent --> Search["RAG 檢索"]
+    Agent --> Planner["Query Planner"]
+    Planner --> Search["Hybrid Retrieval"]
 
-    Sources["資料來源\nCISA KEV / NVD\n或手動上傳"] --> Ingestion["知識庫匯入"]
-    Ingestion --> Store["知識庫 Chunks"]
+    Connectors["Sample Connectors\nCISA KEV / NVD"] --> Ingestion["Knowledge Ingestion"]
+    Uploads["Managed Documents\nMarkdown / TXT / HTML / CSV / DOCX"] --> Ingestion
+    Ingestion --> Store["PostgreSQL\nrecords + chunks + embeddings"]
 
     Search --> Store
-    Agent --> Model["AI Provider\nOpenAI / Ollama / Local"]
+    Agent --> Model["AI Provider\nOpenAI / Ollama / Local fallback"]
     Model --> Agent
-    Agent --> Telegram
+    Agent --> Runtime
 
     Admin["Operations Console\nRazor Pages"] --> Store
-    Admin --> Subscriptions
-    Admin --> Queue
+    Admin --> Settings["Runtime Settings"]
+    Admin --> Evaluation["Retrieval Evaluation"]
 ```
 
 ## 專案檔案結構
@@ -44,8 +65,8 @@ Data/                 EF Core DbContext
 Models/               EF entity、options、view model
 Pages/                Razor Pages 後台介面
 Services/Agent/       Agent 回覆、RAG retrieval、AI provider client、query planner
-Services/Advisories/  資料來源同步、正規化、通知派送
-Services/Knowledge/   文件匯入、chunking、embedding
+Services/Advisories/  Cybersecurity sample connector、正規化、通知派送
+Services/Knowledge/   通用文件匯入、text extraction、chunking、embedding
 Services/Telegram/    Telegram API、polling、webhook、update queue、push
 Services/Runtime/     節點 heartbeat 與 leadership lease
 Services/Settings/    後台設定覆蓋（DB 優先，fallback 到 appsettings）
@@ -55,15 +76,15 @@ Services/Contracts/   依領域分組的 service interface
 ## RAG 模組化結構
 
 ```text
-資料來源          官方 connector（CISA KEV / NVD）或手動文件上傳
-知識庫匯入        KnowledgeDocumentIngestionService
+資料來源          Sample connector（CISA KEV / NVD）或 managed document upload
+知識庫匯入        KnowledgeDocumentIngestionService / connector sync service
 Embedding         OpenAI / Ollama / local hash provider
-Vector store      IAdvisoryVectorStore：EfJson（預設）或 PgVector
-Query planner     LocalAdvisoryQueryPlanner（heuristic）
-                  ResilientAdvisoryQueryPlanner（AI → local fallback）
-Retriever         SecurityAdvisorySearchService（hybrid retrieval + re-ranking）
-Answer composer   SecurityAdvisoryAnswerService（RAG context + AI generation）
-Runtime channel   Telegram / Operations Console Web Chat
+Vector store      PgVector（建議）或 EfJson fallback
+Sparse retrieval  BM25 mixed-script tokenizer
+Query planner     Local heuristic planner 或 AI planner + local fallback
+Retriever         Hybrid retrieval + re-ranking
+Answer composer   RAG context + AI generation 或 local retrieval summary
+Runtime channel   Web Chat / Telegram
 ```
 
 ## Retrieval Quality
@@ -89,7 +110,7 @@ Runtime channel   Telegram / Operations Console Web Chat
 - Serilog：結構化 application logging
 - OpenTelemetry：HTTP / runtime tracing 與 metrics 掛點
 - Telegram Bot API：聊天入口與回覆推送
-- Ollama：本機 LLM 與 embedding 模型
+- Ollama：本機或外部 GPU 主機上的 LLM 與 embedding 模型
 - OpenAI API：可選用的雲端模型 provider
 
 ## AI Provider 設定
@@ -126,6 +147,12 @@ dotnet user-secrets set "AiProvider:OllamaChatModel" "llama3.1"
 dotnet user-secrets set "AiProvider:OllamaEmbeddingModel" "nomic-embed-text"
 ```
 
+如果 app 跑在 VM，而 GPU/Ollama 跑在外部實體機，可把 `OllamaApiBaseUrl` 指到實體機 IP，例如：
+
+```text
+http://192.168.1.20:11434
+```
+
 ## 本機執行
 
 ```powershell
@@ -138,7 +165,7 @@ dotnet run
 若要使用 PostgreSQL：
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=advisory_bot;Username=postgres;Password=your-password"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=rag_agent_console;Username=postgres;Password=your-password"
 dotnet ef database update
 ```
 
@@ -161,9 +188,9 @@ dotnet user-secrets set "AppRuntime:Profile" "PollingNode"
 啟動後開啟 `http://localhost:5166`（或 launchSettings.json 指定的 port）。
 
 - **Dashboard**：知識庫與系統狀態一覽
-- **Knowledge Base**：資料來源同步、手動文件上傳、retrieval 測試
+- **Knowledge Base**：sample connector 同步、手動文件上傳、retrieval 測試
 - **Chat**：直接測試 Agent 對話
-- **Operations**：Telegram 訂閱管理、推播與同步 log、節點狀態
+- **Operations**：Telegram target 管理、推播與同步 log、節點狀態
 - **Settings**：AI provider、Agent 名稱/提示詞、RAG、Telegram、排程、Observability
 
 ## Docker
@@ -173,7 +200,18 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Docker Compose 的 PostgreSQL 服務使用 `pgvector/pgvector:0.8.2-pg17-trixie`。在 `.env` 選擇 OpenAI、Ollama 或 Local fallback；若要啟用 pgvector retrieval，設定 `VECTOR_STORE_PROVIDER=PgVector`。
+Docker Compose 的 PostgreSQL 服務使用 `pgvector/pgvector:0.8.2-pg17-trixie`。在 `.env` 選擇 OpenAI、Ollama 或 Local fallback；若要啟用 pgvector retrieval，設定：
+
+```env
+VECTOR_STORE_PROVIDER=PgVector
+```
+
+## Domain Decoupling
+
+更多去資安耦合的設計說明見：
+
+- [Domain Decoupling Notes](docs/DomainDecoupling.zh-TW.md)
+- [Demo corpus: onboarding policy](docs/demo-corpus/onboarding-policy.zh-TW.md)
 
 ## 相關文件
 

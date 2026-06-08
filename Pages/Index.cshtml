@@ -9,20 +9,20 @@
         <p class="eyebrow">@Model.AgentTagline</p>
         <h1 class="display-title">@Model.AgentName</h1>
         <p class="dashboard-copy">
-            提供知識庫同步、RAG 索引、Telegram 通知與節點狀態的營運檢視。
+            提供多領域文件匯入、sample connector 同步、RAG 索引、Chat runtime 與節點狀態的營運檢視。
         </p>
         <div class="hero-actions">
             <a class="btn btn-primary" asp-page="/Advisories/Index">Open knowledge base</a>
-            <a class="btn btn-outline-secondary" asp-page="/Operations/Index">Bot operations</a>
+            <a class="btn btn-outline-secondary" asp-page="/Operations/Index">Runtime operations</a>
         </div>
     </div>
 </section>
 
 <section class="compact-metrics">
     <article class="metric-strip">
-        <span class="metric-label">Advisories</span>
+        <span class="metric-label">Sample data</span>
         <strong>@Model.AdvisoryCount</strong>
-        <p>@Model.KnownExploitedCount KEV · @Model.RagChunkCount RAG chunks</p>
+        <p>@Model.KnownExploitedCount high-signal records · @Model.RagChunkCount RAG chunks</p>
     </article>
     <article class="metric-strip">
         <span class="metric-label">Telegram</span>
@@ -52,7 +52,7 @@
 
         <div class="detail-stack">
             <div class="detail-row">
-                <strong>Advisory sync</strong>
+                <strong>Sample connector sync</strong>
                 <p class="muted-line">@Model.LatestAdvisorySyncText</p>
             </div>
             <div class="detail-row">
@@ -75,10 +75,10 @@
         </div>
 
         <ul class="panel-list">
-            <li><code>最近有什麼新資訊？</code> 查詢最新知識庫內容</li>
-            <li><code>幫我整理 [主題] 的重點</code> 摘要特定領域</li>
-            <li><code>這個問題的處理建議是什麼？</code> 操作指引查詢</li>
-            <li><code>dotnet run</code> 啟動站台和背景 worker</li>
+            <li><code>最近有什麼新資訊？</code> 查詢最新 sample connector 或上傳文件內容</li>
+            <li><code>幫我整理 [主題] 的重點</code> 摘要任一領域文件</li>
+            <li><code>這份 SOP 的處理步驟是什麼？</code> 操作指引查詢</li>
+            <li><code>docker compose up -d</code> 啟動站台、PostgreSQL 與背景 worker</li>
         </ul>
     </article>
 </section>

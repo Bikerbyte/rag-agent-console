@@ -124,7 +124,7 @@ public class IndexModel(
     public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)
     {
         var result = await syncService.SyncAsync(cancellationToken);
-        StatusMessage = $"Security advisory sync completed. Fetched {result.FetchedCount}, added {result.AddedCount}, updated {result.UpdatedCount}, indexed {result.ChunkCount} chunks.";
+        StatusMessage = $"Sample connector sync completed. Fetched {result.FetchedCount}, added {result.AddedCount}, updated {result.UpdatedCount}, indexed {result.ChunkCount} chunks.";
         return RedirectToPage();
     }
 

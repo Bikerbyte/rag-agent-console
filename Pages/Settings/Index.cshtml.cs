@@ -235,7 +235,7 @@ public class IndexModel(
         public bool VectorStoreUseJsonFallback { get; set; } = true;
         public bool EnableOpenTelemetry { get; set; }
         public bool EnableOpenTelemetryConsoleExporter { get; set; }
-        public string OpenTelemetryServiceName { get; set; } = "SecurityAdvisoryBot";
+        public string OpenTelemetryServiceName { get; set; } = "RagAgentConsole";
 
         public static AppSettingsInput From(
             AiProviderOptions ai,

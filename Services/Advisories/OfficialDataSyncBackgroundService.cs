@@ -91,7 +91,7 @@ public class OfficialDataSyncBackgroundService(
         var result = await advisorySyncService.SyncAsync(cancellationToken);
 
         logger.LogInformation(
-            "Security advisory auto sync completed. Sources: {SourceCount}. Fetched: {FetchedCount}. Added: {AddedCount}. Updated: {UpdatedCount}. Chunks: {ChunkCount}.",
+            "Sample connector auto sync completed. Sources: {SourceCount}. Fetched: {FetchedCount}. Added: {AddedCount}. Updated: {UpdatedCount}. Chunks: {ChunkCount}.",
             result.SourceCount,
             result.FetchedCount,
             result.AddedCount,
