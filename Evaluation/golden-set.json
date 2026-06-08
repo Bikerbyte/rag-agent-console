@@ -1,0 +1,62 @@
+{
+  "$schema": "Evaluation cases for retrieval quality.",
+  "description": "Golden set used by RetrievalEvaluationService to compute Hit@K and MRR. Each case asserts that at least one of the expected CVE IDs or document titles appears in the top-K results. Cases mix English, Chinese, follow-up phrasing, and intent variation so that the metrics surface real retrieval weaknesses (rare-vendor recall, KEV filtering, version handling) rather than rewarding only the easy queries.",
+  "cases": [
+    {
+      "id": "kev-citrix-netscaler",
+      "question": "Citrix NetScaler 有哪些已知遭利用的弱點",
+      "expectedCveIds": ["CVE-2023-3519", "CVE-2023-4966"],
+      "expectedDocumentTitles": [],
+      "notes": "KEV-only query in Chinese; expects vector + sparse to surface high-profile Citrix CVEs."
+    },
+    {
+      "id": "fortinet-recent",
+      "question": "recent fortinet fortigate vulnerabilities",
+      "expectedCveIds": ["CVE-2024-21762", "CVE-2024-23113"],
+      "expectedDocumentTitles": [],
+      "notes": "English vendor + product query; tests sparse vendor matching."
+    },
+    {
+      "id": "microsoft-defender-dos",
+      "question": "Microsoft Defender denial of service",
+      "expectedCveIds": ["CVE-2026-45498"],
+      "expectedDocumentTitles": [],
+      "notes": "Specific product + vulnerability class; common-term query relies on BM25 IDF."
+    },
+    {
+      "id": "cve-direct-lookup",
+      "question": "What is CVE-2024-21762?",
+      "expectedCveIds": ["CVE-2024-21762"],
+      "expectedDocumentTitles": [],
+      "notes": "Direct CVE ID lookup; structural CVE bonus should make this trivial."
+    },
+    {
+      "id": "high-risk-cisco",
+      "question": "最近 Cisco 有哪些 critical 等級的弱點",
+      "expectedCveIds": ["CVE-2024-20356", "CVE-2024-20399"],
+      "expectedDocumentTitles": [],
+      "notes": "Vendor + severity filter; depends on high-risk structural bonus."
+    },
+    {
+      "id": "internal-firewall-policy",
+      "question": "firewall policy guide",
+      "expectedCveIds": [],
+      "expectedDocumentTitles": ["Firewall policy", "Firewall configuration guide"],
+      "notes": "Pure knowledge-document query; should not be dominated by CVE results."
+    },
+    {
+      "id": "ransomware-context",
+      "question": "ransomware exploited vulnerabilities",
+      "expectedCveIds": ["CVE-2023-4966"],
+      "expectedDocumentTitles": [],
+      "notes": "Tests ransomware tag handling and BM25 over multi-term query."
+    },
+    {
+      "id": "version-followup",
+      "question": "netscaler 59.22 版本",
+      "expectedCveIds": ["CVE-2023-3519", "CVE-2023-4966"],
+      "expectedDocumentTitles": [],
+      "notes": "Version-bearing query; planner must keep vendor + product even when version dominates the literal text."
+    }
+  ]
+}

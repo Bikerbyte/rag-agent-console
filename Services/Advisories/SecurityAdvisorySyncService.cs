@@ -12,6 +12,7 @@ public class SecurityAdvisorySyncService(
     ApplicationDbContext dbContext,
     IEnumerable<ISecurityAdvisorySource> sources,
     IAdvisoryEmbeddingService embeddingService,
+    IBm25Index bm25Index,
     IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<SecurityAdvisorySyncService> logger) : ISecurityAdvisorySyncService
 {
@@ -76,6 +77,19 @@ public class SecurityAdvisorySyncService(
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (addedCount > 0 || updatedCount > 0)
+            {
+                try
+                {
+                    await bm25Index.RebuildAsync(cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    logger.LogWarning(exception, "BM25 index refresh after sync failed; sparse retrieval will use the previous snapshot.");
+                }
+            }
+
             await AddSyncLogAsync(
                 startedAt,
                 true,

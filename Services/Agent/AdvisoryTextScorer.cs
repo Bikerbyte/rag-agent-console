@@ -2,36 +2,41 @@ using SecurityAdvisoryBot.Models;
 
 namespace SecurityAdvisoryBot.Services;
 
-public sealed class AdvisoryTextScorer : IAdvisoryTextScorer
+/// <summary>
+/// Sparse text scorer used in hybrid retrieval. BM25 provides the bulk
+/// of the signal (corpus-aware TF-IDF with length normalization);
+/// small structural bonuses are layered on top for hard intent matches
+/// (CVE ID equality, KEV alignment, high-risk filter).
+/// </summary>
+public sealed class AdvisoryTextScorer(
+    IBm25Index bm25Index,
+    ITokenizer tokenizer) : IAdvisoryTextScorer
 {
+    private const double CveExactMatchBonus = 4.0;
+    private const double KevAlignmentBonus = 1.5;
+    private const double HighRiskAlignmentBonus = 1.5;
+
     public double ScoreAdvisory(AdvisoryVectorSearchRequest request, SecurityAdvisory advisory, string chunkText)
     {
-        var score = 0d;
-        var structuredSearchable = BuildStructuredAdvisoryText(advisory);
-        var fullSearchable = string.Join(' ', structuredSearchable, advisory.Description, chunkText).ToLowerInvariant();
+        var documentText = string.Join(
+            ' ',
+            BuildStructuredAdvisoryText(advisory),
+            advisory.Description,
+            chunkText);
+
+        var bm25 = ScoreBm25(request, documentText);
+        var score = bm25;
 
         if (!string.IsNullOrWhiteSpace(request.CveId) &&
             (string.Equals(advisory.CveId, request.CveId, StringComparison.OrdinalIgnoreCase) ||
              string.Equals(advisory.ExternalId, request.CveId, StringComparison.OrdinalIgnoreCase)))
         {
-            score += 4;
-        }
-
-        foreach (var keyword in request.Keywords)
-        {
-            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 2;
-            }
-            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 0.25;
-            }
+            score += CveExactMatchBonus;
         }
 
         if (request.KevOnly && advisory.IsKnownExploited)
         {
-            score += 1.5;
+            score += KevAlignmentBonus;
         }
 
         if (request.HighRiskOnly &&
@@ -39,7 +44,7 @@ public sealed class AdvisoryTextScorer : IAdvisoryTextScorer
              advisory.CvssScore >= 9 ||
              string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase)))
         {
-            score += 1.5;
+            score += HighRiskAlignmentBonus;
         }
 
         return score;
@@ -47,23 +52,41 @@ public sealed class AdvisoryTextScorer : IAdvisoryTextScorer
 
     public double ScoreDocument(AdvisoryVectorSearchRequest request, KnowledgeDocument document, string chunkText)
     {
-        var score = 0d;
-        var structuredSearchable = BuildStructuredDocumentText(document);
-        var fullSearchable = string.Join(' ', structuredSearchable, chunkText).ToLowerInvariant();
+        var documentText = string.Join(
+            ' ',
+            BuildStructuredDocumentText(document),
+            chunkText);
 
-        foreach (var keyword in request.Keywords)
+        return ScoreBm25(request, documentText);
+    }
+
+    private double ScoreBm25(AdvisoryVectorSearchRequest request, string documentText)
+    {
+        if (string.IsNullOrWhiteSpace(documentText))
         {
-            if (structuredSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 2;
-            }
-            else if (fullSearchable.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 0.25;
-            }
+            return 0;
         }
 
-        return score;
+        // Query side: planner keywords drive intent; CVE ID is added as a
+        // strong sparse signal even when keyword extraction missed it.
+        var queryTokens = new List<string>();
+        foreach (var keyword in request.Keywords)
+        {
+            queryTokens.AddRange(tokenizer.Tokenize(keyword));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CveId))
+        {
+            queryTokens.AddRange(tokenizer.Tokenize(request.CveId));
+        }
+
+        if (queryTokens.Count == 0)
+        {
+            return 0;
+        }
+
+        var documentTokens = tokenizer.Tokenize(documentText);
+        return bm25Index.Score(queryTokens, documentTokens);
     }
 
     internal static string BuildStructuredAdvisoryText(SecurityAdvisory advisory)

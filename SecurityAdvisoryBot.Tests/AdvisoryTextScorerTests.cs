@@ -1,12 +1,37 @@
 using SecurityAdvisoryBot.Models;
 using SecurityAdvisoryBot.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace SecurityAdvisoryBot.Tests;
 
 public class AdvisoryTextScorerTests
 {
-    private static readonly AdvisoryTextScorer Scorer = new();
+    private static AdvisoryTextScorer CreateScorer(IEnumerable<string>? corpus = null)
+    {
+        var tokenizer = new MixedScriptTokenizer();
+        var index = new InMemoryBm25Index(
+            scopeFactory: null!,
+            tokenizer,
+            NullLogger<InMemoryBm25Index>.Instance);
+
+        // Seed the index with a small synthetic corpus so IDF / avgdl
+        // are non-degenerate during scoring. Tests that need specific
+        // corpus statistics can pass their own.
+        index.RebuildFromCorpus(corpus ?? new[]
+        {
+            "cve-2024-0001 cisco ios denial of service",
+            "cve-2024-0002 fortinet fortigate buffer overflow",
+            "cve-2024-1234 citrix netscaler authentication bypass",
+            "microsoft windows kernel privilege escalation",
+            "firewall configuration policy guide",
+            "antivirus deployment checklist"
+        });
+
+        return new AdvisoryTextScorer(index, tokenizer);
+    }
+
+    private static readonly AdvisoryTextScorer Scorer = CreateScorer();
 
     // ── ScoreAdvisory ────────────────────────────────────────────────────────
 
@@ -33,17 +58,42 @@ public class AdvisoryTextScorerTests
     }
 
     [Fact]
-    public void ScoreAdvisory_KeywordInStructuredFields_ScoresHigher()
+    public void ScoreAdvisory_MoreTermOccurrences_ScoresHigher()
     {
+        // BM25 rewards higher term frequency (with saturation via k1).
         var request = BuildAdvisoryRequest(keywords: ["citrix"]);
-        var inStructured = BuildAdvisory(vendor: "Citrix");
-        var inChunkOnly = BuildAdvisory(vendor: "Unknown", chunkText: "citrix mentioned here");
+        var single = BuildAdvisory(vendor: "Citrix", title: "Generic vulnerability", chunkText: "no match here");
+        var multiple = BuildAdvisory(vendor: "Citrix", title: "Citrix NetScaler vulnerability", chunkText: "citrix appliance impacted");
 
-        var structuredScore = Scorer.ScoreAdvisory(request, inStructured, string.Empty);
-        var chunkScore = Scorer.ScoreAdvisory(request, inChunkOnly, "citrix mentioned here");
+        var singleScore = Scorer.ScoreAdvisory(request, single, "no match here");
+        var multipleScore = Scorer.ScoreAdvisory(request, multiple, "citrix appliance impacted");
 
-        Assert.True(structuredScore > chunkScore,
-            $"Structured score {structuredScore} should exceed chunk-only score {chunkScore}");
+        Assert.True(multipleScore > singleScore,
+            $"Higher TF should produce higher BM25 score; got single={singleScore}, multiple={multipleScore}");
+    }
+
+    [Fact]
+    public void ScoreAdvisory_RareTerm_ScoresHigherThanCommonTerm()
+    {
+        // BM25 IDF: terms that appear in fewer docs in the corpus weigh more.
+        // Build a custom corpus where "common" appears in every doc and "rare" appears in only one.
+        var scorer = CreateScorer(new[]
+        {
+            "common term appears here",
+            "common term again here",
+            "common term once more",
+            "rare term shows up once"
+        });
+
+        var rareReq = BuildAdvisoryRequest(keywords: ["rare"]);
+        var commonReq = BuildAdvisoryRequest(keywords: ["common"]);
+        var advisory = BuildAdvisory(title: "rare common", chunkText: "rare common");
+
+        var rareScore = scorer.ScoreAdvisory(rareReq, advisory, "rare common");
+        var commonScore = scorer.ScoreAdvisory(commonReq, advisory, "rare common");
+
+        Assert.True(rareScore > commonScore,
+            $"Rare term should score higher than common term; got rare={rareScore}, common={commonScore}");
     }
 
     [Fact]
@@ -115,10 +165,14 @@ public class AdvisoryTextScorerTests
     {
         var request = BuildAdvisoryRequest(keywords: ["firewall", "policy"]);
         var document = BuildDocument(title: "Firewall policy", moduleName: "InternalDocs");
+        var singleKeywordReq = BuildAdvisoryRequest(keywords: ["firewall"]);
 
-        var score = Scorer.ScoreDocument(request, document, string.Empty);
+        var twoScore = Scorer.ScoreDocument(request, document, string.Empty);
+        var oneScore = Scorer.ScoreDocument(singleKeywordReq, document, string.Empty);
 
-        Assert.True(score >= 4, $"Expected score >= 4 for two keyword hits, got {score}");
+        Assert.True(twoScore > oneScore,
+            $"Two keyword matches should outscore one; got two={twoScore}, one={oneScore}");
+        Assert.True(twoScore > 0);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -1,0 +1,151 @@
+@page
+@model SecurityAdvisoryBot.Pages.Operations.EvaluationModel
+@{
+    ViewData["Title"] = "Retrieval evaluation";
+}
+
+<section class="page-header compact-header">
+    <div>
+        <p class="eyebrow">RAG quality</p>
+        <h1>Retrieval evaluation</h1>
+        <p class="lede">Run the golden set against each retrieval strategy and compute Hit@1, Hit@5 and Mean Reciprocal Rank.</p>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning" role="alert">@Model.ErrorMessage</div>
+}
+
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <span class="section-kicker">Golden set</span>
+            <h2 class="panel-title">@Model.Cases.Count evaluation cases</h2>
+            <p class="panel-subtitle">Each case asserts that at least one expected CVE / document title must appear in the top-5 results.</p>
+        </div>
+        <form method="post" asp-page-handler="Run">
+            <button type="submit" class="btn btn-primary">Run evaluation</button>
+        </form>
+    </div>
+
+    @if (Model.Cases.Count == 0)
+    {
+        <p>沒有評估案例。請在 <code>Evaluation/golden-set.json</code> 加入案例。</p>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Question</th>
+                    <th>Expected</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Cases)
+                {
+                    <tr>
+                        <td><code>@item.Id</code></td>
+                        <td>@item.Question</td>
+                        <td>
+                            @if (item.ExpectedCveIds.Count > 0)
+                            {
+                                <span>CVE: @string.Join(", ", item.ExpectedCveIds)</span>
+                            }
+                            @if (item.ExpectedDocumentTitles.Count > 0)
+                            {
+                                <span>Docs: @string.Join(", ", item.ExpectedDocumentTitles)</span>
+                            }
+                        </td>
+                        <td><small>@item.Notes</small></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@if (Model.Report is { } report)
+{
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <span class="section-kicker">Run summary</span>
+                <h2 class="panel-title">Strategy comparison</h2>
+                <p class="panel-subtitle">Run finished at @report.RanAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</p>
+            </div>
+        </div>
+
+        <div class="metric-grid">
+            @foreach (var summary in report.Summaries)
+            {
+                <div class="metric-card">
+                    <p class="metric-label">@summary.RetrievalMode</p>
+                    <div class="metric-grid-inner">
+                        <div>
+                            <span class="metric-sublabel">Hit@1</span>
+                            <strong class="@Model.ModeStatusClass(summary.HitAt1)">@Model.FormatPercent(summary.HitAt1)</strong>
+                        </div>
+                        <div>
+                            <span class="metric-sublabel">Hit@5</span>
+                            <strong class="@Model.ModeStatusClass(summary.HitAt5)">@Model.FormatPercent(summary.HitAt5)</strong>
+                        </div>
+                        <div>
+                            <span class="metric-sublabel">MRR</span>
+                            <strong>@Model.FormatMrr(summary.MeanReciprocalRank)</strong>
+                        </div>
+                    </div>
+                    <p class="metric-footnote">N = @summary.CaseCount cases</p>
+                </div>
+            }
+        </div>
+    </section>
+
+    @foreach (var summary in report.Summaries)
+    {
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <span class="section-kicker">@summary.RetrievalMode</span>
+                    <h2 class="panel-title">Per-case detail</h2>
+                </div>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Case</th>
+                        <th>Question</th>
+                        <th>Hit@1</th>
+                        <th>Hit@5</th>
+                        <th>First rank</th>
+                        <th>Top result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var caseResult in summary.CaseResults)
+                    {
+                        var top = caseResult.TopResults.FirstOrDefault();
+                        <tr>
+                            <td><code>@caseResult.Case.Id</code></td>
+                            <td>@caseResult.Case.Question</td>
+                            <td>@(caseResult.HitAt1 ? "✓" : "—")</td>
+                            <td>@(caseResult.HitAt5 ? "✓" : "—")</td>
+                            <td>@(caseResult.FirstRelevantRank?.ToString() ?? "—")</td>
+                            <td>
+                                @if (top is not null)
+                                {
+                                    <div><strong>@top.Title</strong> @(top.IsRelevant ? "✓" : "")</div>
+                                    <small>score=@top.Score.ToString("0.00") · v=@top.VectorScore.ToString("0.00") · t=@top.TextScore.ToString("0.00")</small>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+}
