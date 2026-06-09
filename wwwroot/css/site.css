@@ -862,36 +862,6 @@ hr {
   background: #f8fafc;
 }
 
-.knowledge-space-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.8rem;
-  align-items: center;
-  min-height: 92px;
-  padding: 0.85rem;
-  border: 1px solid rgba(24, 36, 44, 0.09);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.knowledge-space-card p {
-  margin: 0.2rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.84rem;
-}
-
-.knowledge-avatar {
-  display: inline-flex;
-  width: 2.6rem;
-  height: 2.6rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: #e8f0ff;
-  color: var(--accent);
-  font-weight: 900;
-}
-
 .knowledge-section-nav {
   display: grid;
   gap: 0.35rem;
