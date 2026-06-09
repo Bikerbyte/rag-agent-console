@@ -16,6 +16,7 @@ appsettings.Local.json
 docker-compose.override.yml
 TestResults/
 coverage/
+screenshot/
 *.log
 AGENTS.md
 cpbl_telegram_bot_rework_plan.md
