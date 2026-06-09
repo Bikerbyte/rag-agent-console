@@ -31,6 +31,9 @@ public class IndexModel(
     public KnowledgeDocument? SelectedDocument { get; private set; }
     public string? SelectedDocumentSample { get; private set; }
 
+    // 知識庫已合併為單一來源清單：未選取任何文件時，預設顯示「資安公告自動同步」這個系統託管來源的明細。
+    public bool CveSourceSelected => SelectedDocument is null;
+
     [BindProperty]
     public FileKnowledgeInput FileInput { get; set; } = new();
 
@@ -142,33 +145,83 @@ public class IndexModel(
 
     public async Task<IActionResult> OnPostUploadFileAsync(CancellationToken cancellationToken)
     {
-        if (FileInput.Upload is null || FileInput.Upload.Length == 0)
+        var uploads = (FileInput.Uploads ?? [])
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        if (uploads.Count == 0)
         {
             StatusMessage = "請選擇要上傳的檔案。";
             return RedirectToPage();
         }
 
-        if (FileInput.Upload.Length > 15 * 1024 * 1024)
+        var failures = new List<string>();
+        var requests = new List<KnowledgeDocumentFileImportRequest>();
+        var streams = new List<Stream>();
+
+        try
         {
-            StatusMessage = "檔案過大，上限為 15 MB。";
-            return RedirectToPage();
+            foreach (var file in uploads)
+            {
+                if (file.Length > 15 * 1024 * 1024)
+                {
+                    failures.Add($"{file.FileName}（超過 15 MB）");
+                    continue;
+                }
+
+                var stream = file.OpenReadStream();
+                streams.Add(stream);
+                requests.Add(new KnowledgeDocumentFileImportRequest(
+                    // 批次上傳時不套用單一標題欄位，改用各自的檔名；只有單檔時才採用使用者填的標題。
+                    uploads.Count == 1 && !string.IsNullOrWhiteSpace(FileInput.Title)
+                        ? FileInput.Title
+                        : Path.GetFileNameWithoutExtension(file.FileName),
+                    file.FileName,
+                    file.ContentType,
+                    stream,
+                    FileInput.ModuleName,
+                    FileInput.Vendor,
+                    FileInput.Product,
+                    FileInput.Tags));
+            }
+
+            var importedCount = 0;
+            var chunkTotal = 0;
+            if (requests.Count > 0)
+            {
+                var result = await knowledgeIngestionService.ImportFilesAsync(requests, cancellationToken);
+                importedCount = result.Imported.Count;
+                chunkTotal = result.Imported.Sum(item => item.ChunkCount);
+                failures.AddRange(result.Failures.Select(failure => $"{failure.FileName}（{failure.Error}）"));
+            }
+
+            StatusMessage = BuildUploadStatus(importedCount, chunkTotal, failures);
+        }
+        finally
+        {
+            foreach (var stream in streams)
+            {
+                stream.Dispose();
+            }
         }
 
-        await using var stream = FileInput.Upload.OpenReadStream();
-        var result = await knowledgeIngestionService.ImportFileAsync(
-            new KnowledgeDocumentFileImportRequest(
-                string.IsNullOrWhiteSpace(FileInput.Title) ? Path.GetFileNameWithoutExtension(FileInput.Upload.FileName) : FileInput.Title,
-                FileInput.Upload.FileName,
-                FileInput.Upload.ContentType,
-                stream,
-                FileInput.ModuleName,
-                FileInput.Vendor,
-                FileInput.Product,
-                FileInput.Tags),
-            cancellationToken);
-
-        StatusMessage = $"檔案匯入完成：{result.Title}，共 {result.ChunkCount} 個片段。";
         return RedirectToPage();
+    }
+
+    private static string BuildUploadStatus(int importedCount, int chunkTotal, IReadOnlyList<string> failures)
+    {
+        var parts = new List<string>();
+        if (importedCount > 0)
+        {
+            parts.Add($"已匯入 {importedCount} 份文件，共 {chunkTotal} 個片段。");
+        }
+
+        if (failures.Count > 0)
+        {
+            parts.Add($"略過 {failures.Count} 個檔案：{string.Join("、", failures)}");
+        }
+
+        return parts.Count == 0 ? "沒有可匯入的檔案。" : string.Join(" ", parts);
     }
 
     public async Task<IActionResult> OnPostToggleDocumentAsync(int id, bool enabled, CancellationToken cancellationToken)
@@ -215,6 +268,6 @@ public class IndexModel(
         public string? Vendor { get; set; }
         public string? Product { get; set; }
         public string? Tags { get; set; }
-        public IFormFile? Upload { get; set; }
+        public List<IFormFile> Uploads { get; set; } = [];
     }
 }

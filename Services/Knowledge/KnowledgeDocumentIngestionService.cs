@@ -31,12 +31,49 @@ public class KnowledgeDocumentIngestionService(
             request.Product,
             request.Tags,
             isMarkdown: false,
+            refreshIndex: true,
             cancellationToken);
     }
 
-    public async Task<KnowledgeDocumentIngestionResult> ImportFileAsync(
+    public Task<KnowledgeDocumentIngestionResult> ImportFileAsync(
         KnowledgeDocumentFileImportRequest request,
         CancellationToken cancellationToken = default)
+        => ImportFileCoreAsync(request, refreshIndex: true, cancellationToken);
+
+    public async Task<KnowledgeDocumentBatchImportResult> ImportFilesAsync(
+        IReadOnlyList<KnowledgeDocumentFileImportRequest> requests,
+        CancellationToken cancellationToken = default)
+    {
+        var imported = new List<KnowledgeDocumentIngestionResult>();
+        var failures = new List<KnowledgeDocumentImportFailure>();
+
+        // 逐檔匯入，但 BM25 索引只在最後重建一次，避免每個檔案都觸發一次整庫重建。
+        foreach (var request in requests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                imported.Add(await ImportFileCoreAsync(request, refreshIndex: false, cancellationToken));
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogWarning(exception, "Batch import failed for file {FileName}.", request.FileName);
+                failures.Add(new KnowledgeDocumentImportFailure(request.FileName, exception.Message));
+            }
+        }
+
+        if (imported.Count > 0)
+        {
+            await TryRefreshBm25IndexAsync(cancellationToken);
+        }
+
+        return new KnowledgeDocumentBatchImportResult(imported, failures);
+    }
+
+    private async Task<KnowledgeDocumentIngestionResult> ImportFileCoreAsync(
+        KnowledgeDocumentFileImportRequest request,
+        bool refreshIndex,
+        CancellationToken cancellationToken)
     {
         var extracted = await textExtractor.ExtractAsync(
             request.FileName,
@@ -56,6 +93,7 @@ public class KnowledgeDocumentIngestionService(
             request.Product,
             request.Tags,
             isMarkdown,
+            refreshIndex,
             cancellationToken);
     }
 
@@ -142,6 +180,7 @@ public class KnowledgeDocumentIngestionService(
         string? product,
         string? tags,
         bool isMarkdown,
+        bool refreshIndex,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -190,7 +229,10 @@ public class KnowledgeDocumentIngestionService(
         dbContext.KnowledgeDocuments.Add(document);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await TryRefreshBm25IndexAsync(cancellationToken);
+        if (refreshIndex)
+        {
+            await TryRefreshBm25IndexAsync(cancellationToken);
+        }
 
         logger.LogInformation(
             "Imported knowledge document {DocumentId} into module {ModuleName}. Chunks={ChunkCount}.",

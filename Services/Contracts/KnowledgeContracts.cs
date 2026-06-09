@@ -26,6 +26,10 @@ public interface IKnowledgeDocumentIngestionService
         KnowledgeDocumentFileImportRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<KnowledgeDocumentBatchImportResult> ImportFilesAsync(
+        IReadOnlyList<KnowledgeDocumentFileImportRequest> requests,
+        CancellationToken cancellationToken = default);
+
     Task SetEnabledAsync(int documentId, bool isEnabled, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(int documentId, CancellationToken cancellationToken = default);
@@ -53,3 +57,11 @@ public sealed record KnowledgeDocumentFileImportRequest(
     string? Vendor,
     string? Product,
     string? Tags);
+
+public sealed record KnowledgeDocumentBatchImportResult(
+    IReadOnlyList<KnowledgeDocumentIngestionResult> Imported,
+    IReadOnlyList<KnowledgeDocumentImportFailure> Failures);
+
+public sealed record KnowledgeDocumentImportFailure(
+    string FileName,
+    string Error);

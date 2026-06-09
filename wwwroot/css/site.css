@@ -573,6 +573,11 @@ p {
   color: var(--text-soft);
 }
 
+.status-pill.is-info {
+  background: rgba(43, 108, 176, 0.14);
+  color: #2b5f8a;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -1373,6 +1378,13 @@ hr {
   font-size: 0.84rem;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
 .managed-document-list {
   display: grid;
   gap: 0.55rem;
@@ -1393,6 +1405,11 @@ hr {
   margin: 0.2rem 0 0;
   color: var(--text-soft);
   font-size: 0.84rem;
+}
+
+.managed-document-row.is-managed {
+  border-color: rgba(43, 108, 176, 0.35);
+  background: rgba(43, 108, 176, 0.05);
 }
 
 .document-actions {

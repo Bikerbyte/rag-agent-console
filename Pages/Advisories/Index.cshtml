@@ -17,14 +17,14 @@
         "sources" => L["匯入來源"].Value,
         "retrieval" => L["檢索測試"].Value,
         "settings" => L["索引設定"].Value,
-        _ => L["文件"].Value
+        _ => L["知識來源"].Value
     };
     var sectionSummary = activeSection switch
     {
         "sources" => L["同步內建範例連接器，或上傳你自己的文件。"].Value,
         "retrieval" => L["先確認知識庫命中的片段，再交給 Agent 產生回答。"].Value,
         "settings" => L["檢視 chunk、embedding 與檢索策略。"].Value,
-        _ => L["管理上傳的文件與範例連接器資料。"].Value
+        _ => L["自動同步的資安公告與你上傳的文件，集中在這裡管理。"].Value
     };
 }
 
@@ -33,7 +33,7 @@
         <nav class="knowledge-section-nav">
             <a class="knowledge-section-link @(activeSection == "documents" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="documents">
                 <span>▣</span>
-                <strong>@L["文件"]</strong>
+                <strong>@L["知識來源"]</strong>
             </a>
             <a class="knowledge-section-link @(activeSection == "sources" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="sources">
                 <span>＋</span>
@@ -80,58 +80,85 @@
 
         @if (activeSection == "documents")
         {
-            <section class="knowledge-content-grid">
-                <div class="knowledge-primary-column">
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
-                            <div>
-                                <h2>@L["文件"]</h2>
-                                <p>@L["點選任一文件即可在右側檢視內容範例。"]</p>
-                            </div>
-                            <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
+            <section class="knowledge-primary-column">
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header">
+                        <div>
+                            <h2>@L["知識來源"]</h2>
+                            <p>@L["點選任一來源即可在下方檢視明細。"]</p>
                         </div>
+                        <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
+                    </div>
 
-                        <div class="managed-document-list">
-                            @if (Model.ManagedDocuments.Count == 0)
-                            {
-                                <p class="empty-copy">@L["尚未有任何文件。"]</p>
-                            }
-                            else
-                            {
-                                @foreach (var document in Model.ManagedDocuments)
-                                {
-                                    var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
-                                    <article class="managed-document-row @(isSelected ? "is-selected" : string.Empty)">
-                                        <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
-                                            <strong>@document.Title</strong>
-                                            <p>@document.ModuleName · @document.CharacterCount.ToString("N0") @L["字"] · @document.ChunkCount @L["片段"]</p>
-                                        </a>
-                                        <div class="document-actions">
-                                            <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
-                                                @(document.IsEnabled ? L["啟用"] : L["停用"])
-                                            </span>
-                                            <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
-                                                <button class="icon-button" type="submit" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
-                                            </form>
-                                            <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                                <button class="icon-button" type="submit" title="@L["重新索引"].Value">R</button>
-                                            </form>
-                                            <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                                <button class="icon-button is-danger" type="submit" title="@L["刪除"].Value">X</button>
-                                            </form>
-                                        </div>
-                                    </article>
-                                }
-                            }
+                    <div class="managed-document-list">
+                        @* CVE 自動同步收成單一系統託管來源列，與上傳文件並排，不再是另一塊獨立面板。 *@
+                        <article class="managed-document-row is-managed @(Model.CveSourceSelected ? "is-selected" : string.Empty)">
+                            <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents">
+                                <strong>@L["資安公告自動同步"]</strong>
+                                <p>CISA KEV / NVD · @Model.TotalCount.ToString("N0") @L["筆"] · @Model.KevCount.ToString("N0") KEV · @Model.CriticalCount.ToString("N0") @L["高危"]</p>
+                            </a>
+                            <div class="document-actions">
+                                <span class="status-pill is-info">@L["系統託管"]</span>
+                                <form method="post" asp-page-handler="Sync">
+                                    <button class="icon-button" type="submit" title="@L["同步"].Value">⟳</button>
+                                </form>
+                            </div>
+                        </article>
+
+                        @foreach (var document in Model.ManagedDocuments)
+                        {
+                            var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
+                            <article class="managed-document-row @(isSelected ? "is-selected" : string.Empty)">
+                                <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
+                                    <strong>@document.Title</strong>
+                                    <p>@document.ModuleName · @document.CharacterCount.ToString("N0") @L["字"] · @document.ChunkCount @L["片段"]</p>
+                                </a>
+                                <div class="document-actions">
+                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
+                                        @(document.IsEnabled ? L["啟用"] : L["停用"])
+                                    </span>
+                                    <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
+                                        <button class="icon-button" type="submit" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
+                                        <button class="icon-button" type="submit" title="@L["重新索引"].Value">R</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
+                                        <button class="icon-button is-danger" type="submit" title="@L["刪除"].Value">X</button>
+                                    </form>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </article>
+
+                @if (Model.SelectedDocument is { } selected)
+                {
+                    <article class="knowledge-card">
+                        <div class="doc-preview">
+                            <div class="doc-preview-head">
+                                <strong>@selected.Title</strong>
+                                <span class="status-pill @(selected.IsEnabled ? "is-success" : "is-neutral")">
+                                    @(selected.IsEnabled ? L["啟用"] : L["停用"])
+                                </span>
+                            </div>
+                            <p class="doc-preview-meta">
+                                @selected.ModuleName · @selected.SourceType · @selected.CharacterCount.ToString("N0") @L["字"] · @selected.ChunkCount @L["片段"]
+                            </p>
+                            <div class="doc-preview-sample">@Model.SelectedDocumentSample</div>
+                            <p class="doc-preview-foot">@L["僅顯示前段內容範例。"]</p>
                         </div>
                     </article>
-
+                }
+                else
+                {
                     <article class="knowledge-card">
                         <div class="knowledge-card-header">
                             <div>
-                                <h2>@L["範例連接器資料"]</h2>
-                                <p>@L["內建 CISA KEV / NVD 作為範例領域，與上傳文件共用同一套 RAG 流程。"]</p>
+                                <h2>@L["資安公告自動同步"]</h2>
+                                <p>@L["由系統自動同步並建立索引，無法手動編輯。"]</p>
                             </div>
+                            <span class="status-pill is-info">@L["系統託管"]</span>
                         </div>
 
                         <form class="knowledge-filter" method="get">
@@ -186,33 +213,7 @@
                             }
                         </div>
                     </article>
-                </div>
-
-                <aside class="knowledge-preview-panel" aria-label="Document preview">
-                    @if (Model.SelectedDocument is { } selected)
-                    {
-                        <div class="doc-preview">
-                            <div class="doc-preview-head">
-                                <strong>@selected.Title</strong>
-                                <span class="status-pill @(selected.IsEnabled ? "is-success" : "is-neutral")">
-                                    @(selected.IsEnabled ? L["啟用"] : L["停用"])
-                                </span>
-                            </div>
-                            <p class="doc-preview-meta">
-                                @selected.ModuleName · @selected.SourceType · @selected.CharacterCount.ToString("N0") @L["字"] · @selected.ChunkCount @L["片段"]
-                            </p>
-                            <div class="doc-preview-sample">@Model.SelectedDocumentSample</div>
-                            <p class="doc-preview-foot">@L["僅顯示前段內容範例。"]</p>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="doc-preview is-empty">
-                            <strong>@L["文件預覽"]</strong>
-                            <p>@L["從左側選擇一份文件以檢視內容範例。"]</p>
-                        </div>
-                    }
-                </aside>
+                }
             </section>
         }
         else if (activeSection == "sources")
@@ -261,6 +262,7 @@
                             <label class="field-block">
                                 <span>@L["標題"]</span>
                                 <input asp-for="FileInput.Title" class="form-control" placeholder="@L["新人政策、SOP、產品 FAQ"].Value" />
+                                <small class="field-hint">@L["僅單檔上傳時套用；多檔時各自以檔名為標題。"]</small>
                             </label>
                             <label class="field-block">
                                 <span>@L["模組"]</span>
@@ -286,9 +288,9 @@
                             <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, product, faq" />
                         </label>
                         <label class="upload-zone">
-                            <input asp-for="FileInput.Upload" type="file" accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
+                            <input asp-for="FileInput.Uploads" type="file" multiple accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />
                             <strong>@L["選擇檔案"]</strong>
-                            <span>@L["支援 Markdown、TXT、HTML、CSV、DOCX，上限 15 MB。"]</span>
+                            <span>@L["支援 Markdown、TXT、HTML、CSV、DOCX，可一次選多個，每個上限 15 MB。"]</span>
                         </label>
                         <button class="btn btn-primary" type="submit">@L["匯入檔案"]</button>
                     </form>
