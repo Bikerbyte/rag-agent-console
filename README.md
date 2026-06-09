@@ -102,5 +102,3 @@ Services/Runtime/     節點 heartbeat 與 leader lease
 Services/Settings/    後台設定覆蓋（DB 優先，fallback 到 appsettings）
 Evaluation/          golden set 測試案例
 ```
-
-設計上怎麼把資安耦合拆掉，另外寫在 [docs/DomainDecoupling.zh-TW.md](docs/DomainDecoupling.zh-TW.md)。
