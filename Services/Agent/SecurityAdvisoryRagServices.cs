@@ -147,7 +147,16 @@ public class SecurityAdvisoryAnswerService(
         var aiOptions = aiProviderOptions.Value;
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
 
-        var searchResponse = await searchService.SearchWithTraceAsync(question, history, options.Value.RagMaxChunks, cancellationToken: cancellationToken);
+        SecurityAdvisorySearchResponse searchResponse;
+        try
+        {
+            searchResponse = await searchService.SearchWithTraceAsync(question, history, options.Value.RagMaxChunks, cancellationToken: cancellationToken);
+        }
+        catch (AiUnavailableException)
+        {
+            return new AgentAnswerResult(agentOptions.UnavailableReply, null);
+        }
+
         var results = searchResponse.Results;
         var trace = BuildTrace(question, searchResponse);
 
