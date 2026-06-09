@@ -2,14 +2,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using RagAgentConsole.Models;
-using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
 public class AdvisoryQueryPlanner(
     IAiChatClient aiChatClient,
     IAppSettingsService appSettingsService,
-    IOptions<AiProviderOptions> aiProviderOptions,
     ILogger<AdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
 {
     public async Task<AdvisoryQueryPlan> BuildPlanAsync(
@@ -17,7 +15,7 @@ public class AdvisoryQueryPlanner(
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
-        var options = aiProviderOptions.Value;
+        var options = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
         if (!options.EnableChatGeneration ||
             string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
         {
