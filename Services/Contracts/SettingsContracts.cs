@@ -15,4 +15,37 @@ public interface IAppSettingsService
     Task SaveAsync(IEnumerable<AppSettingUpdate> updates, CancellationToken cancellationToken = default);
 }
 
+public interface IOpenAiCredentialValidator
+{
+    Task<OpenAiCredentialValidationResult> ValidateAsync(
+        OpenAiCredentialValidationRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record AppSettingUpdate(string Key, string? Value, bool IsSecret = false);
+
+public sealed record OpenAiCredentialValidationRequest(
+    string ApiBaseUrl,
+    string ApiKey,
+    string ChatModel,
+    string EmbeddingModel);
+
+public sealed record OpenAiCredentialValidationResult(
+    OpenAiCredentialValidationStatus Status,
+    string Message,
+    IReadOnlyList<string> UnavailableModels)
+{
+    public bool IsValid => Status == OpenAiCredentialValidationStatus.Valid;
+}
+
+public enum OpenAiCredentialValidationStatus
+{
+    Valid,
+    InvalidApiKey,
+    Forbidden,
+    RateLimited,
+    ServiceUnavailable,
+    InvalidResponse,
+    ModelUnavailable,
+    Rejected
+}
