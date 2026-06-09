@@ -1,6 +1,6 @@
 # RAG Agent Console
 
-一個可以自由更換知識庫內容的 RAG AI Agent。
+一個 RAG AI Agent 框架，可依照需求自由調整知識庫內容，成為不同用途的 AI Agent。
 
 Pipeline 如下：文件匯入、切塊、建立向量、混合檢索，再交給模型生成回答。 
 對外有 Web 對話和 Telegram 兩個入口，對內帶有管理後台，用來管理知識庫、看檢索品質、調設定。
