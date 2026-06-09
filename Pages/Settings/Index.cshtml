@@ -137,7 +137,8 @@
                     <div class="settings-control-grid">
                         <label class="field-block field-span-2">
                             <span>@L["API 金鑰"]</span>
-                            <input asp-for="Input.OpenAiApiKey" class="form-control" type="password" autocomplete="off" />
+                            <input asp-for="Input.OpenAiApiKey" class="form-control" type="password" autocomplete="off"
+                                   placeholder="@(Model.HasOpenAiApiKey ? IndexModel.SecretMask : string.Empty)" />
                             <span asp-validation-for="Input.OpenAiApiKey" class="text-danger"></span>
                         </label>
                         <label class="field-block field-span-2">
@@ -240,7 +241,8 @@
                 </label>
                 <label class="field-block">
                     <span>@L["Bot token"] @(Model.HasTelegramBotToken ? L["（已儲存）"] : L["（未設定）"])</span>
-                    <input asp-for="Input.TelegramBotToken" class="form-control" type="password" autocomplete="off" />
+                    <input asp-for="Input.TelegramBotToken" class="form-control" type="password" autocomplete="off"
+                           placeholder="@(Model.HasTelegramBotToken ? IndexModel.SecretMask : string.Empty)" />
                 </label>
                 <label class="field-block">
                     <span>Telegram API base URL</span>
@@ -261,7 +263,8 @@
                 </label>
                 <label class="field-block">
                     <span>Webhook secret token</span>
-                    <input asp-for="Input.WebhookSecretToken" class="form-control" type="password" autocomplete="off" />
+                    <input asp-for="Input.WebhookSecretToken" class="form-control" type="password" autocomplete="off"
+                           placeholder="@(Model.HasWebhookSecretToken ? IndexModel.SecretMask : string.Empty)" />
                 </label>
                 <label class="field-block">
                     <span>@L["輪詢間隔（秒）"]</span>
