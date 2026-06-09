@@ -45,11 +45,11 @@ flowchart LR
     Admin --> Evaluation["Retrieval Evaluation"]
 ```
 
-一次問答大致是：使用者提問，planner 先判斷要查什麼，hybrid retrieval 從知識庫撈出相關片段，再把片段當 context 交給模型生成回答；沒命中知識庫時走一般回覆或本機備援。
+問答 Flow 為：使用者提問 -> planner 判斷要查什麼 -> hybrid retrieval 從知識庫撈出相關片段 -> 把片段當 context 交給模型生成回答；若沒命中知識庫時走一般回覆或本機備援。
 
-## 技術棧
+## 使用技術
 
-| 範圍 | 用了什麼 |
+| 範圍 | 工具 |
 | --- | --- |
 | Web / 後台 | ASP.NET Core |
 | 資料存取 | Entity Framework Core |
