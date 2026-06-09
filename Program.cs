@@ -127,6 +127,10 @@ builder.Services.AddHttpClient<IAdvisoryEmbeddingService, AdvisoryEmbeddingServi
     var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
     httpClient.Timeout = TimeSpan.FromSeconds(Math.Clamp(aiOptions.EmbeddingTimeoutSeconds, 5, 180));
 });
+builder.Services.AddHttpClient<IOpenAiCredentialValidator, OpenAiCredentialValidator>(httpClient =>
+{
+    httpClient.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddHttpClient();
 
 // Add Service Area - 多語系（繁中為預設，提供 中/英 切換）

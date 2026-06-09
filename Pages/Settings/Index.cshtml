@@ -138,6 +138,7 @@
                         <label class="field-block field-span-2">
                             <span>@L["API 金鑰"]</span>
                             <input asp-for="Input.OpenAiApiKey" class="form-control" type="password" autocomplete="off" />
+                            <span asp-validation-for="Input.OpenAiApiKey" class="text-danger"></span>
                         </label>
                         <label class="field-block field-span-2">
                             <span>Base URL</span>
@@ -147,10 +148,12 @@
                         <label class="field-block">
                             <span>@L["對話模型"]</span>
                             <input asp-for="Input.OpenAiChatModel" class="form-control" />
+                            <span asp-validation-for="Input.OpenAiChatModel" class="text-danger"></span>
                         </label>
                         <label class="field-block">
                             <span>@L["向量模型"]</span>
                             <input asp-for="Input.OpenAiEmbeddingModel" class="form-control" />
+                            <span asp-validation-for="Input.OpenAiEmbeddingModel" class="text-danger"></span>
                         </label>
                     </div>
                 </div>

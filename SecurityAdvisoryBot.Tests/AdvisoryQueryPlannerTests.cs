@@ -77,6 +77,33 @@ public class AdvisoryQueryPlannerTests
         Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
     }
 
+    [Fact]
+    public async Task BuildPlanAsync_WhenQuestionContainsPublicationYear_AddsDateRangeInsteadOfVersion()
+    {
+        var planner = CreatePlanner();
+
+        var plan = await planner.BuildPlanAsync("提供幾個 2026 年最新的弱點");
+
+        Assert.Null(plan.Version);
+        Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
+        Assert.Equal(new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedTo);
+        Assert.Equal(2026, plan.CveYear);
+        Assert.True(plan.PreferRecent);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenQuestionContainsYearMonth_AddsMonthRange()
+    {
+        var planner = CreatePlanner();
+
+        var plan = await planner.BuildPlanAsync("2026/6 有哪些重大弱點公佈");
+
+        Assert.Null(plan.Version);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedTo);
+        Assert.Equal(2026, plan.CveYear);
+    }
+
     private static LocalAdvisoryQueryPlanner CreatePlanner()
         => new(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
 }

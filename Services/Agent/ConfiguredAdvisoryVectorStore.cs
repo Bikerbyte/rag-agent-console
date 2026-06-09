@@ -14,6 +14,11 @@ public class ConfiguredAdvisoryVectorStore(
     {
         var options = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var provider = options.Provider;
+        if (request.PublishedFrom.HasValue || request.PublishedTo.HasValue || request.CveYear.HasValue)
+        {
+            return await efStore.SearchAsync(request, cancellationToken);
+        }
+
         if (string.Equals(provider, VectorStoreProviderNames.PgVector, StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(request.CveId))
         {

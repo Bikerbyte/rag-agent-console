@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace SecurityAdvisoryBot.Pages.Settings;
 
 public class IndexModel(
-    IAppSettingsService appSettingsService) : PageModel
+    IAppSettingsService appSettingsService,
+    IOpenAiCredentialValidator openAiCredentialValidator) : PageModel
 {
     public bool HasOpenAiApiKey { get; private set; }
     public bool BotEnabled { get; private set; }
@@ -41,10 +42,27 @@ public class IndexModel(
         ValidateUrl(Input.TelegramApiBaseUrl, nameof(Input.TelegramApiBaseUrl), "Telegram API base URL must start with http:// or https://.");
         if (!ModelState.IsValid)
         {
-            var submittedInput = Input;
-            await LoadAsync(cancellationToken);
-            Input = submittedInput;
-            return Page();
+            return await ReturnPageWithoutSecretsAsync(Input, cancellationToken);
+        }
+
+        var submittedOpenAiApiKey = Input.OpenAiApiKey?.Trim();
+        var validatedNewOpenAiKey = false;
+        if (!string.IsNullOrWhiteSpace(submittedOpenAiApiKey))
+        {
+            var validation = await openAiCredentialValidator.ValidateAsync(
+                new OpenAiCredentialValidationRequest(
+                    Input.OpenAiApiBaseUrl,
+                    submittedOpenAiApiKey,
+                    Input.OpenAiChatModel,
+                    Input.OpenAiEmbeddingModel),
+                cancellationToken);
+
+            if (!validation.IsValid)
+            {
+                return await ReturnPageWithoutSecretsAsync(Input, cancellationToken, validation);
+            }
+
+            validatedNewOpenAiKey = true;
         }
 
         var updates = new List<AppSettingUpdate>
@@ -79,7 +97,7 @@ public class IndexModel(
 
         updates.Add(new AppSettingUpdate(
             "AiProvider:OpenAiApiKey",
-            string.IsNullOrWhiteSpace(Input.OpenAiApiKey) ? currentAi.OpenAiApiKey : Input.OpenAiApiKey,
+            string.IsNullOrWhiteSpace(submittedOpenAiApiKey) ? currentAi.OpenAiApiKey : submittedOpenAiApiKey,
             IsSecret: true));
 
         updates.Add(new AppSettingUpdate(
@@ -101,8 +119,44 @@ public class IndexModel(
         updates.Add(new AppSettingUpdate("Agent:UnavailableReply", Input.UnavailableReply));
 
         await appSettingsService.SaveAsync(updates, cancellationToken);
-        StatusMessage = "設定已儲存。AI、Telegram、Agent 與 RAG retrieval 設定會在後續請求套用；worker role 與 OpenTelemetry 啟動設定需重新啟動。";
+        StatusMessage = validatedNewOpenAiKey
+            ? "OpenAI API key 與模型存取驗證成功，設定已儲存。"
+            : "設定已儲存。AI、Telegram、Agent 與 RAG retrieval 設定會在後續請求套用；worker role 與 OpenTelemetry 啟動設定需重新啟動。";
         return RedirectToPage();
+    }
+
+    private void AddOpenAiValidationError(OpenAiCredentialValidationResult validation)
+    {
+        var fieldName = validation.Status == OpenAiCredentialValidationStatus.ModelUnavailable
+            ? validation.UnavailableModels.Contains(Input.OpenAiEmbeddingModel, StringComparer.OrdinalIgnoreCase)
+                ? nameof(Input.OpenAiEmbeddingModel)
+                : nameof(Input.OpenAiChatModel)
+            : nameof(Input.OpenAiApiKey);
+
+        ModelState.Remove($"Input.{nameof(Input.OpenAiApiKey)}");
+        ModelState.AddModelError($"Input.{fieldName}", validation.Message);
+    }
+
+    private async Task<IActionResult> ReturnPageWithoutSecretsAsync(
+        AppSettingsInput submittedInput,
+        CancellationToken cancellationToken,
+        OpenAiCredentialValidationResult? openAiValidation = null)
+    {
+        ModelState.Remove($"Input.{nameof(Input.OpenAiApiKey)}");
+        ModelState.Remove($"Input.{nameof(Input.TelegramBotToken)}");
+        ModelState.Remove($"Input.{nameof(Input.WebhookSecretToken)}");
+        if (openAiValidation is not null)
+        {
+            AddOpenAiValidationError(openAiValidation);
+        }
+
+        submittedInput.OpenAiApiKey = null;
+        submittedInput.TelegramBotToken = null;
+        submittedInput.WebhookSecretToken = null;
+
+        await LoadAsync(cancellationToken);
+        Input = submittedInput;
+        return Page();
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken)

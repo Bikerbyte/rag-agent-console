@@ -56,7 +56,11 @@ public partial class SecurityAdvisorySearchService(
             queryVector,
             effectiveMax,
             effectiveModule,
-            effectiveMode);
+            effectiveMode,
+            plan.PublishedFrom,
+            plan.PublishedTo,
+            plan.PreferRecent,
+            plan.CveYear);
         var candidates = await vectorStore.SearchAsync(request, cancellationToken);
 
         var ranked = new List<SecurityAdvisorySearchResult>();
@@ -89,8 +93,12 @@ public partial class SecurityAdvisorySearchService(
             plan.RetrievalQuery,
             plan.Version);
 
-        var results = ranked
-            .OrderByDescending(item => item.Score)
+        var ordered = plan.PreferRecent
+            ? ranked.OrderByDescending(item => item.Advisory?.PublishedAt ?? DateTimeOffset.MinValue)
+                .ThenByDescending(item => item.Score)
+            : ranked.OrderByDescending(item => item.Score);
+
+        var results = ordered
             .Take(effectiveMax)
             .ToList();
 
@@ -224,6 +232,8 @@ public class SecurityAdvisoryAnswerService(
             contextBuilder.AppendLine($"Severity: {result.Severity}");
             contextBuilder.AppendLine($"CVSS: {result.CvssScore}");
             contextBuilder.AppendLine($"Known exploited: {result.IsKnownExploited}");
+            contextBuilder.AppendLine($"Published at: {result.Advisory?.PublishedAt:yyyy-MM-dd}");
+            contextBuilder.AppendLine($"Last modified at: {result.Advisory?.LastModifiedAt:yyyy-MM-dd}");
             contextBuilder.AppendLine($"Context chunk: {result.ChunkText}");
             contextBuilder.AppendLine($"Source: {result.SourceName} {result.SourceUrl}");
             contextBuilder.AppendLine();
