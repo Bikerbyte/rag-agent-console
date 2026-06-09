@@ -1,16 +1,16 @@
 # RAG Agent Console
 
-一個可以換領域的 RAG 問答 Agent，外加一套自己的營運後台。
+一個可以自由更換知識庫內容的 RAG AI Agent。
 
-整條 pipeline 都在這個 repo 裡：文件匯入、切塊、建立向量、混合檢索，再交給模型生成回答。對外有 Web 對話和 Telegram 兩個入口，對內是一個 Dify 風格的後台，用來管理知識庫、看檢索品質、調設定。
+Pipeline 如下：文件匯入、切塊、建立向量、混合檢索，再交給模型生成回答。 
+對外有 Web 對話和 Telegram 兩個入口，對內帶有管理後台，用來管理知識庫、看檢索品質、調設定。
 
-預設內建一個資安連接器（CISA KEV / NVD），一啟動就有公開資料可以測。但領域沒有寫死——上傳 HR 政策、SOP、產品 FAQ，或任何 Markdown / TXT / HTML / CSV / DOCX，走的是同一套流程。
+預設內建一個資安連接器（CISA KEV / NVD），用來收集資安相關情報。 
+但可依目的更改領域，E.g. 上傳 HR 政策、作業SOP、產品 FAQ、OI等，支援 Markdown / TXT / HTML / CSV / DOCX 等常用格式。
 
-## 想解決的問題
+## 核心
 
-大部分 RAG 範例做到「丟一份 PDF、問一個問題」就停了。我想做得再往產品靠一點，所以特別處理了幾件實際上線會遇到、但 demo 常常跳過的事。
-
-資料來源和檢索引擎是分開的，換領域只要換文件和 prompt，不用動程式。檢索品質背後有一組 golden set 在跑，直接量 Hit@1 / Hit@5 / MRR，而不是憑感覺說「好像有比較準」。模型供應商可以在後台切 OpenAI、Ollama 或本機備援，連 API key 都沒有也能跑起來。部署會碰到的東西——多節點、背景工作分工、leader lease、OpenTelemetry、Docker——也都接好了。
+資料來源和檢索引擎是分開的，換領域只要換知識庫文件和 prompt，不用動程式。
 
 ## 功能
 
@@ -51,42 +51,41 @@ flowchart LR
 
 | 範圍 | 用了什麼 |
 | --- | --- |
-| Web / 後台 | ASP.NET Core Razor Pages |
+| Web / 後台 | ASP.NET Core |
 | 資料存取 | Entity Framework Core |
-| 儲存 | PostgreSQL（正式）/ in-memory（開發） |
-| 向量檢索 | pgvector，另有 EF JSON fallback |
+| 儲存 | PostgreSQL（正式） |
+| 向量檢索 | pgvector (PostgreSQL plugin) |
 | 關鍵字檢索 | 自製 BM25 + 中英混排 tokenizer |
 | 文件解析 | Semantic Kernel TextChunker、Markdig、HtmlAgilityPack、CsvHelper、OpenXml |
-| 模型 | OpenAI / Ollama / 本機備援 |
+| 模型 | OpenAI (API Key) / Ollama (Local Hosted)|
 | 可觀測性 | Serilog、OpenTelemetry |
 | 對外通道 | Telegram Bot API、Web Chat |
 
-## 跑起來
-
-最低門檻，不用資料庫也不用 API key：
+## 開始方式
 
 ```bash
 dotnet restore
 dotnet run
 ```
 
-預設用 in-memory database 加本機備援模型，開 `http://localhost:5166` 就能看到後台。想試非資安情境，repo 附了一份 `docs/demo-corpus/onboarding-policy.zh-TW.md`，在「知識庫 → 匯入來源」上傳、module 選 `Internal Docs`，再到「檢索測試」查就行。
+預設用 in-memory database 加本機備援模型，後台預設為 `http://localhost:5166` 。 
+想試非資安情境，repo 的 `docs/demo-corpus/onboarding-policy.zh-TW.md`，在「知識庫 → 匯入來源」上傳、module 選 `Internal Docs`，再進行「檢索測試」。
 
-要正式一點，可以接 PostgreSQL：
+接 PostgreSQL：
 
 ```bash
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=rag_agent_console;Username=postgres;Password=your-password"
 dotnet ef database update
 ```
 
-或用 Docker 一次帶起站台和 pgvector：
+或 Docker 一次起動站台和 pgvector：
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-`.env` 裡選供應商，要用 pgvector 檢索就設 `VECTOR_STORE_PROVIDER=PgVector`。模型供應商（OpenAI / Ollama / 本機）這些都能直接在後台「設定」頁改，不一定要走 user-secrets；Ollama 也可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`。
+`.env` 裡選 Model provider，要用 pgvector 檢索就設 `VECTOR_STORE_PROVIDER=PgVector`。模型供應商（OpenAI / Ollama / 本機）這些都能直接在後台「設定」頁改，不一定要走 user-secrets；Ollama 也可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`。
 
 ## 專案結構
 
