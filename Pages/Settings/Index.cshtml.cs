@@ -9,9 +9,12 @@ public class IndexModel(
     IAppSettingsService appSettingsService,
     IOpenAiCredentialValidator openAiCredentialValidator) : PageModel
 {
+    public const string SecretMask = "************";
+
     public bool HasOpenAiApiKey { get; private set; }
     public bool BotEnabled { get; private set; }
     public bool HasTelegramBotToken { get; private set; }
+    public bool HasWebhookSecretToken { get; private set; }
     public string AiStatusLabel { get; private set; } = "Offline";
     public string AiStatusDetail { get; private set; } = string.Empty;
     public string AiStatusClass { get; private set; } = "is-warning";
@@ -172,6 +175,7 @@ public class IndexModel(
         HasOpenAiApiKey = !string.IsNullOrWhiteSpace(ai.OpenAiApiKey);
         BotEnabled = telegram.Enabled;
         HasTelegramBotToken = !string.IsNullOrWhiteSpace(telegram.BotToken);
+        HasWebhookSecretToken = !string.IsNullOrWhiteSpace(telegram.WebhookSecretToken);
         Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability, agent);
         SetAiStatus(ai);
         SetVectorStoreStatus(vectorStore);
