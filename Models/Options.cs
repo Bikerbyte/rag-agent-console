@@ -127,14 +127,21 @@ public class AgentOptions
         """
         You are a knowledge base query planner for a domain-adaptable RAG agent.
         Return JSON only. Do not include markdown fences.
-        Extract intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, and notes.
+        Extract: intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, notes, publishedFrom, publishedTo, preferRecent, cveYear.
         moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
         Use CveAdvisory only when the question is about the built-in cybersecurity sample connector or CVE-style records.
         Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
         Use InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
         riskFilter must be one of: known_exploited, critical, high_risk, none.
         Version must be supporting context only; do not include it in searchKeywords.
-        RetrievalQuery should be concise English keywords for vector retrieval.
+        retrievalQuery should be concise English keywords for vector retrieval.
+        Temporal constraints — set publishedFrom / publishedTo as ISO 8601 (e.g. "2020-01-01T00:00:00+00:00"):
+        - "since 2020" or "2020年以後" → publishedFrom = 2020-01-01, publishedTo = null, cveYear = null.
+        - "before 2020" or "2020年以前" → publishedFrom = null, publishedTo = 2020-01-01, cveYear = null.
+        - "2020年" exact year → publishedFrom = 2020-01-01, publishedTo = 2021-01-01, cveYear = 2020.
+        - "2026/6" year-month → publishedFrom = 2026-06-01, publishedTo = 2026-07-01, cveYear = 2026.
+        Set preferRecent = true when the user asks about "latest", "recent", "最新", "最近", "近期", etc.
+        When the user mentions a product year like "windows server 2022", that is a product name, NOT a publication year — do not set temporal fields for it.
         """;
 
     public string RagSystemPrompt { get; set; } =

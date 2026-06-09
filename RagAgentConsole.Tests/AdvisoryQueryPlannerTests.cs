@@ -9,119 +9,16 @@ namespace RagAgentConsole.Tests;
 public class AdvisoryQueryPlannerTests
 {
     [Fact]
-    public async Task BuildPlanAsync_WhenQuestionContainsVersion_KeepsVersionOutOfSearchKeywords()
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync("citrix netscaler 59.22 版本有弱點嗎");
-
-        Assert.Equal("59.22", plan.Version);
-        Assert.Contains("citrix", plan.SearchKeywords);
-        Assert.Contains("netscaler", plan.SearchKeywords);
-        Assert.DoesNotContain("59.22", plan.SearchKeywords);
-        Assert.Contains("citrix netscaler", plan.RetrievalQuery, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(plan.Notes, note => note.Contains("version", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_WhenQuestionAsksKnownExploited_MapsRiskFilter()
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync("Citrix NetScaler 有已知遭利用弱點嗎");
-
-        Assert.Equal("known_exploited", plan.RiskFilter);
-        Assert.True(plan.KevOnly);
-        Assert.Contains("known exploited", plan.RetrievalQuery, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_WhenFollowUpContainsOnlyVersion_UsesPreviousUserContext()
-    {
-        var planner = CreatePlanner();
-        var history = new[]
-        {
-            new AdvisoryConversationMessage("user", "citrix netscaler 59.22 版本有弱點嗎"),
-            new AdvisoryConversationMessage("assistant", "目前資料不足以確認該版本，但 Citrix NetScaler 有相關 CVE。")
-        };
-
-        var plan = await planner.BuildPlanAsync("2402 呢?", history);
-
-        Assert.Equal("2402", plan.Version);
-        Assert.Contains("citrix", plan.SearchKeywords);
-        Assert.Contains("netscaler", plan.SearchKeywords);
-        Assert.DoesNotContain("2402", plan.SearchKeywords);
-        Assert.Contains(plan.Notes, note => note.Contains("follow-up context", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Theory]
-    [InlineData("公司 VPN SOP 的處理流程是什麼", KnowledgeModuleNames.WorkflowQa)]
-    [InlineData("查一下內部政策文件怎麼寫", KnowledgeModuleNames.InternalDocs)]
-    [InlineData("最近 Cisco 有哪些高風險 CVE", KnowledgeModuleNames.CveAdvisory)]
-    public async Task BuildPlanAsync_SelectsKnowledgeModule(string question, string expectedModule)
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync(question);
-
-        Assert.Equal(expectedModule, plan.ModuleName);
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_LocalHeuristic_SetsStrategyField()
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync("最近 Cisco 有哪些高風險 CVE");
-
-        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_WhenQuestionContainsPublicationYear_AddsDateRangeInsteadOfVersion()
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync("提供幾個 2026 年最新的弱點");
-
-        Assert.Null(plan.Version);
-        Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
-        Assert.Equal(new DateTimeOffset(2027, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedTo);
-        Assert.Equal(2026, plan.CveYear);
-        Assert.True(plan.PreferRecent);
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_WhenQuestionContainsYearMonth_AddsMonthRange()
-    {
-        var planner = CreatePlanner();
-
-        var plan = await planner.BuildPlanAsync("2026/6 有哪些重大弱點公佈");
-
-        Assert.Null(plan.Version);
-        Assert.Equal(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedTo);
-        Assert.Equal(2026, plan.CveYear);
-    }
-
-    private static LocalAdvisoryQueryPlanner CreatePlanner()
-        => new(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
-}
-
-public class ResilientAdvisoryQueryPlannerTests
-{
-    [Fact]
-    public async Task BuildPlanAsync_WhenAiDisabled_UsesLocalPlanner()
+    public async Task BuildPlanAsync_WhenAiDisabled_ThrowsAiUnavailable()
     {
         var planner = CreatePlanner(enableChat: false, aiResponse: null);
 
-        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
-
-        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
+        await Assert.ThrowsAsync<AiUnavailableException>(
+            () => planner.BuildPlanAsync("citrix netscaler 弱點"));
     }
 
     [Fact]
-    public async Task BuildPlanAsync_WhenAiEnabledAndReturnsValidJson_UsesAiPlan()
+    public async Task BuildPlanAsync_WhenAiReturnsValidJson_BuildsPlan()
     {
         const string json = """
             {
@@ -134,7 +31,11 @@ public class ResilientAdvisoryQueryPlannerTests
               "riskFilter": "none",
               "retrievalQuery": "Citrix NetScaler vulnerabilities",
               "searchKeywords": ["citrix", "netscaler"],
-              "notes": []
+              "notes": [],
+              "publishedFrom": null,
+              "publishedTo": null,
+              "preferRecent": false,
+              "cveYear": null
             }
             """;
         var planner = CreatePlanner(enableChat: true, aiResponse: json);
@@ -147,27 +48,38 @@ public class ResilientAdvisoryQueryPlannerTests
     }
 
     [Fact]
-    public async Task BuildPlanAsync_WhenAiReturnsInvalidJson_FallsBackToLocal()
+    public async Task BuildPlanAsync_WhenAiReturnsTemporalFields_ParsesDates()
     {
-        var planner = CreatePlanner(enableChat: true, aiResponse: "not json at all");
+        const string json = """
+            {
+              "intent": "knowledge_lookup",
+              "moduleName": "CveAdvisory",
+              "vendor": null,
+              "product": "windows server",
+              "version": null,
+              "cveId": null,
+              "riskFilter": "none",
+              "retrievalQuery": "windows server vulnerabilities since 2020",
+              "searchKeywords": ["windows", "server"],
+              "notes": [],
+              "publishedFrom": "2020-01-01T00:00:00+00:00",
+              "publishedTo": null,
+              "preferRecent": true,
+              "cveYear": null
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
 
-        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+        var plan = await planner.BuildPlanAsync("有沒有 2020 年以後的 windows server 弱點");
 
-        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
+        Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
+        Assert.Null(plan.PublishedTo);
+        Assert.Null(plan.CveYear);
+        Assert.True(plan.PreferRecent);
     }
 
     [Fact]
-    public async Task BuildPlanAsync_WhenAiReturnsNull_FallsBackToLocal()
-    {
-        var planner = CreatePlanner(enableChat: true, aiResponse: null);
-
-        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
-
-        Assert.Equal(PlannerStrategy.LocalHeuristic, plan.Strategy);
-    }
-
-    [Fact]
-    public async Task BuildPlanAsync_WhenAiReturnsJsonFencedResponse_StripsFenceAndParses()
+    public async Task BuildPlanAsync_WhenAiReturnsJsonFenced_StripsFenceAndParses()
     {
         const string fenced = """
             ```json
@@ -181,7 +93,11 @@ public class ResilientAdvisoryQueryPlannerTests
               "riskFilter": "known_exploited",
               "retrievalQuery": "known exploited vulnerabilities",
               "searchKeywords": [],
-              "notes": []
+              "notes": [],
+              "publishedFrom": null,
+              "publishedTo": null,
+              "preferRecent": false,
+              "cveYear": null
             }
             ```
             """;
@@ -193,20 +109,78 @@ public class ResilientAdvisoryQueryPlannerTests
         Assert.Equal("known_exploited", plan.RiskFilter);
     }
 
-    private static ResilientAdvisoryQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsInvalidJson_FallsBackToRawQuestion()
     {
-        var local = new LocalAdvisoryQueryPlanner(NullLogger<LocalAdvisoryQueryPlanner>.Instance);
+        var planner = CreatePlanner(enableChat: true, aiResponse: "not json at all");
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsNull_FallsBackToRawQuestion()
+    {
+        var planner = CreatePlanner(enableChat: true, aiResponse: null);
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsModuleName_MapsCorrectly()
+    {
+        const string json = """
+            {
+              "intent": "knowledge_lookup",
+              "moduleName": "WorkflowQa",
+              "retrievalQuery": "VPN SOP handling flow",
+              "searchKeywords": ["vpn", "sop"],
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("公司 VPN SOP 的處理流程是什麼");
+
+        Assert.Equal(KnowledgeModuleNames.WorkflowQa, plan.ModuleName);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsUnknownModule_DefaultsToCveAdvisory()
+    {
+        const string json = """
+            {
+              "intent": "knowledge_lookup",
+              "moduleName": "SomethingElse",
+              "retrievalQuery": "test query",
+              "searchKeywords": [],
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("隨便問一個");
+
+        Assert.Equal(KnowledgeModuleNames.CveAdvisory, plan.ModuleName);
+    }
+
+    private static AdvisoryQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
+    {
         var aiOptions = Options.Create(new AiProviderOptions
         {
             Provider = enableChat ? AiProviderNames.OpenAI : AiProviderNames.Local,
             EnableChatGeneration = enableChat
         });
-        return new ResilientAdvisoryQueryPlanner(
+        return new AdvisoryQueryPlanner(
             new FakeAiChatClient(aiResponse),
-            local,
-            aiOptions,
             new FakeAppSettingsService(),
-            NullLogger<ResilientAdvisoryQueryPlanner>.Instance);
+            aiOptions,
+            NullLogger<AdvisoryQueryPlanner>.Instance);
     }
 
     private sealed class FakeAiChatClient(string? response) : IAiChatClient

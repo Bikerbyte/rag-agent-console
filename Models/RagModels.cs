@@ -35,7 +35,7 @@ public sealed record DocumentCandidate(
     double TextScore)
     : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
 
-public enum PlannerStrategy { Ai, LocalHeuristic }
+public enum PlannerStrategy { Ai }
 
 public sealed record AdvisoryQueryPlan(
     string OriginalQuestion,
@@ -49,7 +49,7 @@ public sealed record AdvisoryQueryPlan(
     IReadOnlyList<string> SearchKeywords,
     IReadOnlyList<string> Notes,
     string ModuleName = KnowledgeModuleNames.CveAdvisory,
-    PlannerStrategy Strategy = PlannerStrategy.LocalHeuristic,
+    PlannerStrategy Strategy = PlannerStrategy.Ai,
     DateTimeOffset? PublishedFrom = null,
     DateTimeOffset? PublishedTo = null,
     bool PreferRecent = false,
