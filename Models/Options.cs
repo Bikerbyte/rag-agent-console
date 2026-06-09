@@ -159,16 +159,7 @@ public class AgentOptions
         """;
 
     public string UnavailableReply { get; set; } =
-        """
-        目前尚未啟用 AI 對話模型，所以我不能像一般聊天機器人一樣接續閒聊。
-
-        你現在仍可以測試 RAG 與知識庫流程，例如：
-        - 查詢已同步的 sample connector 資料
-        - 上傳或貼上非資安文件後再試
-        - 切換 module 測試 Internal Docs、Workflow QA 與 CVE Advisory 的 retrieval 差異
-
-        若要啟用完整對話能力，請在設定頁面設定 AI Provider 並開啟 Chat generation。
-        """;
+        "目前尚未啟用 AI 對話模型，無法產生回答。請到「設定 → AI 供應商」選擇 Provider 並開啟「回答生成」後再試。";
 }
 
 public class AiProviderOptions
