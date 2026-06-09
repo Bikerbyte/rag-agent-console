@@ -10,7 +10,11 @@ public sealed record AdvisoryVectorSearchRequest(
     float[] QueryEmbedding,
     int MaxResults,
     string? ModuleName = null,
-    string RetrievalMode = RetrievalModes.Hybrid);
+    string RetrievalMode = RetrievalModes.Hybrid,
+    DateTimeOffset? PublishedFrom = null,
+    DateTimeOffset? PublishedTo = null,
+    bool PreferRecent = false,
+    int? CveYear = null);
 
 public abstract record AdvisoryVectorSearchCandidate(
     string ChunkText,
@@ -45,7 +49,11 @@ public sealed record AdvisoryQueryPlan(
     IReadOnlyList<string> SearchKeywords,
     IReadOnlyList<string> Notes,
     string ModuleName = KnowledgeModuleNames.CveAdvisory,
-    PlannerStrategy Strategy = PlannerStrategy.LocalHeuristic)
+    PlannerStrategy Strategy = PlannerStrategy.LocalHeuristic,
+    DateTimeOffset? PublishedFrom = null,
+    DateTimeOffset? PublishedTo = null,
+    bool PreferRecent = false,
+    int? CveYear = null)
 {
     public bool KevOnly => string.Equals(RiskFilter, "known_exploited", StringComparison.OrdinalIgnoreCase);
 

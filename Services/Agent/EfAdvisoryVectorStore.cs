@@ -20,6 +20,29 @@ public class EfAdvisoryVectorStore(
             .Include(chunk => chunk.Advisory)
             .AsQueryable();
 
+        if (request.PublishedFrom.HasValue)
+        {
+            chunkQuery = chunkQuery.Where(chunk =>
+                chunk.Advisory != null &&
+                chunk.Advisory.PublishedAt >= request.PublishedFrom.Value);
+        }
+
+        if (request.PublishedTo.HasValue)
+        {
+            chunkQuery = chunkQuery.Where(chunk =>
+                chunk.Advisory != null &&
+                chunk.Advisory.PublishedAt < request.PublishedTo.Value);
+        }
+
+        if (request.CveYear.HasValue)
+        {
+            var cvePrefix = $"CVE-{request.CveYear.Value}-";
+            chunkQuery = chunkQuery.Where(chunk =>
+                chunk.Advisory != null &&
+                chunk.Advisory.CveId != null &&
+                chunk.Advisory.CveId.StartsWith(cvePrefix));
+        }
+
         if (!string.IsNullOrWhiteSpace(request.CveId))
         {
             chunkQuery = chunkQuery.Where(chunk =>
@@ -63,8 +86,12 @@ public class EfAdvisoryVectorStore(
 
         if (ShouldSearchAdvisories(request))
         {
-            var chunks = await chunkQuery
-                .OrderByDescending(chunk => chunk.SecurityAdvisoryId)
+            var orderedChunks = request.PreferRecent
+                ? chunkQuery.OrderByDescending(chunk => chunk.Advisory!.PublishedAt)
+                    .ThenByDescending(chunk => chunk.SecurityAdvisoryId)
+                : chunkQuery.OrderByDescending(chunk => chunk.SecurityAdvisoryId);
+
+            var chunks = await orderedChunks
                 .Take(limit)
                 .ToListAsync(cancellationToken);
 
