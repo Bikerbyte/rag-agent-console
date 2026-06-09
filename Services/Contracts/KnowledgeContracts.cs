@@ -56,7 +56,8 @@ public sealed record KnowledgeDocumentFileImportRequest(
     string ModuleName,
     string? Vendor,
     string? Product,
-    string? Tags);
+    string? Tags,
+    string? Description = null);
 
 public sealed record KnowledgeDocumentBatchImportResult(
     IReadOnlyList<KnowledgeDocumentIngestionResult> Imported,
