@@ -25,8 +25,9 @@ public partial class LocalAdvisoryQueryPlanner(
         string question,
         IReadOnlyList<AdvisoryConversationMessage>? history)
     {
+        var temporalConstraint = ExtractTemporalConstraint(question);
         var cveId = NormalizeCve(CveRegex().Match(question).Value);
-        var version = ExtractVersion(question);
+        var version = temporalConstraint.PublishedFrom.HasValue ? null : ExtractVersion(question);
         var riskFilter = ExtractRiskFilter(question);
         var moduleName = ExtractModuleName(question);
         var keywords = ExtractKeywords(question, version).ToList();
@@ -56,6 +57,10 @@ public partial class LocalAdvisoryQueryPlanner(
         {
             notes.Add("follow-up context was used to complete the retrieval query");
         }
+        if (temporalConstraint.PublishedFrom.HasValue)
+        {
+            notes.Add("publication date range is a hard retrieval filter");
+        }
 
         return new AdvisoryQueryPlan(
             question,
@@ -69,7 +74,30 @@ public partial class LocalAdvisoryQueryPlanner(
             keywords,
             notes,
             moduleName,
-            PlannerStrategy.LocalHeuristic);
+            PlannerStrategy.LocalHeuristic,
+            temporalConstraint.PublishedFrom,
+            temporalConstraint.PublishedTo,
+            temporalConstraint.PreferRecent,
+            temporalConstraint.CveYear);
+    }
+
+    internal static AdvisoryQueryPlan ApplyTemporalConstraint(string question, AdvisoryQueryPlan plan)
+    {
+        var constraint = ExtractTemporalConstraint(question);
+        return constraint.PublishedFrom.HasValue
+            ? plan with
+            {
+                Version = null,
+                PublishedFrom = constraint.PublishedFrom,
+                PublishedTo = constraint.PublishedTo,
+                PreferRecent = constraint.PreferRecent,
+                CveYear = constraint.CveYear,
+                Notes = plan.Notes
+                    .Append("publication date range is a hard retrieval filter")
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            }
+            : plan with { PreferRecent = constraint.PreferRecent };
     }
 
     internal static string BuildRetrievalQuery(string? cveId, IReadOnlyList<string> keywords, string? riskFilter)
@@ -189,6 +217,36 @@ public partial class LocalAdvisoryQueryPlanner(
         return match.Success ? match.Value : null;
     }
 
+    private static TemporalConstraint ExtractTemporalConstraint(string question)
+    {
+        var preferRecent = ContainsAny(question, "latest", "recent", "newest", "最新", "最近");
+        var monthMatch = YearMonthRegex().Match(question);
+        if (monthMatch.Success &&
+            int.TryParse(monthMatch.Groups["year"].Value, out var monthYear) &&
+            int.TryParse(monthMatch.Groups["month"].Value, out var month))
+        {
+            var from = new DateTimeOffset(monthYear, month, 1, 0, 0, 0, TimeSpan.Zero);
+            return new TemporalConstraint(from, from.AddMonths(1), preferRecent, monthYear);
+        }
+
+        var yearMatch = YearWithSuffixRegex().Match(question);
+        if (!yearMatch.Success && ContainsAny(
+                question,
+                "latest", "recent", "newest", "published", "released", "since", "year",
+                "最新", "最近", "公布", "公佈", "發布", "年至今", "今年"))
+        {
+            yearMatch = StandaloneYearRegex().Match(question);
+        }
+
+        if (yearMatch.Success && int.TryParse(yearMatch.Groups["year"].Value, out var year))
+        {
+            var from = new DateTimeOffset(year, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            return new TemporalConstraint(from, from.AddYears(1), preferRecent, year);
+        }
+
+        return new TemporalConstraint(null, null, preferRecent, null);
+    }
+
     private static string? ExtractRiskFilter(string question)
     {
         if (ContainsAny(question, "kev", "known exploited", "已知遭利用", "被利用"))
@@ -227,8 +285,23 @@ public partial class LocalAdvisoryQueryPlanner(
     [GeneratedRegex("(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase)]
     private static partial Regex VersionRegex();
 
+    [GeneratedRegex("(?<!cve-)(?<year>20\\d{2})\\s*(?:[/.-]|年\\s*)(?<month>1[0-2]|0?[1-9])(?:\\s*月)?", RegexOptions.IgnoreCase)]
+    private static partial Regex YearMonthRegex();
+
+    [GeneratedRegex("(?<!cve-)(?<year>20\\d{2})\\s*年", RegexOptions.IgnoreCase)]
+    private static partial Regex YearWithSuffixRegex();
+
+    [GeneratedRegex("(?<!cve-)\\b(?<year>20\\d{2})\\b", RegexOptions.IgnoreCase)]
+    private static partial Regex StandaloneYearRegex();
+
     [GeneratedRegex("[a-z0-9_.:-]{2,}")]
     private static partial Regex KeywordRegex();
+
+    private sealed record TemporalConstraint(
+        DateTimeOffset? PublishedFrom,
+        DateTimeOffset? PublishedTo,
+        bool PreferRecent,
+        int? CveYear);
 }
 
 /// <summary>
@@ -254,7 +327,7 @@ public partial class ResilientAdvisoryQueryPlanner(
             var aiPlan = await TryBuildWithAiAsync(question, history, cancellationToken);
             if (aiPlan is not null)
             {
-                return aiPlan;
+                return LocalAdvisoryQueryPlanner.ApplyTemporalConstraint(question, aiPlan);
             }
         }
 

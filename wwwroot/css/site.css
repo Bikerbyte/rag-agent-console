@@ -124,7 +124,7 @@ p {
   align-self: flex-start;
   display: flex;
   flex-direction: column;
-  width: 248px;
+  width: 224px;
   flex-shrink: 0;
   height: 100vh;
   gap: 0.5rem;
@@ -323,7 +323,7 @@ p {
   gap: 1.25rem;
   min-height: 0;
   width: 100%;
-  max-width: 1180px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 1.9rem 2rem 2.5rem;
 }
@@ -845,7 +845,7 @@ hr {
 .knowledge-shell {
   display: grid;
   min-height: calc(100vh - 3.4rem);
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   margin: 0 -1rem -1rem;
   background: #fff;
 }
@@ -860,36 +860,6 @@ hr {
   padding: 1.25rem 1rem;
   border-right: 1px solid var(--panel-border);
   background: #f8fafc;
-}
-
-.knowledge-space-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.8rem;
-  align-items: center;
-  min-height: 92px;
-  padding: 0.85rem;
-  border: 1px solid rgba(24, 36, 44, 0.09);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.knowledge-space-card p {
-  margin: 0.2rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.84rem;
-}
-
-.knowledge-avatar {
-  display: inline-flex;
-  width: 2.6rem;
-  height: 2.6rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: #e8f0ff;
-  color: var(--accent);
-  font-weight: 900;
 }
 
 .knowledge-section-nav {
@@ -2227,7 +2197,7 @@ hr {
 
 .settings-workbench {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   gap: 0;
   padding: 0;
   overflow: hidden;

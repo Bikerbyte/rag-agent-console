@@ -188,6 +188,23 @@ public class PgVectorAdvisoryVectorStore(
         SecurityAdvisory advisory,
         string chunkText)
     {
+        if (request.PublishedFrom.HasValue && advisory.PublishedAt < request.PublishedFrom.Value)
+        {
+            return false;
+        }
+
+        if (request.PublishedTo.HasValue && advisory.PublishedAt >= request.PublishedTo.Value)
+        {
+            return false;
+        }
+
+        if (request.CveYear.HasValue &&
+            (advisory.CveId is null ||
+             !advisory.CveId.StartsWith($"CVE-{request.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
         if (request.KevOnly && !advisory.IsKnownExploited)
         {
             return false;

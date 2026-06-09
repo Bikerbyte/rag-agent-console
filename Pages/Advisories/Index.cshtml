@@ -30,14 +30,6 @@
 
 <section class="knowledge-shell">
     <aside class="knowledge-sidebar" aria-label="Knowledge sections">
-        <div class="knowledge-space-card">
-            <span class="knowledge-avatar">@(Model.AgentName.Length > 0 ? Model.AgentName[0] : 'A')</span>
-            <div>
-                <strong>@Model.AgentName</strong>
-                <p>@L["知識庫"]</p>
-            </div>
-        </div>
-
         <nav class="knowledge-section-nav">
             <a class="knowledge-section-link @(activeSection == "documents" ? "is-active" : string.Empty)" asp-page="/Advisories/Index" asp-route-section="documents">
                 <span>▣</span>
