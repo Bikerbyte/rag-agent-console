@@ -179,10 +179,11 @@ public class IndexModel(
                     file.FileName,
                     file.ContentType,
                     stream,
-                    FileInput.ModuleName,
-                    FileInput.Vendor,
-                    FileInput.Product,
-                    FileInput.Tags));
+                    KnowledgeModuleNames.InternalDocs,
+                    Vendor: null,
+                    Product: null,
+                    Tags: FileInput.Tags,
+                    Description: FileInput.Description));
             }
 
             var importedCount = 0;
@@ -263,10 +264,8 @@ public class IndexModel(
 
     public class FileKnowledgeInput
     {
-        public string ModuleName { get; set; } = KnowledgeModuleNames.InternalDocs;
         public string? Title { get; set; }
-        public string? Vendor { get; set; }
-        public string? Product { get; set; }
+        public string? Description { get; set; }
         public string? Tags { get; set; }
         public List<IFormFile> Uploads { get; set; } = [];
     }

@@ -258,34 +258,19 @@
                     </div>
 
                     <form class="knowledge-ingest-form is-flat" method="post" asp-page-handler="UploadFile" enctype="multipart/form-data">
-                        <div class="form-row">
-                            <label class="field-block">
-                                <span>@L["標題"]</span>
-                                <input asp-for="FileInput.Title" class="form-control" placeholder="@L["新人政策、SOP、產品 FAQ"].Value" />
-                                <small class="field-hint">@L["僅單檔上傳時套用；多檔時各自以檔名為標題。"]</small>
-                            </label>
-                            <label class="field-block">
-                                <span>@L["模組"]</span>
-                                <select asp-for="FileInput.ModuleName" class="form-select">
-                                    <option value="@KnowledgeModuleNames.InternalDocs">@L["內部文件"]</option>
-                                    <option value="@KnowledgeModuleNames.CveAdvisory">CVE Advisory</option>
-                                    <option value="@KnowledgeModuleNames.WorkflowQa">@L["流程問答"]</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div class="form-row">
-                            <label class="field-block">
-                                <span>@L["廠商"]</span>
-                                <input asp-for="FileInput.Vendor" class="form-control" />
-                            </label>
-                            <label class="field-block">
-                                <span>@L["產品"]</span>
-                                <input asp-for="FileInput.Product" class="form-control" />
-                            </label>
-                        </div>
                         <label class="field-block">
-                            <span>@L["標籤"]</span>
-                            <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, product, faq" />
+                            <span>@L["文件名稱（選填）"]</span>
+                            <input asp-for="FileInput.Title" class="form-control" placeholder="@L["未填寫時使用檔名"].Value" />
+                            <small class="field-hint">@L["僅單檔上傳時套用；多檔時各自使用檔名。"]</small>
+                        </label>
+                        <label class="field-block">
+                            <span>@L["描述（選填）"]</span>
+                            <textarea asp-for="FileInput.Description" class="form-control" rows="3" placeholder="@L["簡短說明文件內容與用途"].Value"></textarea>
+                            <small class="field-hint">@L["描述會加入可檢索內容，幫助 Agent 找到這份文件。"]</small>
+                        </label>
+                        <label class="field-block">
+                            <span>@L["標籤（選填）"]</span>
+                            <input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, faq" />
                         </label>
                         <label class="upload-zone">
                             <input asp-for="FileInput.Uploads" type="file" multiple accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" />

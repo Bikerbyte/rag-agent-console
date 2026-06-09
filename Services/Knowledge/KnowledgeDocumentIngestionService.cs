@@ -87,7 +87,7 @@ public class KnowledgeDocumentIngestionService(
             "UploadedFile",
             request.FileName,
             extracted.NormalizedContentType,
-            extracted.Text,
+            BuildDocumentText(request.Description, extracted.Text),
             request.ModuleName,
             request.Vendor,
             request.Product,
@@ -267,6 +267,16 @@ public class KnowledgeDocumentIngestionService(
             .Replace('\r', '\n')
             .Split('\n', StringSplitOptions.TrimEntries)
             .Where(line => !string.IsNullOrWhiteSpace(line)));
+
+    private static string BuildDocumentText(string? description, string extractedText)
+    {
+        var normalizedDescription = string.IsNullOrWhiteSpace(description)
+            ? null
+            : NormalizeText(description);
+        return normalizedDescription is null
+            ? extractedText
+            : $"{normalizedDescription}{Environment.NewLine}{Environment.NewLine}{extractedText}";
+    }
 
     private static string NormalizeModule(string? value)
         => string.IsNullOrWhiteSpace(value) ? KnowledgeModuleNames.InternalDocs : Trim(value, 64);
