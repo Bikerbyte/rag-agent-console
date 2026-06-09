@@ -250,7 +250,7 @@
   <data name="設定狀態" xml:space="preserve"><value>Configuration state</value></data>
   <data name="資安範例連接器" xml:space="preserve"><value>Cybersecurity sample connector</value></data>
   <data name="資料來源" xml:space="preserve"><value>Data sources</value></data>
-  <data name="資料範圍" xml:space="preserve"><value>Data scope</value></data>
+  <data name="搜尋來源" xml:space="preserve"><value>Search source</value></data>
   <data name="上傳文件" xml:space="preserve"><value>Uploaded documents</value></data>
   <data name="資安公告" xml:space="preserve"><value>Security advisories</value></data>
   <data name="流程文件" xml:space="preserve"><value>Workflow documents</value></data>
