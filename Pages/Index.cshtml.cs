@@ -9,9 +9,7 @@ namespace RagAgentConsole.Pages;
 
 public class IndexModel(
     ApplicationDbContext dbContext,
-    IOptions<TelegramBotOptions> telegramBotOptions,
     IOptions<AppRuntimeOptions> appRuntimeOptions,
-    IOptions<AiProviderOptions> aiProviderOptions,
     IAppSettingsService appSettingsService) : PageModel
 {
     public string AgentName { get; private set; } = "RAG Agent Console";
@@ -34,6 +32,8 @@ public class IndexModel(
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+        var aiProviderOptions = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
+        var telegramBotOptions = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
         AgentName = agentOptions.AgentName;
         AgentTagline = agentOptions.AgentTagline;
 
@@ -57,9 +57,9 @@ public class IndexModel(
 
         EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
         InstanceName = appRuntimeOptions.Value.InstanceName;
-        BotEnabled = telegramBotOptions.Value.Enabled;
-        HasBotToken = !string.IsNullOrWhiteSpace(telegramBotOptions.Value.BotToken);
-        AiProviderText = aiProviderOptions.Value.Provider;
+        BotEnabled = telegramBotOptions.Enabled;
+        HasBotToken = !string.IsNullOrWhiteSpace(telegramBotOptions.BotToken);
+        AiProviderText = aiProviderOptions.Provider;
 
         if (latestAdvisorySync is not null)
         {
