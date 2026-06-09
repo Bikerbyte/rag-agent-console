@@ -157,16 +157,17 @@ public class SecurityAdvisoryAnswerService(
             return new AgentAnswerResult(generated, trace);
         }
 
-        var builder = new StringBuilder();
+        // AI 未啟用（或仍是本機備援）時，不要把檢索片段硬湊成「答案」造成誤導，
+        // 直接回覆固定訊息請使用者啟用 AI 對話模型。
         if (!aiOptions.EnableChatGeneration ||
             string.Equals(aiOptions.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
         {
-            builder.AppendLine("目前尚未啟用 AI 對話模型，以下是根據已同步資料產生的檢索結果：");
+            return new AgentAnswerResult(agentOptions.UnavailableReply, trace);
         }
-        else
-        {
-            builder.AppendLine("根據目前已同步的資料，整理如下：");
-        }
+
+        // AI 已啟用但本次生成失敗（例如逾時或 API 錯誤）：退而提供清楚標示為「原始檢索」的整理。
+        var builder = new StringBuilder();
+        builder.AppendLine("AI 生成暫時無法使用，以下是根據目前已同步資料的原始檢索結果：");
 
         if (ContainsVersionLike(question))
         {
