@@ -45,8 +45,6 @@ flowchart LR
     Admin --> Evaluation["Retrieval Evaluation"]
 ```
 
-問答 Flow 為：使用者提問 → LLM planner 解析意圖與時間範圍 → hybrid retrieval 從知識庫撈出相關片段 → 把片段當 context 交給模型生成回答；若沒命中知識庫則走一般對話回覆。
-
 ## 使用技術
 
 | 範圍 | 工具 |
