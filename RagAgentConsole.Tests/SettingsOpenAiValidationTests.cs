@@ -54,6 +54,35 @@ public class SettingsOpenAiValidationTests
         Assert.True(savedKey.IsSecret);
     }
 
+    [Fact]
+    public async Task OnGetAsync_WhenSecretsExist_ExposesOnlyConfiguredState()
+    {
+        var settings = new FakeAppSettingsService
+        {
+            AiOptions = new AiProviderOptions { OpenAiApiKey = "sk-existing" },
+            TelegramOptions = new TelegramBotOptions
+            {
+                BotToken = "telegram-existing",
+                WebhookSecretToken = "webhook-existing"
+            }
+        };
+        var model = new IndexModel(
+            settings,
+            new FakeOpenAiCredentialValidator(new OpenAiCredentialValidationResult(
+                OpenAiCredentialValidationStatus.Valid,
+                "valid",
+                [])));
+
+        await model.OnGetAsync(CancellationToken.None);
+
+        Assert.True(model.HasOpenAiApiKey);
+        Assert.True(model.HasTelegramBotToken);
+        Assert.True(model.HasWebhookSecretToken);
+        Assert.Null(model.Input.OpenAiApiKey);
+        Assert.Null(model.Input.TelegramBotToken);
+        Assert.Null(model.Input.WebhookSecretToken);
+    }
+
     private static IndexModel.AppSettingsInput BuildInput(string apiKey)
         => new()
         {
@@ -72,12 +101,14 @@ public class SettingsOpenAiValidationTests
     private sealed class FakeAppSettingsService : IAppSettingsService
     {
         public IReadOnlyList<AppSettingUpdate>? SavedUpdates { get; private set; }
+        public AiProviderOptions AiOptions { get; init; } = new();
+        public TelegramBotOptions TelegramOptions { get; init; } = new();
 
         public Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new AiProviderOptions());
+            => Task.FromResult(AiOptions);
 
         public Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new TelegramBotOptions());
+            => Task.FromResult(TelegramOptions);
 
         public Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new DataSourceOptions());
