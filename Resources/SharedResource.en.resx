@@ -250,6 +250,11 @@
   <data name="設定狀態" xml:space="preserve"><value>Configuration state</value></data>
   <data name="資安範例連接器" xml:space="preserve"><value>Cybersecurity sample connector</value></data>
   <data name="資料來源" xml:space="preserve"><value>Data sources</value></data>
+  <data name="資料範圍" xml:space="preserve"><value>Data scope</value></data>
+  <data name="上傳文件" xml:space="preserve"><value>Uploaded documents</value></data>
+  <data name="資安公告" xml:space="preserve"><value>Security advisories</value></data>
+  <data name="流程文件" xml:space="preserve"><value>Workflow documents</value></data>
+  <data name="全部資料" xml:space="preserve"><value>All data</value></data>
   <data name="輪詢間隔（秒）" xml:space="preserve"><value>Polling delay (sec)</value></data>
   <data name="輸入自然語言查詢，檢視會被當作 Agent context 的片段。" xml:space="preserve"><value>Enter a natural-language query and inspect the chunks used as Agent context.</value></data>
   <data name="近期活動" xml:space="preserve"><value>Recent activity</value></data>

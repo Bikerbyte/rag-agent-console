@@ -5,7 +5,7 @@
     ViewData["Title"] = L["知識庫"].Value;
     var activeQuery = Request.Query["q"].ToString();
     var activeRetrievalQuery = Request.Query["retrievalQuery"].ToString();
-    var activeRetrievalModule = Request.Query["retrievalModule"].ToString();
+    var activeRetrievalModule = Model.RetrievalModule ?? string.Empty;
     var activeRetrievalMode = RetrievalModes.Normalize(Request.Query["retrievalMode"].ToString());
     var activeTopK = int.TryParse(Request.Query["topK"], out var parsedTopK) ? Math.Clamp(parsedTopK, 1, 10) : 5;
     var kevActive = string.Equals(Request.Query["kev"], "true", StringComparison.OrdinalIgnoreCase);
@@ -300,12 +300,12 @@
                             <input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="@L["例如：遠端工作核准流程 或 最新 Cisco 風險"].Value" />
                         </label>
                         <label class="field-block">
-                            <span>@L["模組"]</span>
+                            <span>@L["資料範圍"]</span>
                             <select class="form-select" name="retrievalModule">
-                                <option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">@L["全部模組"]</option>
-                                <option value="@KnowledgeModuleNames.CveAdvisory" selected="@(activeRetrievalModule == KnowledgeModuleNames.CveAdvisory)">CVE Advisory</option>
-                                <option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">@L["流程問答"]</option>
-                                <option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">@L["內部文件"]</option>
+                                <option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">@L["上傳文件"]</option>
+                                <option value="@KnowledgeModuleNames.CveAdvisory" selected="@(activeRetrievalModule == KnowledgeModuleNames.CveAdvisory)">@L["資安公告"]</option>
+                                <option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">@L["流程文件"]</option>
+                                <option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">@L["全部資料"]</option>
                             </select>
                         </label>
                         <label class="field-block">

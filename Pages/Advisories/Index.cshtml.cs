@@ -25,6 +25,7 @@ public class IndexModel(
     public int ManagedDocumentCount { get; private set; }
     public int EstimatedTokenCount { get; private set; }
     public string? RetrievalQuery { get; private set; }
+    public string? RetrievalModule { get; private set; }
     public int RetrievalTopK { get; private set; } = 5;
     public string? RetrievalError { get; private set; }
     public string AgentName { get; private set; } = "AI Assistant";
@@ -52,6 +53,9 @@ public class IndexModel(
         CancellationToken cancellationToken = default)
     {
         RetrievalQuery = retrievalQuery;
+        RetrievalModule = Request.Query.ContainsKey("retrievalModule")
+            ? NormalizeModuleFilter(retrievalModule)
+            : KnowledgeModuleNames.InternalDocs;
         RetrievalTopK = Math.Clamp(topK, 1, 10);
         AgentName = (await appSettingsService.GetAgentOptionsAsync(cancellationToken)).AgentName;
 
@@ -115,7 +119,7 @@ public class IndexModel(
                 var response = await searchService.SearchWithTraceAsync(
                     RetrievalQuery,
                     maxResults: RetrievalTopK,
-                    moduleName: NormalizeModuleFilter(retrievalModule),
+                    moduleName: RetrievalModule,
                     retrievalMode: retrievalMode,
                     cancellationToken: cancellationToken);
                 RetrievalResults = response.Results;
