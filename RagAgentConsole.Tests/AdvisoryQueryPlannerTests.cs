@@ -1,7 +1,6 @@
 using RagAgentConsole.Models;
 using RagAgentConsole.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace RagAgentConsole.Tests;
@@ -171,15 +170,9 @@ public class AdvisoryQueryPlannerTests
 
     private static AdvisoryQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
     {
-        var aiOptions = Options.Create(new AiProviderOptions
-        {
-            Provider = enableChat ? AiProviderNames.OpenAI : AiProviderNames.Local,
-            EnableChatGeneration = enableChat
-        });
         return new AdvisoryQueryPlanner(
             new FakeAiChatClient(aiResponse),
-            new FakeAppSettingsService(),
-            aiOptions,
+            new FakeAppSettingsService(enableChat),
             NullLogger<AdvisoryQueryPlanner>.Instance);
     }
 
@@ -189,10 +182,14 @@ public class AdvisoryQueryPlannerTests
             => Task.FromResult(response);
     }
 
-    private sealed class FakeAppSettingsService : IAppSettingsService
+    private sealed class FakeAppSettingsService(bool enableChat) : IAppSettingsService
     {
         public Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new AiProviderOptions());
+            => Task.FromResult(new AiProviderOptions
+            {
+                Provider = enableChat ? AiProviderNames.OpenAI : AiProviderNames.Local,
+                EnableChatGeneration = enableChat
+            });
         public Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new TelegramBotOptions());
         public Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default)
