@@ -98,7 +98,7 @@
   <data name="切塊方式" xml:space="preserve"><value>Chunking</value></data>
   <data name="切塊與索引" xml:space="preserve"><value>Chunking &amp; indexing</value></data>
   <data name="刪除" xml:space="preserve"><value>Delete</value></data>
-  <data name="前往營運" xml:space="preserve"><value>Go to Operations</value></data>
+  <data name="前往運行狀態" xml:space="preserve"><value>View runtime status</value></data>
   <data name="加入案例。" xml:space="preserve"><value>to add cases.</value></data>
   <data name="匯入來源" xml:space="preserve"><value>Sources</value></data>
   <data name="匯入檔案" xml:space="preserve"><value>Import file</value></data>
@@ -209,7 +209,7 @@
   <data name="混合" xml:space="preserve"><value>Hybrid</value></data>
   <data name="清除對話" xml:space="preserve"><value>Clear conversation</value></data>
   <data name="無法回答時的回覆" xml:space="preserve"><value>Reply when unavailable</value></data>
-  <data name="營運" xml:space="preserve"><value>Operations</value></data>
+  <data name="運行狀態" xml:space="preserve"><value>Runtime status</value></data>
   <data name="片段" xml:space="preserve"><value>chunks</value></data>
   <data name="產品" xml:space="preserve"><value>Product</value></data>
   <data name="用 golden set 對每種檢索策略計算 Hit@1、Hit@5 與 MRR。" xml:space="preserve"><value>Run the golden set against each retrieval strategy to compute Hit@1, Hit@5, and MRR.</value></data>
@@ -250,12 +250,24 @@
   <data name="設定狀態" xml:space="preserve"><value>Configuration state</value></data>
   <data name="資安範例連接器" xml:space="preserve"><value>Cybersecurity sample connector</value></data>
   <data name="資料來源" xml:space="preserve"><value>Data sources</value></data>
+  <data name="搜尋來源" xml:space="preserve"><value>Search source</value></data>
+  <data name="上傳文件" xml:space="preserve"><value>Uploaded documents</value></data>
+  <data name="資安公告" xml:space="preserve"><value>Security advisories</value></data>
+  <data name="流程文件" xml:space="preserve"><value>Workflow documents</value></data>
+  <data name="全部資料" xml:space="preserve"><value>All data</value></data>
   <data name="輪詢間隔（秒）" xml:space="preserve"><value>Polling delay (sec)</value></data>
   <data name="輸入自然語言查詢，檢視會被當作 Agent context 的片段。" xml:space="preserve"><value>Enter a natural-language query and inspect the chunks used as Agent context.</value></data>
   <data name="近期活動" xml:space="preserve"><value>Recent activity</value></data>
   <data name="送出" xml:space="preserve"><value>Send</value></data>
   <data name="逐案明細" xml:space="preserve"><value>Per-case detail</value></data>
   <data name="選擇檔案" xml:space="preserve"><value>Choose file</value></data>
+  <data name="文件名稱（選填）" xml:space="preserve"><value>Document name (optional)</value></data>
+  <data name="未填寫時使用檔名" xml:space="preserve"><value>Uses the filename when left blank</value></data>
+  <data name="僅單檔上傳時套用；多檔時各自使用檔名。" xml:space="preserve"><value>Applied to single-file uploads; multiple files use their filenames.</value></data>
+  <data name="描述（選填）" xml:space="preserve"><value>Description (optional)</value></data>
+  <data name="簡短說明文件內容與用途" xml:space="preserve"><value>Briefly describe the document and its purpose</value></data>
+  <data name="描述會加入可檢索內容，幫助 Agent 找到這份文件。" xml:space="preserve"><value>The description is indexed to help the Agent find this document.</value></data>
+  <data name="標籤（選填）" xml:space="preserve"><value>Tags (optional)</value></data>
   <data name="還原預設" xml:space="preserve"><value>Reset to default</value></data>
   <data name="重新索引" xml:space="preserve"><value>Re-index</value></data>
   <data name="開" xml:space="preserve"><value>On</value></data>
