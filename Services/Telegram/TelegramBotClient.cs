@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// Wraps the Telegram Bot API calls used by this project.

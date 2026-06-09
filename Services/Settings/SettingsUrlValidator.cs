@@ -1,4 +1,4 @@
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public static class SettingsUrlValidator
 {

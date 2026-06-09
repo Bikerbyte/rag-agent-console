@@ -1,4 +1,4 @@
-namespace SecurityAdvisoryBot.Models;
+namespace RagAgentConsole.Models;
 
 public sealed record AdvisoryVectorSearchRequest(
     string Question,

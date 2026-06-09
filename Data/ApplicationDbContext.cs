@@ -1,7 +1,7 @@
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace SecurityAdvisoryBot.Data;
+namespace RagAgentConsole.Data;
 
 /// <summary>
 /// 管理頁面、同步工作與 Telegram 推送紀錄共用的 EF Core DbContext。
@@ -19,6 +19,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
     public DbSet<KnowledgeDocumentChunk> KnowledgeDocumentChunks => Set<KnowledgeDocumentChunk>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<RetrievalEvaluationCaseEntity> RetrievalEvaluationCases => Set<RetrievalEvaluationCaseEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithOne(chunk => chunk.Advisory)
             .HasForeignKey(chunk => chunk.SecurityAdvisoryId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RetrievalEvaluationCaseEntity>()
+            .HasIndex(evaluationCase => evaluationCase.CaseKey)
+            .IsUnique();
 
         modelBuilder.Entity<KnowledgeDocument>()
             .HasIndex(document => document.ModuleName);

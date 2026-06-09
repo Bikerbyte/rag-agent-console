@@ -1,7 +1,7 @@
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 定期執行 Telegram 排程推播判斷的背景工作迴圈。

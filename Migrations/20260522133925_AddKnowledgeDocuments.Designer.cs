@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using SecurityAdvisoryBot.Data;
+using RagAgentConsole.Data;
 
 #nullable disable
 
-namespace SecurityAdvisoryBot.Migrations
+namespace RagAgentConsole.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     [Migration("20260522133925_AddKnowledgeDocuments")]
@@ -25,7 +25,7 @@ namespace SecurityAdvisoryBot.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.AppSetting", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.AppSetting", b =>
                 {
                     b.Property<int>("AppSettingId")
                         .ValueGeneratedOnAdd()
@@ -54,7 +54,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("AppSettings");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.KnowledgeDocument", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.KnowledgeDocument", b =>
                 {
                     b.Property<int>("KnowledgeDocumentId")
                         .ValueGeneratedOnAdd()
@@ -133,7 +133,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("KnowledgeDocuments");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.KnowledgeDocumentChunk", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.KnowledgeDocumentChunk", b =>
                 {
                     b.Property<int>("KnowledgeDocumentChunkId")
                         .ValueGeneratedOnAdd()
@@ -171,7 +171,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("KnowledgeDocumentChunks");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.PushLog", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.PushLog", b =>
                 {
                     b.Property<int>("PushLogId")
                         .ValueGeneratedOnAdd()
@@ -213,7 +213,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("PushLogs");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.RuntimeLeadershipLease", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.RuntimeLeadershipLease", b =>
                 {
                     b.Property<string>("LeaseName")
                         .HasMaxLength(128)
@@ -241,7 +241,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("RuntimeLeadershipLeases");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.RuntimeNodeHeartbeat", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.RuntimeNodeHeartbeat", b =>
                 {
                     b.Property<int>("RuntimeNodeHeartbeatId")
                         .ValueGeneratedOnAdd()
@@ -295,7 +295,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("RuntimeNodeHeartbeats");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.SecurityAdvisory", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.SecurityAdvisory", b =>
                 {
                     b.Property<int>("SecurityAdvisoryId")
                         .ValueGeneratedOnAdd()
@@ -402,7 +402,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("SecurityAdvisories");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.SecurityAdvisoryChunk", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.SecurityAdvisoryChunk", b =>
                 {
                     b.Property<int>("SecurityAdvisoryChunkId")
                         .ValueGeneratedOnAdd()
@@ -437,7 +437,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("SecurityAdvisoryChunks");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.SyncJobLog", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.SyncJobLog", b =>
                 {
                     b.Property<int>("SyncJobLogId")
                         .ValueGeneratedOnAdd()
@@ -472,7 +472,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("SyncJobLogs");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.TelegramChatSubscription", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.TelegramChatSubscription", b =>
                 {
                     b.Property<int>("TelegramChatSubscriptionId")
                         .ValueGeneratedOnAdd()
@@ -515,7 +515,7 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("TelegramChatSubscriptions");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.TelegramUpdateInbox", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.TelegramUpdateInbox", b =>
                 {
                     b.Property<int>("TelegramUpdateInboxId")
                         .ValueGeneratedOnAdd()
@@ -578,9 +578,9 @@ namespace SecurityAdvisoryBot.Migrations
                     b.ToTable("TelegramUpdateInboxes");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.KnowledgeDocumentChunk", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.KnowledgeDocumentChunk", b =>
                 {
-                    b.HasOne("SecurityAdvisoryBot.Models.KnowledgeDocument", "Document")
+                    b.HasOne("RagAgentConsole.Models.KnowledgeDocument", "Document")
                         .WithMany("Chunks")
                         .HasForeignKey("KnowledgeDocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -589,9 +589,9 @@ namespace SecurityAdvisoryBot.Migrations
                     b.Navigation("Document");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.SecurityAdvisoryChunk", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.SecurityAdvisoryChunk", b =>
                 {
-                    b.HasOne("SecurityAdvisoryBot.Models.SecurityAdvisory", "Advisory")
+                    b.HasOne("RagAgentConsole.Models.SecurityAdvisory", "Advisory")
                         .WithMany("Chunks")
                         .HasForeignKey("SecurityAdvisoryId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -600,12 +600,12 @@ namespace SecurityAdvisoryBot.Migrations
                     b.Navigation("Advisory");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.KnowledgeDocument", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.KnowledgeDocument", b =>
                 {
                     b.Navigation("Chunks");
                 });
 
-            modelBuilder.Entity("SecurityAdvisoryBot.Models.SecurityAdvisory", b =>
+            modelBuilder.Entity("RagAgentConsole.Models.SecurityAdvisory", b =>
                 {
                     b.Navigation("Chunks");
                 });

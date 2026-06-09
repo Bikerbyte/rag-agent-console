@@ -1,9 +1,9 @@
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace SecurityAdvisoryBot.Pages.Settings;
+namespace RagAgentConsole.Pages.Settings;
 
 public class IndexModel(
     IAppSettingsService appSettingsService,

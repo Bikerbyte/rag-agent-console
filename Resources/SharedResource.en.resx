@@ -190,6 +190,19 @@
   <data name="檢索軌跡" xml:space="preserve"><value>Retrieval trace</value></data>
   <data name="檢視 chunk、embedding 與檢索策略。" xml:space="preserve"><value>Review chunk, embedding, and retrieval strategy.</value></data>
   <data name="每個案例要求預期的 CVE / 文件至少出現在前 5 筆結果中。" xml:space="preserve"><value>Each case requires an expected CVE / document to appear in the top 5 results.</value></data>
+  <data name="Hit@1：正解排第一的比例 · Hit@5：正解落在前五筆的比例 · MRR：正解名次倒數的平均（越高越好）。" xml:space="preserve"><value>Hit@1: share where the answer ranks first · Hit@5: share where it appears in the top 5 · MRR: mean reciprocal rank of the answer (higher is better).</value></data>
+  <data name="還沒有評估結果。沿用或新增下方案例後，按「執行評估」比較三種檢索策略。" xml:space="preserve"><value>No results yet. Reuse or add cases below, then Run evaluation to compare the three retrieval strategies.</value></data>
+  <data name="新增評估案例" xml:space="preserve"><value>Add evaluation case</value></data>
+  <data name="編輯評估案例" xml:space="preserve"><value>Edit evaluation case</value></data>
+  <data name="取消編輯" xml:space="preserve"><value>Cancel edit</value></data>
+  <data name="預期 CVE" xml:space="preserve"><value>Expected CVEs</value></data>
+  <data name="預期文件標題" xml:space="preserve"><value>Expected document titles</value></data>
+  <data name="每行一個（CVE 與文件標題至少填一邊）。" xml:space="preserve"><value>One per line (fill in CVEs or document titles, at least one).</value></data>
+  <data name="每行一個。" xml:space="preserve"><value>One per line.</value></data>
+  <data name="備註" xml:space="preserve"><value>Notes</value></data>
+  <data name="評估案例" xml:space="preserve"><value>Evaluation cases</value></data>
+  <data name="尚未有評估案例。" xml:space="preserve"><value>No evaluation cases yet.</value></data>
+  <data name="範例" xml:space="preserve"><value>Sample</value></data>
   <data name="決定要檢索什麼的系統提示詞；換領域時一併調整。" xml:space="preserve"><value>System prompt that decides what to retrieve; adjust it when changing domains.</value></data>
   <data name="沒有評估案例。請在" xml:space="preserve"><value>No evaluation cases. Edit</value></data>
   <data name="流程問答" xml:space="preserve"><value>Workflow QA</value></data>

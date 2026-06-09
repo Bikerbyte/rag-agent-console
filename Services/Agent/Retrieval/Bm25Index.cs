@@ -1,7 +1,7 @@
-using SecurityAdvisoryBot.Data;
+using RagAgentConsole.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public interface IBm25Index
 {

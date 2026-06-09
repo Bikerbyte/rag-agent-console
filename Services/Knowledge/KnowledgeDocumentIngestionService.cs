@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public class KnowledgeDocumentIngestionService(
     ApplicationDbContext dbContext,

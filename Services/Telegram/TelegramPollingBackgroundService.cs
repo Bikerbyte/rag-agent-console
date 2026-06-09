@@ -1,7 +1,7 @@
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 用 long polling 持續接收 Telegram update 的背景工作。

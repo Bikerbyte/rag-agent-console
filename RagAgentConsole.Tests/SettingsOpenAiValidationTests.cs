@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Pages.Settings;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Models;
+using RagAgentConsole.Pages.Settings;
+using RagAgentConsole.Services;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class SettingsOpenAiValidationTests
 {

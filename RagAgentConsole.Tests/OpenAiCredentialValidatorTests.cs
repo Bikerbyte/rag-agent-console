@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Services;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class OpenAiCredentialValidatorTests
 {

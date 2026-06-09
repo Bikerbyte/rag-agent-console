@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace SecurityAdvisoryBot.Models;
+namespace RagAgentConsole.Models;
 
 public class TelegramChatSubscription
 {

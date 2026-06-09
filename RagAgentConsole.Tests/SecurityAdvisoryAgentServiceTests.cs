@@ -1,9 +1,9 @@
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class SecurityAdvisoryAgentServiceTests
 {

@@ -1,5 +1,5 @@
 @page
-@model SecurityAdvisoryBot.Pages.Operations.EvaluationModel
+@model RagAgentConsole.Pages.Operations.EvaluationModel
 @{
     ViewData["Title"] = L["檢索評估"].Value;
 }
@@ -9,11 +9,17 @@
         <p class="eyebrow">@L["RAG 品質"]</p>
         <h1>@L["檢索評估"]</h1>
         <p class="lede">@L["用 golden set 對每種檢索策略計算 Hit@1、Hit@5 與 MRR。"]</p>
+        <p class="muted-line">@L["Hit@1：正解排第一的比例 · Hit@5：正解落在前五筆的比例 · MRR：正解名次倒數的平均（越高越好）。"]</p>
     </div>
     <form method="post" asp-page-handler="Run">
         <button type="submit" class="btn btn-primary">@L["執行評估"]</button>
     </form>
 </section>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+}
 
 @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
 {
@@ -49,51 +55,106 @@
     </section>
     <p class="eval-ranat">@L["完成於"] @report.RanAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</p>
 }
-
-<section class="panel">
-    <div class="panel-header">
-        <div>
-            <span class="section-kicker">Golden set</span>
-            <h2 class="panel-title">@Model.Cases.Count @L["個評估案例"]</h2>
-            <p class="panel-subtitle">@L["每個案例要求預期的 CVE / 文件至少出現在前 5 筆結果中。"]</p>
-        </div>
+else
+{
+    <div class="eval-empty">
+        <p>@L["還沒有評估結果。沿用或新增下方案例後，按「執行評估」比較三種檢索策略。"]</p>
     </div>
+}
 
-    @if (Model.Cases.Count == 0)
-    {
-        <p>@L["沒有評估案例。請在"] <code>Evaluation/golden-set.json</code> @L["加入案例。"]</p>
-    }
-    else
-    {
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>@L["問題"]</th>
-                    <th>@L["預期"]</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.Cases)
+<section class="ops-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">Golden set</span>
+                <h2 class="panel-title">@(Model.IsEditMode ? L["編輯評估案例"] : L["新增評估案例"])</h2>
+            </div>
+            @if (Model.IsEditMode)
+            {
+                <a class="btn btn-sm btn-outline-secondary" asp-page="/Operations/Evaluation">@L["取消編輯"]</a>
+            }
+        </div>
+
+        <form method="post" asp-page-handler="Save" class="compact-form">
+            <input type="hidden" asp-for="Input.RetrievalEvaluationCaseId" />
+
+            <label class="field-block">
+                <span>@L["問題"]</span>
+                <input asp-for="Input.Question" class="form-control" placeholder="@L["例如：遠端工作核准流程 或 最新 Cisco 風險"].Value" />
+            </label>
+
+            <div class="form-row">
+                <label class="field-block">
+                    <span>@L["預期 CVE"]</span>
+                    <textarea asp-for="Input.ExpectedCveIds" class="form-control" rows="3" placeholder="CVE-2023-3519&#10;CVE-2023-4966"></textarea>
+                    <small class="field-hint">@L["每行一個（CVE 與文件標題至少填一邊）。"]</small>
+                </label>
+                <label class="field-block">
+                    <span>@L["預期文件標題"]</span>
+                    <textarea asp-for="Input.ExpectedDocumentTitles" class="form-control" rows="3" placeholder="@L["新人政策、SOP、產品 FAQ"].Value"></textarea>
+                    <small class="field-hint">@L["每行一個。"]</small>
+                </label>
+            </div>
+
+            <label class="field-block">
+                <span>@L["備註"]</span>
+                <input asp-for="Input.Notes" class="form-control" />
+            </label>
+
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">@L["儲存"]</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <span class="section-kicker">@Model.ManagedCases.Count @L["個評估案例"]</span>
+                <h2 class="panel-title">@L["評估案例"]</h2>
+                <p class="panel-subtitle">@L["每個案例要求預期的 CVE / 文件至少出現在前 5 筆結果中。"]</p>
+            </div>
+        </div>
+
+        <div class="compact-list">
+            @if (Model.ManagedCases.Count == 0)
+            {
+                <p class="empty-copy">@L["尚未有評估案例。"]</p>
+            }
+            else
+            {
+                @foreach (var item in Model.ManagedCases)
                 {
-                    <tr>
-                        <td><code>@item.Id</code></td>
-                        <td>@item.Question</td>
-                        <td>
-                            @if (item.ExpectedCveIds.Count > 0)
+                    <div class="compact-row">
+                        <div>
+                            <span class="table-title">@item.Question</span>
+                            <p class="table-copy">
+                                <code>@item.CaseKey</code>
+                                @if (!string.IsNullOrWhiteSpace(item.ExpectedCveIds))
+                                {
+                                    <span> · CVE: @string.Join(", ", item.ExpectedCveIds.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ExpectedDocumentTitles))
+                                {
+                                    <span> · @L["文件"]: @string.Join(", ", item.ExpectedDocumentTitles.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="row-actions">
+                            @if (item.IsSeeded)
                             {
-                                <span>CVE: @string.Join(", ", item.ExpectedCveIds)</span>
+                                <span class="status-pill is-neutral">@L["範例"]</span>
                             }
-                            @if (item.ExpectedDocumentTitles.Count > 0)
-                            {
-                                <span>@L["文件"]: @string.Join(", ", item.ExpectedDocumentTitles)</span>
-                            }
-                        </td>
-                    </tr>
+                            <a class="btn btn-sm btn-outline-primary" asp-page="/Operations/Evaluation" asp-route-edit="@item.RetrievalEvaluationCaseId">@L["編輯"]</a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@item.RetrievalEvaluationCaseId">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">@L["刪除"]</button>
+                            </form>
+                        </div>
+                    </div>
                 }
-            </tbody>
-        </table>
-    }
+            }
+        </div>
+    </article>
 </section>
 
 @if (Model.Report is { } detailReport)

@@ -1,9 +1,9 @@
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 實際處理 Telegram update 的 service。

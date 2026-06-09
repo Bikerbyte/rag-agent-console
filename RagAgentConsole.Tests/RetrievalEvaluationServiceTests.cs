@@ -1,12 +1,14 @@
 using System.Text.Json;
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class RetrievalEvaluationServiceTests : IDisposable
 {
@@ -28,9 +30,10 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task EvaluateAsync_FirstResultIsRelevant_ScoresPerfect()
     {
-        WriteGoldenSet([("c1", "q", new[] { "CVE-2024-1234" })]);
+        var db = NewDb();
+        SeedCases(db, [("c1", "q", new[] { "CVE-2024-1234" })]);
         var search = new ScriptedSearchService([Response("CVE-2024-1234", "CVE-OTHER")]);
-        var service = CreateService(search);
+        var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
         var summary = Assert.Single(report.Summaries);
@@ -43,9 +46,10 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task EvaluateAsync_RelevantAtRankThree_ReciprocalRankIsOneThird()
     {
-        WriteGoldenSet([("c1", "q", new[] { "CVE-HIT" })]);
+        var db = NewDb();
+        SeedCases(db, [("c1", "q", new[] { "CVE-HIT" })]);
         var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2", "CVE-HIT", "CVE-MISS-3")]);
-        var service = CreateService(search);
+        var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
         var summary = Assert.Single(report.Summaries);
@@ -58,9 +62,10 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task EvaluateAsync_NoRelevantResults_ScoresZero()
     {
-        WriteGoldenSet([("c1", "q", new[] { "CVE-EXPECTED" })]);
+        var db = NewDb();
+        SeedCases(db, [("c1", "q", new[] { "CVE-EXPECTED" })]);
         var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2")]);
-        var service = CreateService(search);
+        var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
         var summary = Assert.Single(report.Summaries);
@@ -74,7 +79,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_MultipleCases_AveragesMrrAcrossCases()
     {
         // Case 1 hit at rank 1 (RR=1), case 2 hit at rank 2 (RR=0.5).
-        WriteGoldenSet(
+        var db = NewDb();
+        SeedCases(db,
         [
             ("c1", "q1", new[] { "CVE-A" }),
             ("c2", "q2", new[] { "CVE-B" })
@@ -84,7 +90,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
             Response("CVE-A"),
             Response("CVE-MISS", "CVE-B")
         ]);
-        var service = CreateService(search);
+        var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
         var summary = Assert.Single(report.Summaries);
@@ -95,9 +101,10 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task EvaluateAsync_MultipleStrategies_ReportsOneSummaryPerMode()
     {
-        WriteGoldenSet([("c1", "q", new[] { "CVE-A" })]);
+        var db = NewDb();
+        SeedCases(db, [("c1", "q", new[] { "CVE-A" })]);
         var search = new ScriptedSearchService(Enumerable.Repeat(Response("CVE-A"), 3).ToList());
-        var service = CreateService(search);
+        var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes:
             [RetrievalModes.Hybrid, RetrievalModes.Vector, RetrievalModes.Keyword]);
@@ -108,21 +115,89 @@ public class RetrievalEvaluationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadCasesAsync_MissingFile_ReturnsEmpty()
+    public async Task LoadCasesAsync_NoCases_ReturnsEmpty()
     {
-        // No file written.
-        var search = new ScriptedSearchService([]);
-        var service = CreateService(search);
+        var db = NewDb();
+        var service = CreateService(new ScriptedSearchService([]), db);
 
         var cases = await service.LoadCasesAsync();
 
         Assert.Empty(cases);
     }
 
+    [Fact]
+    public async Task SeedCasesIfEmptyAsync_LoadsBundledGoldenSet_OnlyWhenEmpty()
+    {
+        WriteGoldenSet([("kev-citrix", "Citrix NetScaler", new[] { "CVE-2023-3519" })]);
+        var db = NewDb();
+        var service = CreateService(new ScriptedSearchService([]), db);
+
+        await service.SeedCasesIfEmptyAsync();
+        var afterFirst = await service.LoadCasesAsync();
+
+        // Running again must not duplicate the seed.
+        await service.SeedCasesIfEmptyAsync();
+        var afterSecond = await service.LoadCasesAsync();
+
+        Assert.Single(afterFirst);
+        Assert.Single(afterSecond);
+        Assert.Equal("kev-citrix", afterFirst[0].Id);
+        Assert.Equal(["CVE-2023-3519"], afterFirst[0].ExpectedCveIds);
+    }
+
+    [Fact]
+    public async Task CreateThenDeleteCase_RoundTripsThroughDatabase()
+    {
+        var db = NewDb();
+        var service = CreateService(new ScriptedSearchService([]), db);
+
+        await service.CreateCaseAsync(new RetrievalEvaluationCaseDraft(
+            "firewall policy guide",
+            ExpectedCveIdsText: null,
+            ExpectedDocumentTitlesText: "Firewall policy\nFirewall configuration guide",
+            Notes: "doc-only case"));
+
+        var managed = await service.GetManagedCasesAsync();
+        var created = Assert.Single(managed);
+        Assert.Equal("firewall-policy-guide", created.CaseKey);
+
+        var cases = await service.LoadCasesAsync();
+        Assert.Equal(["Firewall policy", "Firewall configuration guide"], cases[0].ExpectedDocumentTitles);
+
+        await service.DeleteCaseAsync(created.RetrievalEvaluationCaseId);
+        Assert.Empty(await service.GetManagedCasesAsync());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private RetrievalEvaluationService CreateService(ISecurityAdvisorySearchService search)
-        => new(search, _environment, NullLogger<RetrievalEvaluationService>.Instance);
+    private RetrievalEvaluationService CreateService(ISecurityAdvisorySearchService search, ApplicationDbContext dbContext)
+        => new(search, dbContext, _environment, NullLogger<RetrievalEvaluationService>.Instance);
+
+    private static ApplicationDbContext NewDb()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("eval-tests-" + Guid.NewGuid().ToString("N"))
+            .Options;
+        return new ApplicationDbContext(options);
+    }
+
+    private static void SeedCases(ApplicationDbContext dbContext, IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var item in cases)
+        {
+            dbContext.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+            {
+                CaseKey = item.Id,
+                Question = item.Question,
+                ExpectedCveIds = string.Join('\n', item.ExpectedCveIds),
+                CreatedTime = now,
+                LastUpdatedTime = now
+            });
+        }
+
+        dbContext.SaveChanges();
+    }
 
     private void WriteGoldenSet(IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
     {

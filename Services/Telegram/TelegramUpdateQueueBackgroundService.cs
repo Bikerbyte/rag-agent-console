@@ -1,8 +1,8 @@
 using System.Text.Json;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 從 Telegram update 佇列取出待處理資料，交給實際的 update processor。

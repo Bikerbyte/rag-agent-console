@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: security-advisory-bot
+    container_name: rag-agent-console
     depends_on:
       db:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
 
   db:
     image: pgvector/pgvector:0.8.2-pg17-trixie
-    container_name: security-advisory-postgres
+    container_name: rag-agent-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

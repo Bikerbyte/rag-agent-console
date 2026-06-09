@@ -1,10 +1,10 @@
 using System.Reflection;
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 定期回報目前節點的執行狀態，讓後台可以集中看到多節點清單。

@@ -1,8 +1,8 @@
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class Bm25IndexTests
 {

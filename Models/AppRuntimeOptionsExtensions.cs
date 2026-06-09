@@ -1,4 +1,4 @@
-namespace SecurityAdvisoryBot.Models;
+namespace RagAgentConsole.Models;
 
 /// <summary>
 /// 統一整理節點名稱的 fallback 規則，避免多台 VM 沒另外設值時全部撞成同一個名稱。

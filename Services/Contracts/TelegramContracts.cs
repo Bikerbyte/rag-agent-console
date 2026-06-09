@@ -1,6 +1,6 @@
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public interface ITelegramBotClient
 {

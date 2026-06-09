@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | ASP.NET Core Razor Pages | Web Console、Settings、Chat、Knowledge Base 頁面 | `Program.cs`、`Pages/` |
 | Entity Framework Core | PostgreSQL / InMemory 資料存取、migration、DbContext | `Data/ApplicationDbContext.cs`、`Migrations/` |
-| Npgsql EntityFrameworkCore PostgreSQL | PostgreSQL provider | `Program.cs`、`SecurityAdvisoryBot.csproj` |
+| Npgsql EntityFrameworkCore PostgreSQL | PostgreSQL provider | `Program.cs`、`RagAgentConsole.csproj` |
 | Serilog | 結構化 logging | `Program.cs`、`appsettings*.json` |
 | OpenTelemetry | traces / metrics 匯出 | `Program.cs`、`Models/Options.cs` |
 
@@ -44,8 +44,8 @@
 
 | 元件 | 用途 | 主要位置 |
 | --- | --- | --- |
-| xUnit | 單元測試 | `SecurityAdvisoryBot.Tests/` |
-| EF Core InMemory | 測試與無連線字串時的本機資料庫 fallback | `SecurityAdvisoryBot.Tests/`、`Program.cs` |
+| xUnit | 單元測試 | `RagAgentConsole.Tests/` |
+| EF Core InMemory | 測試與無連線字串時的本機資料庫 fallback | `RagAgentConsole.Tests/`、`Program.cs` |
 | Docker Compose | PostgreSQL / pgvector 本機環境 | `docker-compose.yml` |
 
 ## 目前保留的自製部分

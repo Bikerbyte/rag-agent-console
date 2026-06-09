@@ -1,6 +1,6 @@
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// Sparse text scorer used in hybrid retrieval. BM25 provides the bulk

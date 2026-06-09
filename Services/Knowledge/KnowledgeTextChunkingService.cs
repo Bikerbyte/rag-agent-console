@@ -1,6 +1,6 @@
 using Microsoft.SemanticKernel.Text;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 #pragma warning disable SKEXP0050
 public class KnowledgeTextChunkingService : IKnowledgeTextChunkingService
