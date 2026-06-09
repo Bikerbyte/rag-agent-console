@@ -6,9 +6,9 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HtmlAgilityPack;
 using Markdig;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public class KnowledgeDocumentTextExtractor : IKnowledgeDocumentTextExtractor
 {

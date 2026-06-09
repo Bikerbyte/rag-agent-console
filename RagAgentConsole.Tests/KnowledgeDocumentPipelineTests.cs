@@ -1,8 +1,8 @@
 using System.Text;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Services;
 using Xunit;
 
-namespace SecurityAdvisoryBot.Tests;
+namespace RagAgentConsole.Tests;
 
 public class KnowledgeDocumentPipelineTests
 {

@@ -1,11 +1,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY ["SecurityAdvisoryBot.csproj", "./"]
-RUN dotnet restore "./SecurityAdvisoryBot.csproj"
+COPY ["RagAgentConsole.csproj", "./"]
+RUN dotnet restore "./RagAgentConsole.csproj"
 
 COPY . .
-RUN dotnet publish "./SecurityAdvisoryBot.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./RagAgentConsole.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
@@ -15,4 +15,4 @@ EXPOSE 8080
 
 COPY --from=build /app/publish .
 
-ENTRYPOINT ["dotnet", "SecurityAdvisoryBot.dll"]
+ENTRYPOINT ["dotnet", "RagAgentConsole.dll"]

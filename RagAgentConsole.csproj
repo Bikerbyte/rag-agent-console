@@ -31,10 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="SecurityAdvisoryBot.Tests\\**\\*.cs" />
-    <Content Remove="SecurityAdvisoryBot.Tests\\**\\*" />
-    <EmbeddedResource Remove="SecurityAdvisoryBot.Tests\\**\\*" />
-    <None Remove="SecurityAdvisoryBot.Tests\\**\\*" />
+    <Compile Remove="RagAgentConsole.Tests\\**\\*.cs" />
+    <Content Remove="RagAgentConsole.Tests\\**\\*" />
+    <EmbeddedResource Remove="RagAgentConsole.Tests\\**\\*" />
+    <None Remove="RagAgentConsole.Tests\\**\\*" />
   </ItemGroup>
 
 </Project>

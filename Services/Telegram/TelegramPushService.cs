@@ -1,8 +1,8 @@
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// 送出單筆 Telegram 推播，並把結果寫進 <see cref="PushLog"/>。

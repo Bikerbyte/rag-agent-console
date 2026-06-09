@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SecurityAdvisoryBot.Models;
+namespace RagAgentConsole.Models;
 
 public class SecurityAdvisory
 {

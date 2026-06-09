@@ -1,10 +1,10 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public class AiChatClient(
     HttpClient httpClient,

@@ -1,7 +1,7 @@
 using System.Globalization;
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -220,6 +220,9 @@ using (var scope = app.Services.CreateScope())
         await dbContext.Database.EnsureCreatedAsync();
     }
 
+    // 把內建 golden set 灌成第一批可編輯的評估案例；之後就交由使用者在後台維護。
+    var evaluationService = scope.ServiceProvider.GetRequiredService<IRetrievalEvaluationService>();
+    await evaluationService.SeedCasesIfEmptyAsync();
 }
 
 // Razor Build / 啟動管線
@@ -352,7 +355,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
     try
     {
-        Console.Title = $"Security Advisory Bot | PID {Environment.ProcessId}";
+        Console.Title = $"RAG Agent Console | PID {Environment.ProcessId}";
     }
     catch
     {

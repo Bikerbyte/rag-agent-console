@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public partial class SecurityAdvisorySearchService(
     IAdvisoryEmbeddingService embeddingService,

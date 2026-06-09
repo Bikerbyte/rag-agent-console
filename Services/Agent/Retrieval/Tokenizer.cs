@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public interface ITokenizer
 {

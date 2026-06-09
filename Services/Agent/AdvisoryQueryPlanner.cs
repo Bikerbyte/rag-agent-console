@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 /// <summary>
 /// Builds query plans using only regex/heuristic logic, with no AI dependency.

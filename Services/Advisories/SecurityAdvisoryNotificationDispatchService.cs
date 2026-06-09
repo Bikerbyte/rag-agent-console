@@ -1,10 +1,10 @@
 using System.Text;
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace SecurityAdvisoryBot.Services;
+namespace RagAgentConsole.Services;
 
 public class SecurityAdvisoryNotificationDispatchService(
     ApplicationDbContext dbContext,

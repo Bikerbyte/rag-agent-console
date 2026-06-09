@@ -1,33 +1,92 @@
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace SecurityAdvisoryBot.Pages.Operations;
+namespace RagAgentConsole.Pages.Operations;
 
 public class EvaluationModel(
     IRetrievalEvaluationService evaluationService,
     ILogger<EvaluationModel> logger) : PageModel
 {
-    public IReadOnlyList<RetrievalEvaluationCase> Cases { get; private set; } = [];
+    public IReadOnlyList<RetrievalEvaluationCaseEntity> ManagedCases { get; private set; } = [];
     public RetrievalEvaluationReport? Report { get; private set; }
     public string? ErrorMessage { get; private set; }
     public DateTimeOffset? LastRunAt => Report?.RanAt;
     public IReadOnlyList<string> AvailableModes { get; } = [RetrievalModes.Hybrid, RetrievalModes.Vector, RetrievalModes.Keyword];
 
-    public async Task OnGetAsync(CancellationToken cancellationToken)
+    public bool IsEditMode => Input.RetrievalEvaluationCaseId.HasValue;
+
+    [BindProperty]
+    public CaseInput Input { get; set; } = new();
+
+    [TempData]
+    public string? StatusMessage { get; set; }
+
+    public async Task OnGetAsync(int? edit, CancellationToken cancellationToken)
     {
-        Cases = await evaluationService.LoadCasesAsync(cancellationToken);
+        ManagedCases = await evaluationService.GetManagedCasesAsync(cancellationToken);
+
+        if (edit is int editId)
+        {
+            var existing = await evaluationService.GetCaseAsync(editId, cancellationToken);
+            if (existing is not null)
+            {
+                Input = new CaseInput
+                {
+                    RetrievalEvaluationCaseId = existing.RetrievalEvaluationCaseId,
+                    Question = existing.Question,
+                    ExpectedCveIds = existing.ExpectedCveIds,
+                    ExpectedDocumentTitles = existing.ExpectedDocumentTitles,
+                    Notes = existing.Notes
+                };
+            }
+        }
+    }
+
+    public async Task<IActionResult> OnPostSaveAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(Input.Question))
+        {
+            StatusMessage = "請先填寫評估問題。";
+            return RedirectToPage();
+        }
+
+        var draft = new RetrievalEvaluationCaseDraft(
+            Input.Question,
+            Input.ExpectedCveIds,
+            Input.ExpectedDocumentTitles,
+            Input.Notes);
+
+        if (Input.RetrievalEvaluationCaseId is int id)
+        {
+            await evaluationService.UpdateCaseAsync(id, draft, cancellationToken);
+            StatusMessage = "評估案例已更新。";
+        }
+        else
+        {
+            await evaluationService.CreateCaseAsync(draft, cancellationToken);
+            StatusMessage = "評估案例已新增。";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(int id, CancellationToken cancellationToken)
+    {
+        await evaluationService.DeleteCaseAsync(id, cancellationToken);
+        StatusMessage = "評估案例已刪除。";
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostRunAsync(CancellationToken cancellationToken)
     {
         try
         {
-            Cases = await evaluationService.LoadCasesAsync(cancellationToken);
-            if (Cases.Count == 0)
+            ManagedCases = await evaluationService.GetManagedCasesAsync(cancellationToken);
+            if (ManagedCases.Count == 0)
             {
-                ErrorMessage = "No evaluation cases found. Ensure Evaluation/golden-set.json exists and contains cases.";
+                ErrorMessage = "目前沒有評估案例，請先在下方新增至少一個案例。";
                 return Page();
             }
 
@@ -37,7 +96,7 @@ public class EvaluationModel(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Retrieval evaluation failed.");
-            ErrorMessage = $"Evaluation failed: {exception.Message}";
+            ErrorMessage = $"評估執行失敗：{exception.Message}";
             return Page();
         }
     }
@@ -52,4 +111,13 @@ public class EvaluationModel(
             >= 0.5 => "is-warning",
             _ => "is-missing"
         };
+
+    public class CaseInput
+    {
+        public int? RetrievalEvaluationCaseId { get; set; }
+        public string? Question { get; set; }
+        public string? ExpectedCveIds { get; set; }
+        public string? ExpectedDocumentTitles { get; set; }
+        public string? Notes { get; set; }
+    }
 }

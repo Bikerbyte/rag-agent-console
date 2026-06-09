@@ -1,11 +1,11 @@
-using SecurityAdvisoryBot.Data;
-using SecurityAdvisoryBot.Models;
-using SecurityAdvisoryBot.Services;
+using RagAgentConsole.Data;
+using RagAgentConsole.Models;
+using RagAgentConsole.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace SecurityAdvisoryBot.Pages.Advisories;
+namespace RagAgentConsole.Pages.Advisories;
 
 public class IndexModel(
     ApplicationDbContext dbContext,

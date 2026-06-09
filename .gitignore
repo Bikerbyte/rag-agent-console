@@ -2,6 +2,7 @@ bin/
 obj/
 .vs/
 .vscode/
+.claude/
 .codex-temp/
 .idea/
 .dotnet/

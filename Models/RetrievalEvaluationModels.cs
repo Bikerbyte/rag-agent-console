@@ -1,4 +1,48 @@
-namespace SecurityAdvisoryBot.Models;
+using System.ComponentModel.DataAnnotations;
+
+namespace RagAgentConsole.Models;
+
+/// <summary>
+/// Persisted, user-editable evaluation case. The golden set ships as seed
+/// data but is owned by the knowledge base from then on, so users who swap
+/// in their own corpus can define their own cases against it.
+/// </summary>
+public class RetrievalEvaluationCaseEntity
+{
+    [Key]
+    public int RetrievalEvaluationCaseId { get; set; }
+
+    /// <summary>Stable, human-readable key used to track a case across runs.</summary>
+    [MaxLength(96)]
+    public required string CaseKey { get; set; }
+
+    [MaxLength(500)]
+    public required string Question { get; set; }
+
+    /// <summary>Expected CVE IDs, one per line (commas also accepted).</summary>
+    [MaxLength(1200)]
+    public string? ExpectedCveIds { get; set; }
+
+    /// <summary>Expected knowledge-document titles, one per line.</summary>
+    [MaxLength(2000)]
+    public string? ExpectedDocumentTitles { get; set; }
+
+    [MaxLength(1000)]
+    public string? Notes { get; set; }
+
+    /// <summary>True for cases that came from the bundled golden-set seed.</summary>
+    public bool IsSeeded { get; set; }
+
+    public DateTimeOffset CreatedTime { get; set; }
+    public DateTimeOffset LastUpdatedTime { get; set; }
+}
+
+/// <summary>Raw form input for creating or editing an evaluation case.</summary>
+public sealed record RetrievalEvaluationCaseDraft(
+    string Question,
+    string? ExpectedCveIdsText,
+    string? ExpectedDocumentTitlesText,
+    string? Notes);
 
 /// <summary>
 /// A single evaluation case: a query plus the set of identifiers that

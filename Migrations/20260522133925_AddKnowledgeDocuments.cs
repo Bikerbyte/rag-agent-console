@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace SecurityAdvisoryBot.Migrations
+namespace RagAgentConsole.Migrations
 {
     /// <inheritdoc />
     public partial class AddKnowledgeDocuments : Migration

@@ -1,4 +1,4 @@
-namespace SecurityAdvisoryBot;
+namespace RagAgentConsole;
 
 /// <summary>
 /// 多語系共用資源的標記型別。對應 Resources/SharedResource.{culture}.resx。
