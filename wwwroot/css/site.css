@@ -2767,3 +2767,92 @@ hr {
 .eval-score strong.is-success { color: #1f7a4d; }
 .eval-score strong.is-warning { color: #b25e00; }
 .eval-score strong.is-missing { color: #b42318; }
+
+/* ── 知識庫文件表格與批次操作 ─────────────────────────────────────────── */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-main);
+  font-size: 0.94rem;
+}
+
+.data-table thead th {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table tbody td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid rgba(30, 28, 22, 0.06);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:hover {
+  background: var(--accent-soft);
+}
+
+.data-table tbody tr.is-selected {
+  background: var(--accent-soft);
+}
+
+.doc-table .doc-col-check {
+  width: 2.4rem;
+  text-align: center;
+}
+
+.doc-table .doc-col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-table .doc-col-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.doc-table input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.doc-title-link {
+  text-decoration: none;
+}
+
+.doc-title-link:hover .table-title {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.doc-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 0.6rem;
+  background: var(--app-bg-deep);
+}
+
+.doc-batch-count {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-batch-actions {
+  display: flex;
+  gap: 0.5rem;
+}

@@ -112,6 +112,52 @@ public class KnowledgeDocumentIngestionService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> SetEnabledManyAsync(IReadOnlyList<int> documentIds, bool isEnabled, CancellationToken cancellationToken = default)
+    {
+        var ids = documentIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        var documents = await dbContext.KnowledgeDocuments
+            .Where(item => ids.Contains(item.KnowledgeDocumentId))
+            .ToListAsync(cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var document in documents)
+        {
+            document.IsEnabled = isEnabled;
+            document.Status = isEnabled ? "Available" : "Disabled";
+            document.LastUpdatedTime = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return documents.Count;
+    }
+
+    public async Task<int> DeleteManyAsync(IReadOnlyList<int> documentIds, CancellationToken cancellationToken = default)
+    {
+        var ids = documentIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        var documents = await dbContext.KnowledgeDocuments
+            .Where(item => ids.Contains(item.KnowledgeDocumentId))
+            .ToListAsync(cancellationToken);
+        if (documents.Count == 0)
+        {
+            return 0;
+        }
+
+        dbContext.KnowledgeDocuments.RemoveRange(documents);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await TryRefreshBm25IndexAsync(cancellationToken);
+        return documents.Count;
+    }
+
     public async Task DeleteAsync(int documentId, CancellationToken cancellationToken = default)
     {
         var document = await dbContext.KnowledgeDocuments

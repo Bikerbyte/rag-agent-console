@@ -32,7 +32,13 @@ public interface IKnowledgeDocumentIngestionService
 
     Task SetEnabledAsync(int documentId, bool isEnabled, CancellationToken cancellationToken = default);
 
+    /// <summary>Enable or disable several documents at once. Returns the affected count.</summary>
+    Task<int> SetEnabledManyAsync(IReadOnlyList<int> documentIds, bool isEnabled, CancellationToken cancellationToken = default);
+
     Task DeleteAsync(int documentId, CancellationToken cancellationToken = default);
+
+    /// <summary>Delete several documents at once. Returns the affected count.</summary>
+    Task<int> DeleteManyAsync(IReadOnlyList<int> documentIds, CancellationToken cancellationToken = default);
 
     Task<KnowledgeDocumentIngestionResult> RebuildEmbeddingsAsync(
         int documentId,

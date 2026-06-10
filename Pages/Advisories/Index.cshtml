@@ -91,7 +91,7 @@
                     </div>
 
                     <div class="managed-document-list">
-                        @* CVE 自動同步收成單一系統託管來源列，與上傳文件並排，不再是另一塊獨立面板。 *@
+                        @* CVE 自動同步收成單一系統託管來源列，放在文件表格上方，與上傳文件分開管理。 *@
                         <article class="managed-document-row is-managed @(Model.CveSourceSelected ? "is-selected" : string.Empty)">
                             <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents">
                                 <strong>@L["資安公告自動同步"]</strong>
@@ -104,32 +104,134 @@
                                 </form>
                             </div>
                         </article>
-
-                        @foreach (var document in Model.ManagedDocuments)
-                        {
-                            var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
-                            <article class="managed-document-row @(isSelected ? "is-selected" : string.Empty)">
-                                <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
-                                    <strong>@document.Title</strong>
-                                    <p>@document.ModuleName · @document.CharacterCount.ToString("N0") @L["字"] · @document.ChunkCount @L["片段"]</p>
-                                </a>
-                                <div class="document-actions">
-                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
-                                        @(document.IsEnabled ? L["啟用"] : L["停用"])
-                                    </span>
-                                    <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
-                                        <button class="icon-button" type="submit" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
-                                    </form>
-                                    <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                        <button class="icon-button" type="submit" title="@L["重新索引"].Value">R</button>
-                                    </form>
-                                    <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                        <button class="icon-button is-danger" type="submit" title="@L["刪除"].Value">X</button>
-                                    </form>
-                                </div>
-                            </article>
-                        }
                     </div>
+
+                    @if (Model.ManagedDocuments.Count == 0)
+                    {
+                        <div class="empty-state">
+                            <p class="empty-copy">@L["尚未上傳任何文件。可以從「匯入來源」上傳 Markdown / TXT / HTML / CSV / DOCX 檔案。"]</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" id="doc-table-form">
+                            <div class="doc-batch-bar">
+                                <span class="doc-batch-count" data-doc-count>@L["已選"] 0</span>
+                                <div class="doc-batch-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="enable" data-doc-bulk disabled>@L["啟用"]</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="disable" data-doc-bulk disabled>@L["停用"]</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="delete" data-doc-bulk disabled
+                                            onclick="return confirm('@L["確定要刪除選取的文件嗎？此動作無法復原。"]');">@L["刪除"]</button>
+                                </div>
+                            </div>
+
+                            <div class="table-section">
+                                <table class="data-table doc-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="doc-col-check">
+                                                <input type="checkbox" data-doc-check-all aria-label="@L["全選"]" />
+                                            </th>
+                                            <th>@L["標題"]</th>
+                                            <th>@L["模組"]</th>
+                                            <th>@L["來源"]</th>
+                                            <th class="doc-col-num">@L["片段"]</th>
+                                            <th>@L["上傳日期"]</th>
+                                            <th>@L["最後更新"]</th>
+                                            <th>@L["狀態"]</th>
+                                            <th class="doc-col-actions">@L["操作"]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var document in Model.ManagedDocuments)
+                                        {
+                                            var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
+                                            <tr class="@(isSelected ? "is-selected" : string.Empty)">
+                                                <td class="doc-col-check">
+                                                    <input type="checkbox" name="SelectedDocumentIds" value="@document.KnowledgeDocumentId" data-doc-check aria-label="@L["選取"]" />
+                                                </td>
+                                                <td>
+                                                    <a class="doc-title-link" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
+                                                        <span class="table-title">@document.Title</span>
+                                                    </a>
+                                                    @if (!string.IsNullOrWhiteSpace(document.FileName))
+                                                    {
+                                                        <p class="table-copy">@document.FileName</p>
+                                                    }
+                                                </td>
+                                                <td>@document.ModuleName</td>
+                                                <td>@document.SourceType</td>
+                                                <td class="doc-col-num">@document.ChunkCount</td>
+                                                <td>
+                                                    <span title="@document.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")">
+                                                        @document.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span title="@document.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")">
+                                                        @document.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
+                                                        @(document.IsEnabled ? L["啟用"] : L["停用"])
+                                                    </span>
+                                                </td>
+                                                <td class="doc-col-actions">
+                                                    <div class="document-actions">
+                                                        <button class="icon-button" type="submit"
+                                                                asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)"
+                                                                title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
+                                                        <button class="icon-button" type="submit"
+                                                                asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId"
+                                                                title="@L["重新索引"].Value">R</button>
+                                                        <button class="icon-button is-danger" type="submit"
+                                                                asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId"
+                                                                onclick="return confirm('@L["確定要刪除這份文件嗎？此動作無法復原。"]');"
+                                                                title="@L["刪除"].Value">X</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+
+                        <script>
+                            (function () {
+                                const form = document.getElementById('doc-table-form');
+                                if (!form) { return; }
+                                const all = form.querySelector('[data-doc-check-all]');
+                                const boxes = Array.from(form.querySelectorAll('[data-doc-check]'));
+                                const counter = form.querySelector('[data-doc-count]');
+                                const bulkButtons = Array.from(form.querySelectorAll('[data-doc-bulk]'));
+                                const countLabel = counter ? counter.textContent.replace(/\d+\s*$/, '').trim() : '';
+
+                                function refresh() {
+                                    const selected = boxes.filter(box => box.checked).length;
+                                    if (counter) { counter.textContent = countLabel + ' ' + selected; }
+                                    bulkButtons.forEach(button => { button.disabled = selected === 0; });
+                                    if (all) {
+                                        all.checked = selected > 0 && selected === boxes.length;
+                                        all.indeterminate = selected > 0 && selected < boxes.length;
+                                    }
+                                }
+
+                                if (all) {
+                                    all.addEventListener('change', function () {
+                                        boxes.forEach(box => { box.checked = all.checked; });
+                                        refresh();
+                                    });
+                                }
+                                boxes.forEach(box => box.addEventListener('change', refresh));
+                                refresh();
+                            })();
+                        </script>
+                    }
                 </article>
 
                 @if (Model.SelectedDocument is { } selected)

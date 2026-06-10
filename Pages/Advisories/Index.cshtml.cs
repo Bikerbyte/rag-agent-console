@@ -38,6 +38,9 @@ public class IndexModel(
     [BindProperty]
     public FileKnowledgeInput FileInput { get; set; } = new();
 
+    [BindProperty]
+    public List<int> SelectedDocumentIds { get; set; } = [];
+
     [TempData]
     public string? StatusMessage { get; set; }
 
@@ -96,8 +99,7 @@ public class IndexModel(
 
         ManagedDocuments = await dbContext.KnowledgeDocuments
             .AsNoTracking()
-            .OrderByDescending(document => document.LastUpdatedTime)
-            .Take(12)
+            .OrderByDescending(document => document.CreatedTime)
             .ToListAsync(cancellationToken);
 
         if (doc is int selectedDocumentId)
@@ -247,6 +249,26 @@ public class IndexModel(
     {
         await knowledgeIngestionService.DeleteAsync(id, cancellationToken);
         StatusMessage = "文件已刪除。";
+        return RedirectToPage(new { section = "documents" });
+    }
+
+    public async Task<IActionResult> OnPostBulkDocumentsAsync(string action, CancellationToken cancellationToken)
+    {
+        var ids = SelectedDocumentIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            StatusMessage = "請先勾選要操作的文件。";
+            return RedirectToPage(new { section = "documents" });
+        }
+
+        StatusMessage = action switch
+        {
+            "enable" => $"已啟用 {await knowledgeIngestionService.SetEnabledManyAsync(ids, true, cancellationToken)} 份文件。",
+            "disable" => $"已停用 {await knowledgeIngestionService.SetEnabledManyAsync(ids, false, cancellationToken)} 份文件。",
+            "delete" => $"已刪除 {await knowledgeIngestionService.DeleteManyAsync(ids, cancellationToken)} 份文件。",
+            _ => "不支援的批次操作。"
+        };
+
         return RedirectToPage(new { section = "documents" });
     }
 
