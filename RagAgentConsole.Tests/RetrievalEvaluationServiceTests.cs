@@ -31,8 +31,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_FirstResultIsRelevant_ScoresPerfect()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-2024-1234" })]);
-        var search = new ScriptedSearchService([Response("CVE-2024-1234", "CVE-OTHER")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("expected phrase", "other phrase")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -47,8 +47,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_RelevantAtRankThree_ReciprocalRankIsOneThird()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-HIT" })]);
-        var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2", "CVE-HIT", "CVE-MISS-3")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("miss one", "miss two", "expected phrase", "miss three")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -63,8 +63,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_NoRelevantResults_ScoresZero()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-EXPECTED" })]);
-        var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("miss one", "miss two")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -82,13 +82,13 @@ public class RetrievalEvaluationServiceTests : IDisposable
         var db = NewDb();
         SeedCases(db,
         [
-            ("c1", "q1", new[] { "CVE-A" }),
-            ("c2", "q2", new[] { "CVE-B" })
+            ("c1", "q1", new[] { "expected a" }),
+            ("c2", "q2", new[] { "expected b" })
         ]);
         var search = new ScriptedSearchService(
         [
-            Response("CVE-A"),
-            Response("CVE-MISS", "CVE-B")
+            Response("expected a"),
+            Response("miss", "expected b")
         ]);
         var service = CreateService(search, db);
 
@@ -102,8 +102,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_MultipleStrategies_ReportsOneSummaryPerMode()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-A" })]);
-        var search = new ScriptedSearchService(Enumerable.Repeat(Response("CVE-A"), 3).ToList());
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService(Enumerable.Repeat(Response("expected phrase"), 3).ToList());
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes:
@@ -128,7 +128,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task SeedCasesIfEmptyAsync_LoadsBundledGoldenSet_OnlyWhenEmpty()
     {
-        WriteGoldenSet([("kev-citrix", "Citrix NetScaler", new[] { "CVE-2023-3519" })]);
+        WriteGoldenSet([("policy-case", "account policy", new[] { "disable within 24 hours" })]);
         var db = NewDb();
         var service = CreateService(new ScriptedSearchService([]), db);
 
@@ -141,8 +141,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         Assert.Single(afterFirst);
         Assert.Single(afterSecond);
-        Assert.Equal("kev-citrix", afterFirst[0].Id);
-        Assert.Equal(["CVE-2023-3519"], afterFirst[0].ExpectedCveIds);
+        Assert.Equal("policy-case", afterFirst[0].Id);
+        Assert.Equal(["disable within 24 hours"], afterFirst[0].ExpectedContentKeywords);
     }
 
     [Fact]
@@ -153,7 +153,6 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         await service.CreateCaseAsync(new RetrievalEvaluationCaseDraft(
             "firewall policy guide",
-            ExpectedCveIdsText: null,
             ExpectedDocumentTitlesText: "Firewall policy\nFirewall configuration guide",
             Notes: "doc-only case",
             ExpectedContentKeywordsText: "deny by default"));
@@ -269,7 +268,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
         });
         db.SaveChanges();
 
-        var service = CreateService(new ScriptedSearchService([Response("CVE-2024-0001")]), db);
+        var service = CreateService(new ScriptedSearchService([Response("unrelated content")]), db);
 
         var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
 
@@ -296,7 +295,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
         return new ApplicationDbContext(options);
     }
 
-    private static void SeedCases(ApplicationDbContext dbContext, IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
+    private static void SeedCases(ApplicationDbContext dbContext, IEnumerable<(string Id, string Question, string[] ExpectedKeywords)> cases)
     {
         var now = DateTimeOffset.UtcNow;
         foreach (var item in cases)
@@ -305,7 +304,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
             {
                 CaseKey = item.Id,
                 Question = item.Question,
-                ExpectedCveIds = string.Join('\n', item.ExpectedCveIds),
+                ExpectedContentKeywords = string.Join('\n', item.ExpectedKeywords),
                 CreatedTime = now,
                 LastUpdatedTime = now
             });
@@ -314,7 +313,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
         dbContext.SaveChanges();
     }
 
-    private void WriteGoldenSet(IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
+    private void WriteGoldenSet(IEnumerable<(string Id, string Question, string[] ExpectedKeywords)> cases)
     {
         var payload = new
         {
@@ -322,8 +321,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
             {
                 id = item.Id,
                 question = item.Question,
-                expectedCveIds = item.ExpectedCveIds,
                 expectedDocumentTitles = Array.Empty<string>(),
+                expectedContentKeywords = item.ExpectedKeywords,
                 notes = (string?)null
             })
         };
@@ -331,26 +330,24 @@ public class RetrievalEvaluationServiceTests : IDisposable
         File.WriteAllText(path, JsonSerializer.Serialize(payload));
     }
 
-    private static RetrievalResponse Response(params string[] cveIds)
+    private static RetrievalResponse Response(params string[] chunks)
     {
-        var results = cveIds.Select(cveId => new RetrievalResult(
-            Advisory: new SecurityAdvisory
+        var results = chunks.Select((chunk, index) => new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
             {
-                SourceName = "test",
-                ExternalId = cveId,
-                CveId = cveId,
-                Title = cveId,
-                Description = "",
-                SourceUrl = "",
-                ContentHash = ""
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = $"Document {index + 1}",
+                SourceType = "test",
+                ExtractedText = chunk,
+                ContentHash = $"hash-{index}"
             },
-            Document: null,
-            ChunkText: "",
+            ChunkText: chunk,
             Score: 1.0,
             VectorScore: 0.5,
             TextScore: 0.5)).ToList();
 
-        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.CveAdvisory);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
         return new RetrievalResponse(plan, RetrievalModes.Hybrid, results);
     }
 

@@ -19,10 +19,6 @@ public class RetrievalEvaluationCaseEntity
     [MaxLength(500)]
     public required string Question { get; set; }
 
-    /// <summary>Expected CVE IDs, one per line (commas also accepted).</summary>
-    [MaxLength(1200)]
-    public string? ExpectedCveIds { get; set; }
-
     /// <summary>Expected knowledge-document titles, one per line.</summary>
     [MaxLength(2000)]
     public string? ExpectedDocumentTitles { get; set; }
@@ -33,7 +29,7 @@ public class RetrievalEvaluationCaseEntity
 
     /// <summary>
     /// Expected domain trace metadata, one key=value pair per line
-    /// (e.g. "vendor=Citrix" or "cveId=CVE-2024-3400"). A result is relevant
+    /// (e.g. "department=IT" or "documentType=SOP"). A result is relevant
     /// when all pairs match its domain metadata.
     /// </summary>
     [MaxLength(2000)]
@@ -52,7 +48,6 @@ public class RetrievalEvaluationCaseEntity
 /// <summary>Raw form input for creating or editing an evaluation case.</summary>
 public sealed record RetrievalEvaluationCaseDraft(
     string Question,
-    string? ExpectedCveIdsText,
     string? ExpectedDocumentTitlesText,
     string? Notes,
     string? ExpectedMetadataText = null,
@@ -64,13 +59,8 @@ public sealed record RetrievalEvaluationCaseDraft(
 /// </summary>
 /// <param name="Id">Stable identifier used to track cases across eval runs.</param>
 /// <param name="Question">The natural-language query.</param>
-/// <param name="ExpectedCveIds">
-/// CVE IDs that should appear in the top-K. A case passes Hit@K if any
-/// of these IDs appears in the first K results.
-/// </param>
 /// <param name="ExpectedDocumentTitles">
-/// Knowledge document titles that should appear in the top-K, used for
-/// non-CVE knowledge questions.
+/// Knowledge document titles that should appear in the top-K.
 /// </param>
 /// <param name="Notes">Free-form notes explaining the case intent.</param>
 /// <param name="ExpectedMetadata">
@@ -85,7 +75,6 @@ public sealed record RetrievalEvaluationCaseDraft(
 public sealed record RetrievalEvaluationCase(
     string Id,
     string Question,
-    IReadOnlyList<string> ExpectedCveIds,
     IReadOnlyList<string> ExpectedDocumentTitles,
     string? Notes = null,
     IReadOnlyDictionary<string, string?>? ExpectedMetadata = null,
@@ -104,7 +93,6 @@ public sealed record RetrievalEvaluationCaseResult(
 public sealed record RetrievalEvaluationMatch(
     int Rank,
     string Title,
-    string? CveId,
     double Score,
     double VectorScore,
     double TextScore,

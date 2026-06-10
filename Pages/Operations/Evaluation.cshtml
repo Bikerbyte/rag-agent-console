@@ -98,18 +98,11 @@ else
 
             <details class="eval-advanced-fields">
                 <summary>@L["進階命中條件"]</summary>
-                <div class="form-row">
-                    <label class="field-block">
-                        <span>@L["預期 CVE（選填）"]</span>
-                        <textarea asp-for="Input.ExpectedCveIds" class="form-control" rows="3" placeholder="CVE-2023-3519&#10;CVE-2023-4966"></textarea>
-                        <small class="field-hint">@L["每行一個，僅適用於弱點公告案例。"]</small>
-                    </label>
-                    <label class="field-block">
-                        <span>@L["預期 Metadata（選填）"]</span>
-                        <textarea asp-for="Input.ExpectedMetadata" class="form-control" rows="3" placeholder="documentType=sop&#10;department=it"></textarea>
-                        <small class="field-hint">@L["每行一組 key=value，命中結果需全部符合。"]</small>
-                    </label>
-                </div>
+                <label class="field-block">
+                    <span>@L["預期 Metadata（選填）"]</span>
+                    <textarea asp-for="Input.ExpectedMetadata" class="form-control" rows="3" placeholder="documentType=sop&#10;department=it"></textarea>
+                    <small class="field-hint">@L["每行一組 key=value，命中結果需全部符合。"]</small>
+                </label>
             </details>
 
             <label class="field-block">
@@ -146,10 +139,6 @@ else
                             <span class="table-title">@item.Question</span>
                             <p class="table-copy">
                                 <code>@item.CaseKey</code>
-                                @if (!string.IsNullOrWhiteSpace(item.ExpectedCveIds))
-                                {
-                                    <span> · CVE: @string.Join(", ", item.ExpectedCveIds.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
-                                }
                                 @if (!string.IsNullOrWhiteSpace(item.ExpectedDocumentTitles))
                                 {
                                     <span> · @L["文件"]: @string.Join(", ", item.ExpectedDocumentTitles.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
