@@ -185,6 +185,82 @@ public class RagQueryPlannerTests
         Assert.Equal(KnowledgeModuleNames.CveAdvisory, plan.ModuleName);
     }
 
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiReturnsGenericSchema_MapsEntitiesAndFilters()
+    {
+        const string json = """
+            {
+              "intent": "knowledge_lookup",
+              "domain": "security_advisory",
+              "moduleName": "CveAdvisory",
+              "retrievalQuery": "Palo Alto PAN-OS critical vulnerabilities",
+              "searchKeywords": ["palo alto", "pan-os"],
+              "entities": {
+                "vendor": "Palo Alto",
+                "product": "PAN-OS",
+                "cveId": "cve-2024-3400"
+              },
+              "filters": {
+                "riskFilter": "critical",
+                "cveYear": 2024
+              },
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("PAN-OS 有哪些重大漏洞");
+
+        Assert.Equal("Palo Alto", plan.GetEntity(PlanEntityKeys.Vendor));
+        Assert.Equal("CVE-2024-3400", plan.GetEntity(SecurityAdvisoryPlanKeys.CveId));
+        Assert.Equal("critical", plan.GetFilter(SecurityAdvisoryPlanKeys.RiskFilter));
+        Assert.Equal("2024", plan.GetFilter(SecurityAdvisoryPlanKeys.CveYear));
+        Assert.Equal(KnowledgeModuleNames.CveAdvisory, plan.ModuleName);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenGenericAndFlatFieldsConflict_DictionaryWins()
+    {
+        const string json = """
+            {
+              "moduleName": "CveAdvisory",
+              "retrievalQuery": "query",
+              "vendor": "OldVendor",
+              "entities": { "vendor": "NewVendor" },
+              "searchKeywords": [],
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("test");
+
+        Assert.Equal("NewVendor", plan.GetEntity(PlanEntityKeys.Vendor));
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenOnlyDomainGiven_UsesDomainDefaultModule()
+    {
+        const string json = """
+            {
+              "intent": "policy_lookup",
+              "domain": "generic_knowledge",
+              "retrievalQuery": "annual leave carryover policy",
+              "searchKeywords": ["annual leave"],
+              "entities": { "region": "Taiwan" },
+              "filters": { "policyCategory": "leave" },
+              "notes": []
+            }
+            """;
+        var planner = CreatePlanner(enableChat: true, aiResponse: json);
+
+        var plan = await planner.BuildPlanAsync("特休可以遞延到明年嗎");
+
+        Assert.Equal(KnowledgeModuleNames.InternalDocs, plan.ModuleName);
+        Assert.Equal("Taiwan", plan.GetEntity("region"));
+        Assert.Equal("leave", plan.GetFilter("policyCategory"));
+    }
+
     private static RagQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
     {
         return new RagQueryPlanner(

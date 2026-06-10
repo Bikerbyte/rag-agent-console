@@ -46,6 +46,9 @@ public interface IRagDomainRegistry
     /// <summary>Resolve the domain that handles the given knowledge module.</summary>
     IRagDomain Resolve(string? moduleName);
 
+    /// <summary>Find a domain by its name (e.g. "security_advisory"), or null.</summary>
+    IRagDomain? FindByName(string? domainName);
+
     /// <summary>Resolve the domain that owns a concrete retrieval result.</summary>
     IRagDomain ResolveForResult(RetrievalResult result);
 

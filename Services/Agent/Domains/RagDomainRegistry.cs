@@ -44,6 +44,12 @@ public sealed class RagDomainRegistry : IRagDomainRegistry
         return DefaultDomain;
     }
 
+    public IRagDomain? FindByName(string? domainName)
+        => string.IsNullOrWhiteSpace(domainName)
+            ? null
+            : domains.FirstOrDefault(domain =>
+                string.Equals(domain.Name, domainName.Trim(), StringComparison.OrdinalIgnoreCase));
+
     public IRagDomain ResolveForResult(RetrievalResult result)
         => domains.FirstOrDefault(domain => domain.Owns(result)) ?? DefaultDomain;
 

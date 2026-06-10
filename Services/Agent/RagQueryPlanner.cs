@@ -57,22 +57,28 @@ public class RagQueryPlanner(
         User question:
         {{question}}
 
-        Expected JSON shape:
+        Expected JSON shape (entities/filters keys depend on the domain;
+        the example shows a security advisory question):
         {
           "intent": "knowledge_lookup",
+          "domain": "security_advisory",
           "moduleName": "CveAdvisory",
-          "vendor": "Citrix",
-          "product": "NetScaler",
-          "version": "59.22",
-          "cveId": null,
-          "riskFilter": "none",
           "retrievalQuery": "Citrix NetScaler vulnerabilities",
           "searchKeywords": ["citrix", "netscaler"],
+          "entities": {
+            "vendor": "Citrix",
+            "product": "NetScaler",
+            "version": "59.22",
+            "cveId": null
+          },
+          "filters": {
+            "riskFilter": "none",
+            "cveYear": null
+          },
           "notes": ["version is supporting context, not a hard retrieval filter"],
           "publishedFrom": null,
           "publishedTo": null,
-          "preferRecent": false,
-          "cveYear": null
+          "preferRecent": false
         }
         """;
 
@@ -95,21 +101,24 @@ public class RagQueryPlanner(
 
             var keywords = NormalizeKeywords(dto.SearchKeywords);
 
-            // The planner JSON schema is intentionally kept flat (vendor,
-            // cveId, riskFilter, …) so existing planner system prompts keep
-            // working; the flat fields are mapped onto the generic
-            // entity/filter dictionaries here and interpreted by the domain.
+            // The planner accepts both the generic schema (entities/filters
+            // dictionaries) and the legacy flat fields (vendor, cveId,
+            // riskFilter, …) so previously stored planner system prompts keep
+            // working. Flat fields are mapped first; dictionary values from
+            // the new schema take precedence on conflict.
             var entities = new Dictionary<string, string?>();
             AddIfPresent(entities, PlanEntityKeys.Vendor, dto.Vendor);
             AddIfPresent(entities, PlanEntityKeys.Product, dto.Product);
             AddIfPresent(entities, PlanEntityKeys.Version, dto.Version);
             AddIfPresent(entities, SecurityAdvisoryPlanKeys.CveId, dto.CveId);
+            MergeValues(entities, dto.Entities);
 
             var filters = new Dictionary<string, string?>();
             AddIfPresent(filters, SecurityAdvisoryPlanKeys.RiskFilter, dto.RiskFilter);
             AddIfPresent(filters, SecurityAdvisoryPlanKeys.CveYear, dto.CveYear?.ToString());
+            MergeValues(filters, dto.Filters);
 
-            var moduleName = domainRegistry.NormalizeModuleName(dto.ModuleName);
+            var moduleName = ResolveModuleName(dto.ModuleName, dto.Domain);
             var plan = new RetrievalPlan(
                 question,
                 dto.RetrievalQuery?.Trim() ?? string.Empty,
@@ -165,11 +174,62 @@ public class RagQueryPlanner(
             .Take(8)
             .ToList();
 
+    private string ResolveModuleName(string? moduleName, string? domainName)
+    {
+        if (!string.IsNullOrWhiteSpace(moduleName))
+        {
+            return domainRegistry.NormalizeModuleName(moduleName);
+        }
+
+        // No module given: let the planner-selected domain pick its default
+        // module before falling back to the registry default.
+        var domain = domainRegistry.FindByName(domainName);
+        return domain?.DefaultModuleName ?? domainRegistry.DefaultDomain.DefaultModuleName;
+    }
+
     private static void AddIfPresent(Dictionary<string, string?> values, string key, string? value)
     {
         if (!string.IsNullOrWhiteSpace(value))
         {
             values[key] = value.Trim();
+        }
+    }
+
+    private static void MergeValues(
+        Dictionary<string, string?> values,
+        IReadOnlyDictionary<string, JsonElement>? overrides)
+    {
+        if (overrides is null)
+        {
+            return;
+        }
+
+        foreach (var (key, element) in overrides)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            // The LLM may emit strings, numbers, or booleans; nulls clear
+            // any value the legacy flat fields put there.
+            var value = element.ValueKind switch
+            {
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.Number => element.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                _ => null
+            };
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                values.Remove(key.Trim());
+            }
+            else
+            {
+                values[key.Trim()] = value.Trim();
+            }
         }
     }
 
@@ -195,17 +255,22 @@ public class RagQueryPlanner(
 
     private sealed record QueryPlanDto(
         string? Intent,
+        string? Domain,
+        string? ModuleName,
+        string? RetrievalQuery,
+        IReadOnlyList<string>? SearchKeywords,
+        IReadOnlyDictionary<string, JsonElement>? Entities,
+        IReadOnlyDictionary<string, JsonElement>? Filters,
+        IReadOnlyList<string>? Notes,
+        string? PublishedFrom,
+        string? PublishedTo,
+        bool? PreferRecent,
+        // Legacy flat fields kept for compatibility with planner system
+        // prompts persisted before the generic schema existed.
         string? Vendor,
         string? Product,
         string? Version,
         string? CveId,
         string? RiskFilter,
-        string? ModuleName,
-        string? RetrievalQuery,
-        IReadOnlyList<string>? SearchKeywords,
-        IReadOnlyList<string>? Notes,
-        string? PublishedFrom,
-        string? PublishedTo,
-        bool? PreferRecent,
         int? CveYear);
 }
