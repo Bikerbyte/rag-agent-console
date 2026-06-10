@@ -160,6 +160,48 @@ public class RagDomainTests
         Assert.Equal("CVE-2024-3400", normalized.RetrievalQuery);
     }
 
+    // ── Document filter application ──────────────────────────────────────────
+
+    [Fact]
+    public void GenericDomain_AcceptsDocument_NoFilters_AcceptsEverything()
+    {
+        var request = Request();
+        Assert.True(GenericDomain.AcceptsDocument(request, PolicyDocument(), "any chunk"));
+    }
+
+    [Fact]
+    public void GenericDomain_AcceptsDocument_FilterValueInTags_Accepts()
+    {
+        var request = Request(filters: new Dictionary<string, string?> { ["policyCategory"] = "leave" });
+        Assert.True(GenericDomain.AcceptsDocument(request, PolicyDocument(tags: "leave;hr"), "chunk"));
+    }
+
+    [Fact]
+    public void GenericDomain_AcceptsDocument_FilterValueInChunk_Accepts()
+    {
+        var request = Request(filters: new Dictionary<string, string?> { ["region"] = "Taiwan" });
+        Assert.True(GenericDomain.AcceptsDocument(request, PolicyDocument(), "annual leave rules for Taiwan employees"));
+    }
+
+    [Fact]
+    public void GenericDomain_AcceptsDocument_FilterValueAbsent_Rejects()
+    {
+        var request = Request(filters: new Dictionary<string, string?> { ["policyCategory"] = "expense" });
+        Assert.False(GenericDomain.AcceptsDocument(request, PolicyDocument(tags: "leave;hr"), "annual leave policy"));
+    }
+
+    [Fact]
+    public void SecurityDomain_AcceptsDocument_IgnoresAdvisoryFilters()
+    {
+        var request = Request(filters: new Dictionary<string, string?>
+        {
+            [SecurityAdvisoryPlanKeys.RiskFilter] = "critical",
+            [SecurityAdvisoryPlanKeys.CveYear] = "2024"
+        });
+
+        Assert.True(SecurityDomain.AcceptsDocument(request, PolicyDocument(), "chunk"));
+    }
+
     // ── Filter parsing ───────────────────────────────────────────────────────
 
     [Fact]
@@ -199,6 +241,27 @@ public class RagDomainTests
             [],
             entities ?? RetrievalPlan.EmptyValues,
             filters ?? RetrievalPlan.EmptyValues);
+
+    private static RetrievalRequest Request(IReadOnlyDictionary<string, string?>? filters = null)
+        => new(
+            "q",
+            [],
+            RetrievalPlan.EmptyValues,
+            filters ?? RetrievalPlan.EmptyValues,
+            QueryEmbedding: [],
+            MaxResults: 5,
+            ModuleName: KnowledgeModuleNames.InternalDocs);
+
+    private static KnowledgeDocument PolicyDocument(string? tags = null)
+        => new()
+        {
+            ModuleName = KnowledgeModuleNames.InternalDocs,
+            Title = "Annual leave policy",
+            SourceType = "Upload",
+            Tags = tags,
+            ExtractedText = "text",
+            ContentHash = "hash"
+        };
 
     private static RetrievalResult AdvisoryResult()
         => new(

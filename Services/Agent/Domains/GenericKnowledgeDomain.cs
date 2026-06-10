@@ -28,6 +28,43 @@ public sealed class GenericKnowledgeDomain : IRagDomain
                 : plan.RetrievalQuery.Trim()
         };
 
+    public bool AcceptsDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText)
+    {
+        if (request.Filters.Count == 0)
+        {
+            return true;
+        }
+
+        // Filters carry arbitrary planner-extracted constraints (e.g.
+        // policyCategory=leave, region=Taiwan). A document qualifies when
+        // every filter value appears somewhere in its metadata or chunk
+        // text; the filter keys themselves stay opaque to the store.
+        var searchable = string.Join(
+            ' ',
+            document.Title,
+            document.ModuleName,
+            document.SourceType,
+            document.Vendor,
+            document.Product,
+            document.Tags,
+            chunkText);
+
+        foreach (var value in request.Filters.Values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            if (!searchable.Contains(value.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public string BuildContextBlock(RetrievalResult result)
     {
         var builder = new StringBuilder();

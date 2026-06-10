@@ -9,6 +9,7 @@ public class EfRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
     IRetrievalTextScorer scorer,
+    IRagDomainRegistry domainRegistry,
     ILogger<EfRagVectorStore> logger) : IRagVectorStore
 {
     public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
@@ -146,9 +147,11 @@ public class EfRagVectorStore(
             .Take(limit)
             .ToListAsync(cancellationToken);
 
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         foreach (var chunk in documentChunks)
         {
-            if (chunk.Document is null)
+            if (chunk.Document is null ||
+                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
             {
                 continue;
             }

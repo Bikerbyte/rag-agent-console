@@ -54,6 +54,9 @@ public sealed class RagDomainRegistry : IRagDomainRegistry
         => domains.FirstOrDefault(domain => domain.Owns(result)) ?? DefaultDomain;
 
     public string NormalizeModuleName(string? moduleName)
+        => TryNormalizeModuleName(moduleName) ?? DefaultDomain.DefaultModuleName;
+
+    public string? TryNormalizeModuleName(string? moduleName)
     {
         var normalized = moduleName?.Trim();
         if (!string.IsNullOrWhiteSpace(normalized) &&
@@ -64,7 +67,7 @@ public sealed class RagDomainRegistry : IRagDomainRegistry
                 string.Equals(name, normalized, StringComparison.OrdinalIgnoreCase));
         }
 
-        return DefaultDomain.DefaultModuleName;
+        return null;
     }
 
     public IReadOnlyList<IRagDomain> ListDomains() => domains;

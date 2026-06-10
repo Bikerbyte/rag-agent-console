@@ -261,6 +261,21 @@ public class RagQueryPlannerTests
         Assert.Equal("leave", plan.GetFilter("policyCategory"));
     }
 
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiDisabled_UsesConfiguredDefaultDomain()
+    {
+        var planner = new RagQueryPlanner(
+            new FakeAiChatClient(null),
+            new FakeAppSettingsService(enableChat: false, defaultDomain: GenericKnowledgeDomain.DomainName),
+            CreateDomainRegistry(),
+            NullLogger<RagQueryPlanner>.Instance);
+
+        var plan = await planner.BuildPlanAsync("特休規定");
+
+        Assert.Equal(PlannerStrategy.RawFallback, plan.Strategy);
+        Assert.Equal(KnowledgeModuleNames.InternalDocs, plan.ModuleName);
+    }
+
     private static RagQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
     {
         return new RagQueryPlanner(
@@ -285,7 +300,7 @@ public class RagQueryPlannerTests
             => throw new HttpRequestException("provider unreachable");
     }
 
-    private sealed class FakeAppSettingsService(bool enableChat) : IAppSettingsService
+    private sealed class FakeAppSettingsService(bool enableChat, string? defaultDomain = null) : IAppSettingsService
     {
         public Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new AiProviderOptions
@@ -304,7 +319,9 @@ public class RagQueryPlannerTests
         public Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new ObservabilityOptions());
         public Task<AgentOptions> GetAgentOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new AgentOptions());
+            => Task.FromResult(defaultDomain is null
+                ? new AgentOptions()
+                : new AgentOptions { DefaultDomain = defaultDomain });
         public Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyDictionary<string, AppSetting>>(new Dictionary<string, AppSetting>());
         public Task SaveAsync(IEnumerable<AppSettingUpdate> updates, CancellationToken cancellationToken = default)

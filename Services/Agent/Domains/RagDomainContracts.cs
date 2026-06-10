@@ -28,6 +28,14 @@ public interface IRagDomain
     /// </summary>
     RetrievalPlan NormalizePlan(RetrievalPlan plan, string question);
 
+    /// <summary>
+    /// Predicate applied to document-corpus candidates for modules owned by
+    /// this domain. Lets a domain interpret plan filters (e.g. policy
+    /// category) against document metadata without the stores knowing the
+    /// filter keys.
+    /// </summary>
+    bool AcceptsDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText);
+
     /// <summary>Context block sent to the LLM for one retrieval result.</summary>
     string BuildContextBlock(RetrievalResult result);
 
@@ -54,6 +62,9 @@ public interface IRagDomainRegistry
 
     /// <summary>Map a planner-provided module name onto a known module.</summary>
     string NormalizeModuleName(string? moduleName);
+
+    /// <summary>Canonical module name, or null when the module is unknown.</summary>
+    string? TryNormalizeModuleName(string? moduleName);
 
     IReadOnlyList<IRagDomain> ListDomains();
 }

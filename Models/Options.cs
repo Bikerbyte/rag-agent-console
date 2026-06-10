@@ -123,6 +123,12 @@ public class AgentOptions
 
     public string ChatPlaceholder { get; set; } = "Ask a question about any indexed document or sample connector...";
 
+    /// <summary>
+    /// Domain used when the planner names no module or an unknown one
+    /// (e.g. "security_advisory" or "generic_knowledge").
+    /// </summary>
+    public string DefaultDomain { get; set; } = "security_advisory";
+
     public string PlannerSystemPrompt { get; set; } =
         """
         You are a knowledge base query planner for a domain-adaptable RAG agent.

@@ -131,6 +131,12 @@ public sealed partial class SecurityAdvisoryDomain : IRagDomain
         };
     }
 
+    public bool AcceptsDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText)
+        // Security filters (riskFilter, cveYear, cveId) describe advisory
+        // metadata that managed documents do not carry; they are applied to
+        // the advisory corpus only, so documents pass through unfiltered.
+        => true;
+
     public string BuildContextBlock(RetrievalResult result)
     {
         if (result.Advisory is not { } advisory)

@@ -39,7 +39,7 @@ public class RagQueryPlanner(
             logger.LogWarning(exception, "AI planner failed; falling back to raw question.");
         }
 
-        return FallbackPlan(question);
+        return await FallbackPlanAsync(question, cancellationToken);
     }
 
     private async Task<RetrievalPlan> BuildWithAiAsync(
@@ -49,6 +49,7 @@ public class RagQueryPlanner(
     {
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
         var systemPrompt = agentOptions.PlannerSystemPrompt;
+        var defaultDomain = domainRegistry.FindByName(agentOptions.DefaultDomain) ?? domainRegistry.DefaultDomain;
 
         var userPrompt = $$"""
         Conversation history:
@@ -86,7 +87,7 @@ public class RagQueryPlanner(
         if (string.IsNullOrWhiteSpace(response))
         {
             logger.LogWarning("AI planner returned empty response; using raw question as retrieval query.");
-            return FallbackPlan(question);
+            return await FallbackPlanAsync(question, cancellationToken);
         }
 
         try
@@ -96,7 +97,7 @@ public class RagQueryPlanner(
             if (dto is null)
             {
                 logger.LogWarning("AI planner returned null after deserialization; using raw question.");
-                return FallbackPlan(question);
+                return await FallbackPlanAsync(question, cancellationToken);
             }
 
             var keywords = NormalizeKeywords(dto.SearchKeywords);
@@ -118,7 +119,7 @@ public class RagQueryPlanner(
             AddIfPresent(filters, SecurityAdvisoryPlanKeys.CveYear, dto.CveYear?.ToString());
             MergeValues(filters, dto.Filters);
 
-            var moduleName = ResolveModuleName(dto.ModuleName, dto.Domain);
+            var moduleName = ResolveModuleName(dto.ModuleName, dto.Domain, defaultDomain);
             var plan = new RetrievalPlan(
                 question,
                 dto.RetrievalQuery?.Trim() ?? string.Empty,
@@ -138,13 +139,23 @@ public class RagQueryPlanner(
         catch (JsonException ex)
         {
             logger.LogWarning(ex, "AI planner returned invalid JSON; using raw question as retrieval query.");
-            return FallbackPlan(question);
+            return await FallbackPlanAsync(question, cancellationToken);
         }
     }
 
-    private RetrievalPlan FallbackPlan(string question)
+    private async Task<RetrievalPlan> FallbackPlanAsync(string question, CancellationToken cancellationToken)
     {
         var domain = domainRegistry.DefaultDomain;
+        try
+        {
+            var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+            domain = domainRegistry.FindByName(agentOptions.DefaultDomain) ?? domain;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogDebug(exception, "Could not load agent options for fallback plan; using registry default domain.");
+        }
+
         var plan = new RetrievalPlan(
             question,
             question.Trim(),
@@ -174,17 +185,13 @@ public class RagQueryPlanner(
             .Take(8)
             .ToList();
 
-    private string ResolveModuleName(string? moduleName, string? domainName)
+    private string ResolveModuleName(string? moduleName, string? domainName, IRagDomain defaultDomain)
     {
-        if (!string.IsNullOrWhiteSpace(moduleName))
-        {
-            return domainRegistry.NormalizeModuleName(moduleName);
-        }
-
-        // No module given: let the planner-selected domain pick its default
-        // module before falling back to the registry default.
-        var domain = domainRegistry.FindByName(domainName);
-        return domain?.DefaultModuleName ?? domainRegistry.DefaultDomain.DefaultModuleName;
+        // Known module wins; otherwise the planner-selected domain picks its
+        // default module; otherwise the configured default domain decides.
+        return domainRegistry.TryNormalizeModuleName(moduleName)
+            ?? domainRegistry.FindByName(domainName)?.DefaultModuleName
+            ?? defaultDomain.DefaultModuleName;
     }
 
     private static void AddIfPresent(Dictionary<string, string?> values, string key, string? value)

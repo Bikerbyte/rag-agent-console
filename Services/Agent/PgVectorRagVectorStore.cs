@@ -11,6 +11,7 @@ public class PgVectorRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
     IRetrievalTextScorer scorer,
+    IRagDomainRegistry domainRegistry,
     ILogger<PgVectorRagVectorStore> logger) : IRagVectorStore
 {
     public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
@@ -86,9 +87,12 @@ public class PgVectorRagVectorStore(
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         foreach (var chunk in documentChunks)
         {
-            if (chunk.Document is null || !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText))
+            if (chunk.Document is null ||
+                !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText) ||
+                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
             {
                 continue;
             }
