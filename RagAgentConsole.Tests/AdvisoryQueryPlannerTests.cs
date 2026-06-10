@@ -8,12 +8,28 @@ namespace RagAgentConsole.Tests;
 public class AdvisoryQueryPlannerTests
 {
     [Fact]
-    public async Task BuildPlanAsync_WhenAiDisabled_ThrowsAiUnavailable()
+    public async Task BuildPlanAsync_WhenAiDisabled_FallsBackToRawQuestion()
     {
         var planner = CreatePlanner(enableChat: false, aiResponse: null);
 
-        await Assert.ThrowsAsync<AiUnavailableException>(
-            () => planner.BuildPlanAsync("citrix netscaler 弱點"));
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.RawFallback, plan.Strategy);
+        Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
+    }
+
+    [Fact]
+    public async Task BuildPlanAsync_WhenAiClientThrows_FallsBackToRawQuestion()
+    {
+        var planner = new AdvisoryQueryPlanner(
+            new ThrowingAiChatClient(),
+            new FakeAppSettingsService(enableChat: true),
+            NullLogger<AdvisoryQueryPlanner>.Instance);
+
+        var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
+
+        Assert.Equal(PlannerStrategy.RawFallback, plan.Strategy);
+        Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
     }
 
     [Fact]
@@ -115,7 +131,7 @@ public class AdvisoryQueryPlannerTests
 
         var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
 
-        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal(PlannerStrategy.RawFallback, plan.Strategy);
         Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
     }
 
@@ -126,7 +142,7 @@ public class AdvisoryQueryPlannerTests
 
         var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
 
-        Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
+        Assert.Equal(PlannerStrategy.RawFallback, plan.Strategy);
         Assert.Equal("citrix netscaler 弱點", plan.RetrievalQuery);
     }
 
@@ -180,6 +196,12 @@ public class AdvisoryQueryPlannerTests
     {
         public Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
             => Task.FromResult(response);
+    }
+
+    private sealed class ThrowingAiChatClient : IAiChatClient
+    {
+        public Task<string?> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("provider unreachable");
     }
 
     private sealed class FakeAppSettingsService(bool enableChat) : IAppSettingsService

@@ -35,7 +35,7 @@ public sealed record DocumentCandidate(
     double TextScore)
     : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
 
-public enum PlannerStrategy { Ai }
+public enum PlannerStrategy { Ai, RawFallback }
 
 public sealed record AdvisoryQueryPlan(
     string OriginalQuestion,

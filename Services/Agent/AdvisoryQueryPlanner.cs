@@ -15,14 +15,30 @@ public class AdvisoryQueryPlanner(
         IReadOnlyList<AdvisoryConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
-        var options = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
-        if (!options.EnableChatGeneration ||
-            string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
+        // Planner failure must not break read-only RAG retrieval: when the AI
+        // planner is disabled or fails, fall back to the raw question instead
+        // of throwing, so retrieval and evaluation keep working without AI.
+        try
         {
-            throw new AiUnavailableException();
+            var options = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
+            if (options.EnableChatGeneration &&
+                !string.Equals(options.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase))
+            {
+                return await BuildWithAiAsync(question, history, cancellationToken);
+            }
+
+            logger.LogDebug("AI planner is disabled; using raw question as retrieval query.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "AI planner failed; falling back to raw question.");
         }
 
-        return await BuildWithAiAsync(question, history, cancellationToken);
+        return FallbackPlan(question);
     }
 
     private async Task<AdvisoryQueryPlan> BuildWithAiAsync(
@@ -108,7 +124,7 @@ public class AdvisoryQueryPlanner(
 
     private static AdvisoryQueryPlan FallbackPlan(string question)
         => new(question, question.Trim(), "knowledge_lookup", null, null, null, null, "none", [], [],
-            KnowledgeModuleNames.CveAdvisory, PlannerStrategy.Ai);
+            KnowledgeModuleNames.CveAdvisory, PlannerStrategy.RawFallback);
 
     internal static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
     {
@@ -191,10 +207,4 @@ public class AdvisoryQueryPlanner(
         string? PublishedTo,
         bool? PreferRecent,
         int? CveYear);
-}
-
-public class AiUnavailableException : InvalidOperationException
-{
-    public AiUnavailableException()
-        : base("AI provider is not configured. Please enable an AI provider in Settings.") { }
 }
