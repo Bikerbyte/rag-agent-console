@@ -8,6 +8,7 @@ namespace RagAgentConsole.Services;
 public class RagAnswerService(
     IRagRetrievalService searchService,
     IAppSettingsService appSettingsService,
+    IRagDomainRegistry domainRegistry,
     IOptions<SecurityAdvisoryOptions> options,
     IOptions<AiProviderOptions> aiProviderOptions,
     IAiChatClient aiChatClient) : IRagAnswerService
@@ -66,28 +67,7 @@ public class RagAnswerService(
         foreach (var result in results)
         {
             builder.AppendLine();
-            if (result.Advisory is { } advisory)
-            {
-                builder.AppendLine($"- {BuildTitle(advisory)}");
-                builder.AppendLine($"  狀態: {BuildRiskText(advisory)}");
-
-                var summary = advisory.AiSummary ?? advisory.Description;
-                builder.AppendLine($"  摘要: {Trim(summary, 220)}");
-
-                if (!string.IsNullOrWhiteSpace(advisory.SuggestedAction))
-                {
-                    builder.AppendLine($"  建議: {Trim(advisory.SuggestedAction, 180)}");
-                }
-
-                builder.AppendLine($"  來源: {advisory.SourceName} {advisory.SourceUrl}");
-            }
-            else
-            {
-                builder.AppendLine($"- {result.Title}");
-                builder.AppendLine($"  模組: {result.ModuleName}");
-                builder.AppendLine($"  摘要: {Trim(result.ChunkText, 220)}");
-                builder.AppendLine($"  來源: {result.SourceName}");
-            }
+            builder.AppendLine(domainRegistry.ResolveForResult(result).BuildPlainSummaryBlock(result));
         }
 
         return new AgentAnswerResult(builder.ToString().TrimEnd(), trace);
@@ -100,23 +80,12 @@ public class RagAnswerService(
         string systemPrompt,
         CancellationToken cancellationToken)
     {
+        // Context formatting is domain-specific: advisory hits include CVE
+        // metadata, uploaded documents only generic metadata.
         var contextBuilder = new StringBuilder();
         foreach (var result in results)
         {
-            contextBuilder.AppendLine($"Module: {result.ModuleName}");
-            contextBuilder.AppendLine($"Source kind: {result.SourceKind}");
-            contextBuilder.AppendLine($"CVE: {result.CveId}");
-            contextBuilder.AppendLine($"Title: {result.Title}");
-            contextBuilder.AppendLine($"Vendor: {result.Vendor}");
-            contextBuilder.AppendLine($"Product: {result.Product}");
-            contextBuilder.AppendLine($"Severity: {result.Severity}");
-            contextBuilder.AppendLine($"CVSS: {result.CvssScore}");
-            contextBuilder.AppendLine($"Known exploited: {result.IsKnownExploited}");
-            contextBuilder.AppendLine($"Published at: {result.Advisory?.PublishedAt:yyyy-MM-dd}");
-            contextBuilder.AppendLine($"Last modified at: {result.Advisory?.LastModifiedAt:yyyy-MM-dd}");
-            contextBuilder.AppendLine($"Context chunk: {result.ChunkText}");
-            contextBuilder.AppendLine($"Source: {result.SourceName} {result.SourceUrl}");
-            contextBuilder.AppendLine();
+            contextBuilder.AppendLine(domainRegistry.ResolveForResult(result).BuildContextBlock(result));
         }
 
         var userPrompt = $"""
@@ -153,44 +122,13 @@ public class RagAnswerService(
         return await aiChatClient.CompleteAsync(systemPrompt, userPrompt, cancellationToken);
     }
 
-    private static string BuildTitle(SecurityAdvisory advisory)
-        => string.IsNullOrWhiteSpace(advisory.CveId)
-            ? advisory.Title
-            : $"{advisory.CveId} - {advisory.Title}";
-
-    private static string BuildRiskText(SecurityAdvisory advisory)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(advisory.Severity))
-        {
-            parts.Add(advisory.Severity);
-        }
-
-        if (advisory.CvssScore.HasValue)
-        {
-            parts.Add($"CVSS {advisory.CvssScore:0.0}");
-        }
-
-        if (advisory.IsKnownExploited)
-        {
-            parts.Add("known exploited");
-        }
-
-        if (advisory.HasRansomwareUse)
-        {
-            parts.Add("ransomware use");
-        }
-
-        return parts.Count == 0 ? "未標示" : string.Join(" / ", parts);
-    }
-
     private static string Trim(string value, int maxLength)
     {
         var compact = string.Join(' ', value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "...";
     }
 
-    private static AgentRetrievalTrace BuildTrace(string question, RetrievalResponse searchResponse)
+    private AgentRetrievalTrace BuildTrace(string question, RetrievalResponse searchResponse)
         => new(
             question,
             searchResponse.Plan,
@@ -200,16 +138,12 @@ public class RagAnswerService(
                 result.ModuleName,
                 result.SourceKind,
                 result.Title,
-                result.CveId,
-                result.Vendor,
-                result.Product,
-                result.Severity,
-                result.IsKnownExploited,
                 result.SourceName,
                 result.Score,
                 result.VectorScore,
                 result.TextScore,
-                Trim(result.ChunkText, 260))).ToList());
+                Trim(result.ChunkText, 260),
+                domainRegistry.ResolveForResult(result).BuildTraceMetadata(result))).ToList());
 
     private static bool ContainsVersionLike(string value)
         => Regex.IsMatch(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);

@@ -154,13 +154,13 @@ public class IndexModel(
                 trace.Planner.ModuleName,
                 trace.Planner.RetrievalQuery,
                 trace.RetrievalMode,
-                trace.Planner.RiskFilter,
-                trace.Planner.Version,
+                trace.Planner.GetFilter(SecurityAdvisoryPlanKeys.RiskFilter),
+                trace.Planner.GetEntity(PlanEntityKeys.Version),
                 trace.Matches.Select(match => new AgentTraceMatchViewModel(
                     match.Rank,
                     match.ModuleName,
                     match.SourceKind,
-                    match.CveId ?? match.Title,
+                    match.GetMetadata(SecurityAdvisoryTraceKeys.CveId) ?? match.Title,
                     match.Score,
                     match.VectorScore,
                     match.TextScore)).ToList());

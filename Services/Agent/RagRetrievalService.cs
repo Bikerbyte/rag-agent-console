@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.RegularExpressions;
 using RagAgentConsole.Models;
 using Microsoft.Extensions.Options;
 
@@ -36,7 +34,15 @@ public class RagRetrievalService(
         if (string.IsNullOrWhiteSpace(question))
         {
             return new RetrievalResponse(
-                new RetrievalPlan(question, string.Empty, null, null, null, null, null, "none", [], [], moduleName ?? KnowledgeModuleNames.CveAdvisory),
+                new RetrievalPlan(
+                    question,
+                    string.Empty,
+                    null,
+                    [],
+                    [],
+                    RetrievalPlan.EmptyValues,
+                    RetrievalPlan.EmptyValues,
+                    moduleName ?? KnowledgeModuleNames.CveAdvisory),
                 RetrievalModes.Normalize(retrievalMode),
                 []);
         }
@@ -48,19 +54,16 @@ public class RagRetrievalService(
         var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
         var request = new RetrievalRequest(
             plan.RetrievalQuery,
-            plan.CveId,
-            plan.Version,
-            plan.KevOnly,
-            plan.HighRiskOnly,
             plan.SearchKeywords,
+            plan.Entities,
+            plan.Filters,
             queryVector,
             effectiveMax,
             effectiveModule,
             effectiveMode,
             plan.PublishedFrom,
             plan.PublishedTo,
-            plan.PreferRecent,
-            plan.CveYear);
+            plan.PreferRecent);
         var candidates = await vectorStore.SearchAsync(request, cancellationToken);
 
         var ranked = new List<RetrievalResult>();
@@ -87,11 +90,10 @@ public class RagRetrievalService(
         }
 
         logger.LogDebug(
-            "RAG search produced {CandidateCount} candidates and {RankedCount} ranked results. RetrievalQuery={RetrievalQuery}, Version={Version}.",
+            "RAG search produced {CandidateCount} candidates and {RankedCount} ranked results. RetrievalQuery={RetrievalQuery}.",
             candidates.Count,
             ranked.Count,
-            plan.RetrievalQuery,
-            plan.Version);
+            plan.RetrievalQuery);
 
         var ordered = plan.PreferRecent
             ? ranked.OrderByDescending(item => item.Advisory?.PublishedAt ?? DateTimeOffset.MinValue)

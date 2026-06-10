@@ -24,6 +24,7 @@ public class RagQueryPlannerTests
         var planner = new RagQueryPlanner(
             new ThrowingAiChatClient(),
             new FakeAppSettingsService(enableChat: true),
+            CreateDomainRegistry(),
             NullLogger<RagQueryPlanner>.Instance);
 
         var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
@@ -89,7 +90,7 @@ public class RagQueryPlannerTests
 
         Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), plan.PublishedFrom);
         Assert.Null(plan.PublishedTo);
-        Assert.Null(plan.CveYear);
+        Assert.Null(plan.GetFilter(SecurityAdvisoryPlanKeys.CveYear));
         Assert.True(plan.PreferRecent);
     }
 
@@ -121,7 +122,7 @@ public class RagQueryPlannerTests
         var plan = await planner.BuildPlanAsync("最近有哪些被利用的弱點");
 
         Assert.Equal(PlannerStrategy.Ai, plan.Strategy);
-        Assert.Equal("known_exploited", plan.RiskFilter);
+        Assert.Equal("known_exploited", plan.GetFilter(SecurityAdvisoryPlanKeys.RiskFilter));
     }
 
     [Fact]
@@ -189,8 +190,12 @@ public class RagQueryPlannerTests
         return new RagQueryPlanner(
             new FakeAiChatClient(aiResponse),
             new FakeAppSettingsService(enableChat),
+            CreateDomainRegistry(),
             NullLogger<RagQueryPlanner>.Instance);
     }
+
+    internal static RagDomainRegistry CreateDomainRegistry()
+        => new([new SecurityAdvisoryDomain(), new GenericKnowledgeDomain()]);
 
     private sealed class FakeAiChatClient(string? response) : IAiChatClient
     {

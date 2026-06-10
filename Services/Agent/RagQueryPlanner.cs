@@ -8,6 +8,7 @@ namespace RagAgentConsole.Services;
 public class RagQueryPlanner(
     IAiChatClient aiChatClient,
     IAppSettingsService appSettingsService,
+    IRagDomainRegistry domainRegistry,
     ILogger<RagQueryPlanner> logger) : IRagQueryPlanner
 {
     public async Task<RetrievalPlan> BuildPlanAsync(
@@ -93,27 +94,37 @@ public class RagQueryPlanner(
             }
 
             var keywords = NormalizeKeywords(dto.SearchKeywords);
-            var retrievalQuery = string.IsNullOrWhiteSpace(dto.RetrievalQuery)
-                ? BuildRetrievalQuery(dto.CveId, keywords, dto.RiskFilter)
-                : dto.RetrievalQuery.Trim();
 
-            return new RetrievalPlan(
+            // The planner JSON schema is intentionally kept flat (vendor,
+            // cveId, riskFilter, …) so existing planner system prompts keep
+            // working; the flat fields are mapped onto the generic
+            // entity/filter dictionaries here and interpreted by the domain.
+            var entities = new Dictionary<string, string?>();
+            AddIfPresent(entities, PlanEntityKeys.Vendor, dto.Vendor);
+            AddIfPresent(entities, PlanEntityKeys.Product, dto.Product);
+            AddIfPresent(entities, PlanEntityKeys.Version, dto.Version);
+            AddIfPresent(entities, SecurityAdvisoryPlanKeys.CveId, dto.CveId);
+
+            var filters = new Dictionary<string, string?>();
+            AddIfPresent(filters, SecurityAdvisoryPlanKeys.RiskFilter, dto.RiskFilter);
+            AddIfPresent(filters, SecurityAdvisoryPlanKeys.CveYear, dto.CveYear?.ToString());
+
+            var moduleName = domainRegistry.NormalizeModuleName(dto.ModuleName);
+            var plan = new RetrievalPlan(
                 question,
-                retrievalQuery,
+                dto.RetrievalQuery?.Trim() ?? string.Empty,
                 NormalizeNullable(dto.Intent),
-                NormalizeNullable(dto.Vendor),
-                NormalizeNullable(dto.Product),
-                NormalizeNullable(dto.Version),
-                NormalizeCve(dto.CveId),
-                NormalizeRiskFilter(dto.RiskFilter),
                 keywords,
                 dto.Notes?.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList() ?? [],
-                NormalizeModuleName(dto.ModuleName),
+                entities,
+                filters,
+                moduleName,
                 PlannerStrategy.Ai,
                 ParseDate(dto.PublishedFrom),
                 ParseDate(dto.PublishedTo),
-                dto.PreferRecent ?? false,
-                dto.CveYear);
+                dto.PreferRecent ?? false);
+
+            return domainRegistry.Resolve(moduleName).NormalizePlan(plan, question);
         }
         catch (JsonException ex)
         {
@@ -122,9 +133,22 @@ public class RagQueryPlanner(
         }
     }
 
-    private static RetrievalPlan FallbackPlan(string question)
-        => new(question, question.Trim(), "knowledge_lookup", null, null, null, null, "none", [], [],
-            KnowledgeModuleNames.CveAdvisory, PlannerStrategy.RawFallback);
+    private RetrievalPlan FallbackPlan(string question)
+    {
+        var domain = domainRegistry.DefaultDomain;
+        var plan = new RetrievalPlan(
+            question,
+            question.Trim(),
+            "knowledge_lookup",
+            [],
+            [],
+            RetrievalPlan.EmptyValues,
+            RetrievalPlan.EmptyValues,
+            domain.DefaultModuleName,
+            PlannerStrategy.RawFallback);
+
+        return domain.NormalizePlan(plan, question);
+    }
 
     internal static string BuildHistoryText(IReadOnlyList<AgentConversationMessage>? history)
     {
@@ -141,22 +165,12 @@ public class RagQueryPlanner(
             .Take(8)
             .ToList();
 
-    internal static string? NormalizeCve(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
-
-    internal static string BuildRetrievalQuery(string? cveId, IReadOnlyList<string> keywords, string? riskFilter)
+    private static void AddIfPresent(Dictionary<string, string?> values, string key, string? value)
     {
-        if (!string.IsNullOrWhiteSpace(cveId))
-            return cveId;
-
-        var parts = keywords.Take(5).ToList();
-        if (string.Equals(riskFilter, "known_exploited", StringComparison.OrdinalIgnoreCase))
-            parts.Add("known exploited");
-        else if (string.Equals(riskFilter, "critical", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(riskFilter, "high_risk", StringComparison.OrdinalIgnoreCase))
-            parts.Add("critical high risk");
-
-        return string.Join(' ', parts).Trim();
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            values[key] = value.Trim();
+        }
     }
 
     private static string StripJsonFence(string value)
@@ -172,19 +186,6 @@ public class RagQueryPlanner(
 
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static string NormalizeRiskFilter(string? value)
-        => string.IsNullOrWhiteSpace(value) ? "none" : value.Trim().ToLowerInvariant();
-
-    private static string NormalizeModuleName(string? value)
-    {
-        var normalized = value?.Trim();
-        if (string.Equals(normalized, KnowledgeModuleNames.WorkflowQa, StringComparison.OrdinalIgnoreCase))
-            return KnowledgeModuleNames.WorkflowQa;
-        if (string.Equals(normalized, KnowledgeModuleNames.InternalDocs, StringComparison.OrdinalIgnoreCase))
-            return KnowledgeModuleNames.InternalDocs;
-        return KnowledgeModuleNames.CveAdvisory;
-    }
 
     private static DateTimeOffset? ParseDate(string? value)
         => string.IsNullOrWhiteSpace(value) ? null

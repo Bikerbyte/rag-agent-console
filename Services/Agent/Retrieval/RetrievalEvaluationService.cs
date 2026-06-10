@@ -304,7 +304,7 @@ public sealed class RetrievalEvaluationService(
             matches.Add(new RetrievalEvaluationMatch(
                 rank,
                 result.Title,
-                result.CveId,
+                GetCveId(result),
                 result.Score,
                 result.VectorScore,
                 result.TextScore,
@@ -330,7 +330,8 @@ public sealed class RetrievalEvaluationService(
         HashSet<string> expectedCves,
         HashSet<string> expectedTitles)
     {
-        if (!string.IsNullOrWhiteSpace(result.CveId) && expectedCves.Contains(result.CveId))
+        var cveId = GetCveId(result);
+        if (!string.IsNullOrWhiteSpace(cveId) && expectedCves.Contains(cveId))
         {
             return true;
         }
@@ -342,6 +343,9 @@ public sealed class RetrievalEvaluationService(
 
         return false;
     }
+
+    private static string? GetCveId(RetrievalResult result)
+        => result.Advisory?.CveId ?? result.Advisory?.ExternalId;
 
     private static RetrievalEvaluationSummary BuildSummary(
         string mode,

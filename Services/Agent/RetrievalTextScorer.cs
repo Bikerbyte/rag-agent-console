@@ -24,22 +24,23 @@ public sealed class RetrievalTextScorer(
             advisory.Description,
             chunkText);
 
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
         var bm25 = ScoreBm25(request, documentText);
         var score = bm25;
 
-        if (!string.IsNullOrWhiteSpace(request.CveId) &&
-            (string.Equals(advisory.CveId, request.CveId, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(advisory.ExternalId, request.CveId, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(advisoryFilter.CveId) &&
+            (string.Equals(advisory.CveId, advisoryFilter.CveId, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(advisory.ExternalId, advisoryFilter.CveId, StringComparison.OrdinalIgnoreCase)))
         {
             score += CveExactMatchBonus;
         }
 
-        if (request.KevOnly && advisory.IsKnownExploited)
+        if (advisoryFilter.KevOnly && advisory.IsKnownExploited)
         {
             score += KevAlignmentBonus;
         }
 
-        if (request.HighRiskOnly &&
+        if (advisoryFilter.HighRiskOnly &&
             (advisory.IsKnownExploited ||
              advisory.CvssScore >= 9 ||
              string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase)))
@@ -67,17 +68,18 @@ public sealed class RetrievalTextScorer(
             return 0;
         }
 
-        // Query side: planner keywords drive intent; CVE ID is added as a
-        // strong sparse signal even when keyword extraction missed it.
+        // Query side: planner keywords drive intent; a CVE id entity is added
+        // as a strong sparse signal even when keyword extraction missed it.
         var queryTokens = new List<string>();
         foreach (var keyword in request.Keywords)
         {
             queryTokens.AddRange(tokenizer.Tokenize(keyword));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.CveId))
+        var cveId = request.GetEntity(SecurityAdvisoryPlanKeys.CveId);
+        if (!string.IsNullOrWhiteSpace(cveId))
         {
-            queryTokens.AddRange(tokenizer.Tokenize(request.CveId));
+            queryTokens.AddRange(tokenizer.Tokenize(cveId));
         }
 
         if (queryTokens.Count == 0)

@@ -188,6 +188,7 @@ public class PgVectorRagVectorStore(
         SecurityAdvisory advisory,
         string chunkText)
     {
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
         if (request.PublishedFrom.HasValue && advisory.PublishedAt < request.PublishedFrom.Value)
         {
             return false;
@@ -198,19 +199,19 @@ public class PgVectorRagVectorStore(
             return false;
         }
 
-        if (request.CveYear.HasValue &&
+        if (advisoryFilter.CveYear.HasValue &&
             (advisory.CveId is null ||
-             !advisory.CveId.StartsWith($"CVE-{request.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
+             !advisory.CveId.StartsWith($"CVE-{advisoryFilter.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
 
-        if (request.KevOnly && !advisory.IsKnownExploited)
+        if (advisoryFilter.KevOnly && !advisory.IsKnownExploited)
         {
             return false;
         }
 
-        if (request.HighRiskOnly &&
+        if (advisoryFilter.HighRiskOnly &&
             !advisory.IsKnownExploited &&
             advisory.CvssScore < 9 &&
             !string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase))

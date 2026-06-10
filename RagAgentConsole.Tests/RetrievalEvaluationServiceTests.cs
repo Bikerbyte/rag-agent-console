@@ -235,7 +235,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
             VectorScore: 0.5,
             TextScore: 0.5)).ToList();
 
-        var plan = new RetrievalPlan("q", "q", null, null, null, null, null, "none", [], [], KnowledgeModuleNames.CveAdvisory);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.CveAdvisory);
         return new RetrievalResponse(plan, RetrievalModes.Hybrid, results);
     }
 

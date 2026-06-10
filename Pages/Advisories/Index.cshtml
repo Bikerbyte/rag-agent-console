@@ -343,9 +343,9 @@
                                 <div class="retrieval-result-head">
                                     <div>
                                         <span class="chunk-rank"># @((index + 1).ToString("000"))</span>
-                                        <strong>@(result.CveId ?? result.Title)</strong>
+                                        <strong>@(result.Advisory?.CveId ?? result.Advisory?.ExternalId ?? result.Title)</strong>
                                     </div>
-                                    <span class="status-pill @(result.IsKnownExploited || result.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                    <span class="status-pill @(result.Advisory?.IsKnownExploited == true || result.Advisory?.CvssScore >= 9 ? "is-danger" : "is-neutral")">
                                         Score @FormatScore(result.Score)
                                     </span>
                                 </div>

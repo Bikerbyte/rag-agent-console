@@ -16,6 +16,11 @@ public class EfRagVectorStore(
         CancellationToken cancellationToken = default)
     {
         var candidates = new List<RetrievalCandidate>();
+
+        // The advisory corpus is the security advisory domain's storage;
+        // its filters arrive as opaque entity/filter values and are parsed
+        // through the domain's typed filter view.
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
         var chunkQuery = dbContext.SecurityAdvisoryChunks
             .Include(chunk => chunk.Advisory)
             .AsQueryable();
@@ -34,29 +39,29 @@ public class EfRagVectorStore(
                 chunk.Advisory.PublishedAt < request.PublishedTo.Value);
         }
 
-        if (request.CveYear.HasValue)
+        if (advisoryFilter.CveYear.HasValue)
         {
-            var cvePrefix = $"CVE-{request.CveYear.Value}-";
+            var cvePrefix = $"CVE-{advisoryFilter.CveYear.Value}-";
             chunkQuery = chunkQuery.Where(chunk =>
                 chunk.Advisory != null &&
                 chunk.Advisory.CveId != null &&
                 chunk.Advisory.CveId.StartsWith(cvePrefix));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.CveId))
+        if (!string.IsNullOrWhiteSpace(advisoryFilter.CveId))
         {
             chunkQuery = chunkQuery.Where(chunk =>
                 chunk.Advisory != null &&
-                (chunk.Advisory.CveId == request.CveId || chunk.Advisory.ExternalId == request.CveId));
+                (chunk.Advisory.CveId == advisoryFilter.CveId || chunk.Advisory.ExternalId == advisoryFilter.CveId));
         }
         else
         {
-            if (request.KevOnly)
+            if (advisoryFilter.KevOnly)
             {
                 chunkQuery = chunkQuery.Where(chunk => chunk.Advisory != null && chunk.Advisory.IsKnownExploited);
             }
 
-            if (request.HighRiskOnly)
+            if (advisoryFilter.HighRiskOnly)
             {
                 chunkQuery = chunkQuery.Where(chunk =>
                     chunk.Advisory != null &&

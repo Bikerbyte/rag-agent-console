@@ -182,17 +182,33 @@ public class RetrievalTextScorerTests
         IReadOnlyList<string>? keywords = null,
         bool kevOnly = false,
         bool highRiskOnly = false)
-        => new(
+    {
+        var entities = new Dictionary<string, string?>();
+        if (cveId is not null)
+        {
+            entities[SecurityAdvisoryPlanKeys.CveId] = cveId;
+        }
+
+        var filters = new Dictionary<string, string?>();
+        if (kevOnly)
+        {
+            filters[SecurityAdvisoryPlanKeys.RiskFilter] = SecurityAdvisoryFilter.RiskKnownExploited;
+        }
+        else if (highRiskOnly)
+        {
+            filters[SecurityAdvisoryPlanKeys.RiskFilter] = SecurityAdvisoryFilter.RiskCritical;
+        }
+
+        return new(
             Question: "test query",
-            CveId: cveId,
-            Version: null,
-            KevOnly: kevOnly,
-            HighRiskOnly: highRiskOnly,
             Keywords: keywords ?? [],
+            Entities: entities,
+            Filters: filters,
             QueryEmbedding: [],
             MaxResults: 5,
             ModuleName: KnowledgeModuleNames.CveAdvisory,
             RetrievalMode: RetrievalModes.Hybrid);
+    }
 
     private static SecurityAdvisory BuildAdvisory(
         string? cveId = null,

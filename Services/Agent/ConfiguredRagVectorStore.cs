@@ -14,13 +14,18 @@ public class ConfiguredRagVectorStore(
     {
         var options = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var provider = options.Provider;
-        if (request.PublishedFrom.HasValue || request.PublishedTo.HasValue || request.CveYear.HasValue)
+
+        // Date / exact-id constraints need the EF store, which can apply them
+        // as SQL predicates; pgvector ordering alone cannot guarantee the
+        // strictly filtered candidates survive the top-K cut.
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
+        if (request.PublishedFrom.HasValue || request.PublishedTo.HasValue || advisoryFilter.CveYear.HasValue)
         {
             return await efStore.SearchAsync(request, cancellationToken);
         }
 
         if (string.Equals(provider, VectorStoreProviderNames.PgVector, StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(request.CveId))
+            string.IsNullOrWhiteSpace(advisoryFilter.CveId))
         {
             try
             {
