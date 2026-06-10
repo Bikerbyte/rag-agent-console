@@ -38,6 +38,7 @@ public class EvaluationModel(
                     Question = existing.Question,
                     ExpectedCveIds = existing.ExpectedCveIds,
                     ExpectedDocumentTitles = existing.ExpectedDocumentTitles,
+                    ExpectedMetadata = existing.ExpectedMetadata,
                     Notes = existing.Notes
                 };
             }
@@ -56,7 +57,8 @@ public class EvaluationModel(
             Input.Question,
             Input.ExpectedCveIds,
             Input.ExpectedDocumentTitles,
-            Input.Notes);
+            Input.Notes,
+            Input.ExpectedMetadata);
 
         if (Input.RetrievalEvaluationCaseId is int id)
         {
@@ -118,6 +120,7 @@ public class EvaluationModel(
         public string? Question { get; set; }
         public string? ExpectedCveIds { get; set; }
         public string? ExpectedDocumentTitles { get; set; }
+        public string? ExpectedMetadata { get; set; }
         public string? Notes { get; set; }
     }
 }

@@ -168,10 +168,82 @@ public class RetrievalEvaluationServiceTests : IDisposable
         Assert.Empty(await service.GetManagedCasesAsync());
     }
 
+    [Fact]
+    public async Task EvaluateAsync_ExpectedMetadata_MatchesDomainTraceMetadata()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "hr-vendor-case",
+            Question = "internal policy from Acme",
+            ExpectedMetadata = "vendor=Acme",
+            IsSeeded = false,
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var documentResult = new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
+            {
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = "Vendor handbook",
+                SourceType = "Upload",
+                Vendor = "Acme",
+                ExtractedText = "text",
+                ContentHash = "hash"
+            },
+            ChunkText: "chunk",
+            Score: 1.0,
+            VectorScore: 0.5,
+            TextScore: 0.5);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        var response = new RetrievalResponse(plan, RetrievalModes.Hybrid, [documentResult]);
+        var service = CreateService(new ScriptedSearchService([response]), db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(1.0, summary.HitAt1);
+        Assert.Equal(1.0, summary.MeanReciprocalRank);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ExpectedMetadata_NoMatch_ScoresZero()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "hr-vendor-miss",
+            Question = "internal policy from Globex",
+            ExpectedMetadata = "vendor=Globex",
+            IsSeeded = false,
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var service = CreateService(new ScriptedSearchService([Response("CVE-2024-0001")]), db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(0.0, summary.HitAt1);
+        Assert.Equal(0.0, summary.MeanReciprocalRank);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private RetrievalEvaluationService CreateService(IRagRetrievalService search, ApplicationDbContext dbContext)
-        => new(search, dbContext, _environment, NullLogger<RetrievalEvaluationService>.Instance);
+        => new(
+            search,
+            new RagDomainRegistry([new SecurityAdvisoryDomain(), new GenericKnowledgeDomain()]),
+            dbContext,
+            _environment,
+            NullLogger<RetrievalEvaluationService>.Instance);
 
     private static ApplicationDbContext NewDb()
     {

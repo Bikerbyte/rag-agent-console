@@ -27,6 +27,14 @@ public class RetrievalEvaluationCaseEntity
     [MaxLength(2000)]
     public string? ExpectedDocumentTitles { get; set; }
 
+    /// <summary>
+    /// Expected domain trace metadata, one key=value pair per line
+    /// (e.g. "vendor=Citrix" or "cveId=CVE-2024-3400"). A result is relevant
+    /// when all pairs match its domain metadata.
+    /// </summary>
+    [MaxLength(2000)]
+    public string? ExpectedMetadata { get; set; }
+
     [MaxLength(1000)]
     public string? Notes { get; set; }
 
@@ -42,7 +50,8 @@ public sealed record RetrievalEvaluationCaseDraft(
     string Question,
     string? ExpectedCveIdsText,
     string? ExpectedDocumentTitlesText,
-    string? Notes);
+    string? Notes,
+    string? ExpectedMetadataText = null);
 
 /// <summary>
 /// A single evaluation case: a query plus the set of identifiers that
@@ -59,12 +68,18 @@ public sealed record RetrievalEvaluationCaseDraft(
 /// non-CVE knowledge questions.
 /// </param>
 /// <param name="Notes">Free-form notes explaining the case intent.</param>
+/// <param name="ExpectedMetadata">
+/// Domain trace metadata pairs a result must all match to count as
+/// relevant (e.g. vendor=Citrix). Generic alternative to the id/title
+/// label lists for domains with richer metadata.
+/// </param>
 public sealed record RetrievalEvaluationCase(
     string Id,
     string Question,
     IReadOnlyList<string> ExpectedCveIds,
     IReadOnlyList<string> ExpectedDocumentTitles,
-    string? Notes = null);
+    string? Notes = null,
+    IReadOnlyDictionary<string, string?>? ExpectedMetadata = null);
 
 /// <summary>The outcome of running a single case through a retrieval strategy.</summary>
 public sealed record RetrievalEvaluationCaseResult(

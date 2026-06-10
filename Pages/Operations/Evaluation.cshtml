@@ -94,6 +94,11 @@ else
                     <textarea asp-for="Input.ExpectedDocumentTitles" class="form-control" rows="3" placeholder="@L["新人政策、SOP、產品 FAQ"].Value"></textarea>
                     <small class="field-hint">@L["每行一個。"]</small>
                 </label>
+                <label class="field-block">
+                    <span>@L["預期領域 Metadata"]</span>
+                    <textarea asp-for="Input.ExpectedMetadata" class="form-control" rows="3" placeholder="vendor=Citrix&#10;cveId=CVE-2024-3400"></textarea>
+                    <small class="field-hint">@L["每行一組 key=value，命中結果需全部符合（選填）。"]</small>
+                </label>
             </div>
 
             <label class="field-block">
@@ -137,6 +142,10 @@ else
                                 @if (!string.IsNullOrWhiteSpace(item.ExpectedDocumentTitles))
                                 {
                                     <span> · @L["文件"]: @string.Join(", ", item.ExpectedDocumentTitles.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ExpectedMetadata))
+                                {
+                                    <span> · Metadata: @string.Join(", ", item.ExpectedMetadata.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
                                 }
                             </p>
                         </div>
