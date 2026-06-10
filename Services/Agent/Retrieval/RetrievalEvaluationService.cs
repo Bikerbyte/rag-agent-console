@@ -72,7 +72,8 @@ public sealed class RetrievalEvaluationService(
             ParseList(entity.ExpectedCveIds, splitOnCommas: true),
             ParseList(entity.ExpectedDocumentTitles, splitOnCommas: false),
             entity.Notes,
-            ParseMetadata(entity.ExpectedMetadata))).ToList();
+            ParseMetadata(entity.ExpectedMetadata),
+            ParseList(entity.ExpectedContentKeywords, splitOnCommas: false))).ToList();
     }
 
     public async Task<IReadOnlyList<RetrievalEvaluationCaseEntity>> GetManagedCasesAsync(CancellationToken cancellationToken = default)
@@ -96,6 +97,7 @@ public sealed class RetrievalEvaluationService(
             Question = Trim(draft.Question, 500),
             ExpectedCveIds = NormalizeStored(draft.ExpectedCveIdsText, 1200),
             ExpectedDocumentTitles = NormalizeStored(draft.ExpectedDocumentTitlesText, 2000),
+            ExpectedContentKeywords = NormalizeStored(draft.ExpectedContentKeywordsText, 2000),
             ExpectedMetadata = NormalizeStored(draft.ExpectedMetadataText, 2000),
             Notes = NormalizeStored(draft.Notes, 1000),
             IsSeeded = false,
@@ -117,6 +119,7 @@ public sealed class RetrievalEvaluationService(
         entity.Question = Trim(draft.Question, 500);
         entity.ExpectedCveIds = NormalizeStored(draft.ExpectedCveIdsText, 1200);
         entity.ExpectedDocumentTitles = NormalizeStored(draft.ExpectedDocumentTitlesText, 2000);
+        entity.ExpectedContentKeywords = NormalizeStored(draft.ExpectedContentKeywordsText, 2000);
         entity.ExpectedMetadata = NormalizeStored(draft.ExpectedMetadataText, 2000);
         entity.Notes = NormalizeStored(draft.Notes, 1000);
         entity.LastUpdatedTime = DateTimeOffset.UtcNow;
@@ -158,6 +161,7 @@ public sealed class RetrievalEvaluationService(
                 Question = Trim(seed.Question, 500),
                 ExpectedCveIds = NormalizeStored(string.Join('\n', seed.ExpectedCveIds), 1200),
                 ExpectedDocumentTitles = NormalizeStored(string.Join('\n', seed.ExpectedDocumentTitles), 2000),
+                ExpectedContentKeywords = NormalizeStored(string.Join('\n', seed.ExpectedContentKeywords ?? []), 2000),
                 ExpectedMetadata = NormalizeStored(FormatMetadata(seed.ExpectedMetadata), 2000),
                 Notes = NormalizeStored(seed.Notes, 1000),
                 IsSeeded = true,
@@ -189,7 +193,8 @@ public sealed class RetrievalEvaluationService(
                 item.ExpectedCveIds ?? [],
                 item.ExpectedDocumentTitles ?? [],
                 item.Notes,
-                item.ExpectedMetadata)).ToList();
+                item.ExpectedMetadata,
+                item.ExpectedContentKeywords ?? [])).ToList();
     }
 
     private async Task<string> BuildUniqueCaseKeyAsync(string question, CancellationToken cancellationToken)
@@ -328,6 +333,7 @@ public sealed class RetrievalEvaluationService(
 
         var expectedCves = new HashSet<string>(evalCase.ExpectedCveIds, StringComparer.OrdinalIgnoreCase);
         var expectedTitles = new HashSet<string>(evalCase.ExpectedDocumentTitles, StringComparer.OrdinalIgnoreCase);
+        var expectedContentKeywords = evalCase.ExpectedContentKeywords ?? [];
         var expectedMetadata = evalCase.ExpectedMetadata;
 
         var matches = new List<RetrievalEvaluationMatch>();
@@ -336,7 +342,7 @@ public sealed class RetrievalEvaluationService(
         {
             var result = searchResponse.Results[index];
             var rank = index + 1;
-            var isRelevant = IsRelevant(result, expectedCves, expectedTitles, expectedMetadata);
+            var isRelevant = IsRelevant(result, expectedCves, expectedTitles, expectedContentKeywords, expectedMetadata);
             if (isRelevant && firstRelevantRank is null)
             {
                 firstRelevantRank = rank;
@@ -370,6 +376,7 @@ public sealed class RetrievalEvaluationService(
         RetrievalResult result,
         HashSet<string> expectedCves,
         HashSet<string> expectedTitles,
+        IReadOnlyList<string> expectedContentKeywords,
         IReadOnlyDictionary<string, string?>? expectedMetadata)
     {
         var cveId = GetCveId(result);
@@ -379,6 +386,13 @@ public sealed class RetrievalEvaluationService(
         }
 
         if (expectedTitles.Count > 0 && expectedTitles.Contains(result.Title))
+        {
+            return true;
+        }
+
+        if (expectedContentKeywords.Any(keyword =>
+                result.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                result.ChunkText.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
@@ -434,6 +448,9 @@ public sealed class RetrievalEvaluationService(
 
         [JsonPropertyName("expectedDocumentTitles")]
         public List<string>? ExpectedDocumentTitles { get; set; }
+
+        [JsonPropertyName("expectedContentKeywords")]
+        public List<string>? ExpectedContentKeywords { get; set; }
 
         [JsonPropertyName("expectedMetadata")]
         public Dictionary<string, string?>? ExpectedMetadata { get; set; }

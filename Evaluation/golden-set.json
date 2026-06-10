@@ -1,6 +1,6 @@
 {
   "$schema": "Evaluation cases for retrieval quality.",
-  "description": "Golden set used by RetrievalEvaluationService to compute Hit@K and MRR. Each case asserts that at least one of the expected CVE IDs or document titles appears in the top-K results. Cases mix English, Chinese, follow-up phrasing, and intent variation so that the metrics surface real retrieval weaknesses (rare-vendor recall, KEV filtering, version handling) rather than rewarding only the easy queries.",
+  "description": "Golden set used by RetrievalEvaluationService to compute Hit@K and MRR. A case may identify relevant results by document title, content phrase, domain metadata, or CVE ID. Cases mix English, Chinese, follow-up phrasing, and intent variation so that the metrics surface real retrieval weaknesses rather than rewarding only easy queries.",
   "cases": [
     {
       "id": "kev-citrix-netscaler",
@@ -42,6 +42,7 @@
       "question": "firewall policy guide",
       "expectedCveIds": [],
       "expectedDocumentTitles": ["Firewall policy", "Firewall configuration guide"],
+      "expectedContentKeywords": ["deny by default"],
       "notes": "Pure knowledge-document query; should not be dominated by CVE results."
     },
     {

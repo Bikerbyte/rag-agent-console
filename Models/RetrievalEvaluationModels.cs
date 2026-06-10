@@ -27,6 +27,10 @@ public class RetrievalEvaluationCaseEntity
     [MaxLength(2000)]
     public string? ExpectedDocumentTitles { get; set; }
 
+    /// <summary>Expected phrases in a retrieved title or chunk, one per line.</summary>
+    [MaxLength(2000)]
+    public string? ExpectedContentKeywords { get; set; }
+
     /// <summary>
     /// Expected domain trace metadata, one key=value pair per line
     /// (e.g. "vendor=Citrix" or "cveId=CVE-2024-3400"). A result is relevant
@@ -51,7 +55,8 @@ public sealed record RetrievalEvaluationCaseDraft(
     string? ExpectedCveIdsText,
     string? ExpectedDocumentTitlesText,
     string? Notes,
-    string? ExpectedMetadataText = null);
+    string? ExpectedMetadataText = null,
+    string? ExpectedContentKeywordsText = null);
 
 /// <summary>
 /// A single evaluation case: a query plus the set of identifiers that
@@ -73,13 +78,18 @@ public sealed record RetrievalEvaluationCaseDraft(
 /// relevant (e.g. vendor=Citrix). Generic alternative to the id/title
 /// label lists for domains with richer metadata.
 /// </param>
+/// <param name="ExpectedContentKeywords">
+/// Phrases that may appear in a retrieved title or chunk. Any matching
+/// phrase marks the result as relevant.
+/// </param>
 public sealed record RetrievalEvaluationCase(
     string Id,
     string Question,
     IReadOnlyList<string> ExpectedCveIds,
     IReadOnlyList<string> ExpectedDocumentTitles,
     string? Notes = null,
-    IReadOnlyDictionary<string, string?>? ExpectedMetadata = null);
+    IReadOnlyDictionary<string, string?>? ExpectedMetadata = null,
+    IReadOnlyList<string>? ExpectedContentKeywords = null);
 
 /// <summary>The outcome of running a single case through a retrieval strategy.</summary>
 public sealed record RetrievalEvaluationCaseResult(

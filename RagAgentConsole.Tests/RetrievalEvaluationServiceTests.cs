@@ -155,7 +155,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
             "firewall policy guide",
             ExpectedCveIdsText: null,
             ExpectedDocumentTitlesText: "Firewall policy\nFirewall configuration guide",
-            Notes: "doc-only case"));
+            Notes: "doc-only case",
+            ExpectedContentKeywordsText: "deny by default"));
 
         var managed = await service.GetManagedCasesAsync();
         var created = Assert.Single(managed);
@@ -163,9 +164,51 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         var cases = await service.LoadCasesAsync();
         Assert.Equal(["Firewall policy", "Firewall configuration guide"], cases[0].ExpectedDocumentTitles);
+        Assert.Equal(["deny by default"], cases[0].ExpectedContentKeywords);
 
         await service.DeleteCaseAsync(created.RetrievalEvaluationCaseId);
         Assert.Empty(await service.GetManagedCasesAsync());
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ExpectedContentKeyword_MatchesRetrievedChunk()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "offboarding-sop",
+            Question = "離職帳號多久要停用",
+            ExpectedContentKeywords = "24 小時內停用帳號",
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var documentResult = new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
+            {
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = "帳號生命週期管理 SOP",
+                SourceType = "Upload",
+                ExtractedText = "text",
+                ContentHash = "hash"
+            },
+            ChunkText: "人員離職後，管理者應於 24 小時內停用帳號並撤銷權限。",
+            Score: 1.0,
+            VectorScore: 0.5,
+            TextScore: 0.5);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        var service = CreateService(
+            new ScriptedSearchService([new RetrievalResponse(plan, RetrievalModes.Hybrid, [documentResult])]),
+            db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(1.0, summary.HitAt1);
+        Assert.True(summary.CaseResults[0].TopResults[0].IsRelevant);
     }
 
     [Fact]

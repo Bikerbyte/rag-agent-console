@@ -38,6 +38,7 @@ public class EvaluationModel(
                     Question = existing.Question,
                     ExpectedCveIds = existing.ExpectedCveIds,
                     ExpectedDocumentTitles = existing.ExpectedDocumentTitles,
+                    ExpectedContentKeywords = existing.ExpectedContentKeywords,
                     ExpectedMetadata = existing.ExpectedMetadata,
                     Notes = existing.Notes
                 };
@@ -53,12 +54,22 @@ public class EvaluationModel(
             return RedirectToPage();
         }
 
+        if (string.IsNullOrWhiteSpace(Input.ExpectedDocumentTitles) &&
+            string.IsNullOrWhiteSpace(Input.ExpectedContentKeywords) &&
+            string.IsNullOrWhiteSpace(Input.ExpectedCveIds) &&
+            string.IsNullOrWhiteSpace(Input.ExpectedMetadata))
+        {
+            StatusMessage = "請至少設定一種預期命中條件。";
+            return RedirectToPage();
+        }
+
         var draft = new RetrievalEvaluationCaseDraft(
             Input.Question,
             Input.ExpectedCveIds,
             Input.ExpectedDocumentTitles,
             Input.Notes,
-            Input.ExpectedMetadata);
+            Input.ExpectedMetadata,
+            Input.ExpectedContentKeywords);
 
         if (Input.RetrievalEvaluationCaseId is int id)
         {
@@ -120,6 +131,7 @@ public class EvaluationModel(
         public string? Question { get; set; }
         public string? ExpectedCveIds { get; set; }
         public string? ExpectedDocumentTitles { get; set; }
+        public string? ExpectedContentKeywords { get; set; }
         public string? ExpectedMetadata { get; set; }
         public string? Notes { get; set; }
     }

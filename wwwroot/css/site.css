@@ -1868,6 +1868,27 @@ hr {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.eval-advanced-fields {
+  border-top: 1px solid rgba(30, 28, 22, 0.08);
+  border-bottom: 1px solid rgba(30, 28, 22, 0.08);
+}
+
+.eval-advanced-fields > summary {
+  padding: 0.75rem 0;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.eval-advanced-fields[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+.eval-advanced-fields > .form-row {
+  padding-bottom: 0.9rem;
+}
+
 .form-footer,
 .row-actions {
   display: flex;
