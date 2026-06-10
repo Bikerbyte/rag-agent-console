@@ -31,8 +31,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_FirstResultIsRelevant_ScoresPerfect()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-2024-1234" })]);
-        var search = new ScriptedSearchService([Response("CVE-2024-1234", "CVE-OTHER")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("expected phrase", "other phrase")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -47,8 +47,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_RelevantAtRankThree_ReciprocalRankIsOneThird()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-HIT" })]);
-        var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2", "CVE-HIT", "CVE-MISS-3")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("miss one", "miss two", "expected phrase", "miss three")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -63,8 +63,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_NoRelevantResults_ScoresZero()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-EXPECTED" })]);
-        var search = new ScriptedSearchService([Response("CVE-MISS-1", "CVE-MISS-2")]);
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService([Response("miss one", "miss two")]);
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes: [RetrievalModes.Hybrid]);
@@ -82,13 +82,13 @@ public class RetrievalEvaluationServiceTests : IDisposable
         var db = NewDb();
         SeedCases(db,
         [
-            ("c1", "q1", new[] { "CVE-A" }),
-            ("c2", "q2", new[] { "CVE-B" })
+            ("c1", "q1", new[] { "expected a" }),
+            ("c2", "q2", new[] { "expected b" })
         ]);
         var search = new ScriptedSearchService(
         [
-            Response("CVE-A"),
-            Response("CVE-MISS", "CVE-B")
+            Response("expected a"),
+            Response("miss", "expected b")
         ]);
         var service = CreateService(search, db);
 
@@ -102,8 +102,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
     public async Task EvaluateAsync_MultipleStrategies_ReportsOneSummaryPerMode()
     {
         var db = NewDb();
-        SeedCases(db, [("c1", "q", new[] { "CVE-A" })]);
-        var search = new ScriptedSearchService(Enumerable.Repeat(Response("CVE-A"), 3).ToList());
+        SeedCases(db, [("c1", "q", new[] { "expected phrase" })]);
+        var search = new ScriptedSearchService(Enumerable.Repeat(Response("expected phrase"), 3).ToList());
         var service = CreateService(search, db);
 
         var report = await service.EvaluateAsync(retrievalModes:
@@ -128,7 +128,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
     [Fact]
     public async Task SeedCasesIfEmptyAsync_LoadsBundledGoldenSet_OnlyWhenEmpty()
     {
-        WriteGoldenSet([("kev-citrix", "Citrix NetScaler", new[] { "CVE-2023-3519" })]);
+        WriteGoldenSet([("policy-case", "account policy", new[] { "disable within 24 hours" })]);
         var db = NewDb();
         var service = CreateService(new ScriptedSearchService([]), db);
 
@@ -141,8 +141,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         Assert.Single(afterFirst);
         Assert.Single(afterSecond);
-        Assert.Equal("kev-citrix", afterFirst[0].Id);
-        Assert.Equal(["CVE-2023-3519"], afterFirst[0].ExpectedCveIds);
+        Assert.Equal("policy-case", afterFirst[0].Id);
+        Assert.Equal(["disable within 24 hours"], afterFirst[0].ExpectedContentKeywords);
     }
 
     [Fact]
@@ -153,9 +153,9 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         await service.CreateCaseAsync(new RetrievalEvaluationCaseDraft(
             "firewall policy guide",
-            ExpectedCveIdsText: null,
             ExpectedDocumentTitlesText: "Firewall policy\nFirewall configuration guide",
-            Notes: "doc-only case"));
+            Notes: "doc-only case",
+            ExpectedContentKeywordsText: "deny by default"));
 
         var managed = await service.GetManagedCasesAsync();
         var created = Assert.Single(managed);
@@ -163,15 +163,129 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
         var cases = await service.LoadCasesAsync();
         Assert.Equal(["Firewall policy", "Firewall configuration guide"], cases[0].ExpectedDocumentTitles);
+        Assert.Equal(["deny by default"], cases[0].ExpectedContentKeywords);
 
         await service.DeleteCaseAsync(created.RetrievalEvaluationCaseId);
         Assert.Empty(await service.GetManagedCasesAsync());
     }
 
+    [Fact]
+    public async Task EvaluateAsync_ExpectedContentKeyword_MatchesRetrievedChunk()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "offboarding-sop",
+            Question = "離職帳號多久要停用",
+            ExpectedContentKeywords = "24 小時內停用帳號",
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var documentResult = new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
+            {
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = "帳號生命週期管理 SOP",
+                SourceType = "Upload",
+                ExtractedText = "text",
+                ContentHash = "hash"
+            },
+            ChunkText: "人員離職後，管理者應於 24 小時內停用帳號並撤銷權限。",
+            Score: 1.0,
+            VectorScore: 0.5,
+            TextScore: 0.5);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        var service = CreateService(
+            new ScriptedSearchService([new RetrievalResponse(plan, RetrievalModes.Hybrid, [documentResult])]),
+            db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(1.0, summary.HitAt1);
+        Assert.True(summary.CaseResults[0].TopResults[0].IsRelevant);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ExpectedMetadata_MatchesDomainTraceMetadata()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "hr-vendor-case",
+            Question = "internal policy from Acme",
+            ExpectedMetadata = "vendor=Acme",
+            IsSeeded = false,
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var documentResult = new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
+            {
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = "Vendor handbook",
+                SourceType = "Upload",
+                Vendor = "Acme",
+                ExtractedText = "text",
+                ContentHash = "hash"
+            },
+            ChunkText: "chunk",
+            Score: 1.0,
+            VectorScore: 0.5,
+            TextScore: 0.5);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        var response = new RetrievalResponse(plan, RetrievalModes.Hybrid, [documentResult]);
+        var service = CreateService(new ScriptedSearchService([response]), db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(1.0, summary.HitAt1);
+        Assert.Equal(1.0, summary.MeanReciprocalRank);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ExpectedMetadata_NoMatch_ScoresZero()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "hr-vendor-miss",
+            Question = "internal policy from Globex",
+            ExpectedMetadata = "vendor=Globex",
+            IsSeeded = false,
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var service = CreateService(new ScriptedSearchService([Response("unrelated content")]), db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(0.0, summary.HitAt1);
+        Assert.Equal(0.0, summary.MeanReciprocalRank);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private RetrievalEvaluationService CreateService(ISecurityAdvisorySearchService search, ApplicationDbContext dbContext)
-        => new(search, dbContext, _environment, NullLogger<RetrievalEvaluationService>.Instance);
+    private RetrievalEvaluationService CreateService(IRagRetrievalService search, ApplicationDbContext dbContext)
+        => new(
+            search,
+            new RagDomainRegistry([new SecurityAdvisoryDomain(), new GenericKnowledgeDomain()]),
+            dbContext,
+            _environment,
+            NullLogger<RetrievalEvaluationService>.Instance);
 
     private static ApplicationDbContext NewDb()
     {
@@ -181,7 +295,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
         return new ApplicationDbContext(options);
     }
 
-    private static void SeedCases(ApplicationDbContext dbContext, IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
+    private static void SeedCases(ApplicationDbContext dbContext, IEnumerable<(string Id, string Question, string[] ExpectedKeywords)> cases)
     {
         var now = DateTimeOffset.UtcNow;
         foreach (var item in cases)
@@ -190,7 +304,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
             {
                 CaseKey = item.Id,
                 Question = item.Question,
-                ExpectedCveIds = string.Join('\n', item.ExpectedCveIds),
+                ExpectedContentKeywords = string.Join('\n', item.ExpectedKeywords),
                 CreatedTime = now,
                 LastUpdatedTime = now
             });
@@ -199,7 +313,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
         dbContext.SaveChanges();
     }
 
-    private void WriteGoldenSet(IEnumerable<(string Id, string Question, string[] ExpectedCveIds)> cases)
+    private void WriteGoldenSet(IEnumerable<(string Id, string Question, string[] ExpectedKeywords)> cases)
     {
         var payload = new
         {
@@ -207,8 +321,8 @@ public class RetrievalEvaluationServiceTests : IDisposable
             {
                 id = item.Id,
                 question = item.Question,
-                expectedCveIds = item.ExpectedCveIds,
                 expectedDocumentTitles = Array.Empty<string>(),
+                expectedContentKeywords = item.ExpectedKeywords,
                 notes = (string?)null
             })
         };
@@ -216,43 +330,41 @@ public class RetrievalEvaluationServiceTests : IDisposable
         File.WriteAllText(path, JsonSerializer.Serialize(payload));
     }
 
-    private static SecurityAdvisorySearchResponse Response(params string[] cveIds)
+    private static RetrievalResponse Response(params string[] chunks)
     {
-        var results = cveIds.Select(cveId => new SecurityAdvisorySearchResult(
-            Advisory: new SecurityAdvisory
+        var results = chunks.Select((chunk, index) => new RetrievalResult(
+            Advisory: null,
+            Document: new KnowledgeDocument
             {
-                SourceName = "test",
-                ExternalId = cveId,
-                CveId = cveId,
-                Title = cveId,
-                Description = "",
-                SourceUrl = "",
-                ContentHash = ""
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = $"Document {index + 1}",
+                SourceType = "test",
+                ExtractedText = chunk,
+                ContentHash = $"hash-{index}"
             },
-            Document: null,
-            ChunkText: "",
+            ChunkText: chunk,
             Score: 1.0,
             VectorScore: 0.5,
             TextScore: 0.5)).ToList();
 
-        var plan = new AdvisoryQueryPlan("q", "q", null, null, null, null, null, "none", [], [], KnowledgeModuleNames.CveAdvisory);
-        return new SecurityAdvisorySearchResponse(plan, RetrievalModes.Hybrid, results);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        return new RetrievalResponse(plan, RetrievalModes.Hybrid, results);
     }
 
-    private sealed class ScriptedSearchService(IReadOnlyList<SecurityAdvisorySearchResponse> responses) : ISecurityAdvisorySearchService
+    private sealed class ScriptedSearchService(IReadOnlyList<RetrievalResponse> responses) : IRagRetrievalService
     {
         private int _index;
 
-        public Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(string question, int maxResults = 5, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<RetrievalResult>> SearchAsync(string question, int maxResults = 5, CancellationToken cancellationToken = default)
             => Task.FromResult(Next().Results);
 
-        public Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(string question, IReadOnlyList<AdvisoryConversationMessage>? history, int maxResults = 5, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<RetrievalResult>> SearchAsync(string question, IReadOnlyList<AgentConversationMessage>? history, int maxResults = 5, CancellationToken cancellationToken = default)
             => Task.FromResult(Next().Results);
 
-        public Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(string question, IReadOnlyList<AdvisoryConversationMessage>? history = null, int maxResults = 5, string? moduleName = null, string retrievalMode = RetrievalModes.Hybrid, CancellationToken cancellationToken = default)
+        public Task<RetrievalResponse> SearchWithTraceAsync(string question, IReadOnlyList<AgentConversationMessage>? history = null, int maxResults = 5, string? moduleName = null, string retrievalMode = RetrievalModes.Hybrid, CancellationToken cancellationToken = default)
             => Task.FromResult(Next());
 
-        private SecurityAdvisorySearchResponse Next()
+        private RetrievalResponse Next()
         {
             // Cycle if the test sets up fewer responses than calls;
             // for multi-strategy runs the same response is reused per strategy.

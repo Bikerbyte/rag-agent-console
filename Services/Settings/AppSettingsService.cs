@@ -108,6 +108,7 @@ public class AppSettingsService(
         options.AgentName = Get(values, "Agent:AgentName", options.AgentName);
         options.AgentTagline = Get(values, "Agent:AgentTagline", options.AgentTagline);
         options.ChatPlaceholder = Get(values, "Agent:ChatPlaceholder", options.ChatPlaceholder);
+        options.DefaultDomain = Get(values, "Agent:DefaultDomain", options.DefaultDomain);
         options.PlannerSystemPrompt = Get(values, "Agent:PlannerSystemPrompt", options.PlannerSystemPrompt);
         options.RagSystemPrompt = Get(values, "Agent:RagSystemPrompt", options.RagSystemPrompt);
         options.GeneralSystemPrompt = Get(values, "Agent:GeneralSystemPrompt", options.GeneralSystemPrompt);
@@ -213,6 +214,10 @@ public class AppSettingsService(
         => new()
         {
             AgentName = source.AgentName,
+            AgentTagline = source.AgentTagline,
+            ChatPlaceholder = source.ChatPlaceholder,
+            DefaultDomain = source.DefaultDomain,
+            PlannerSystemPrompt = source.PlannerSystemPrompt,
             RagSystemPrompt = source.RagSystemPrompt,
             GeneralSystemPrompt = source.GeneralSystemPrompt,
             UnavailableReply = source.UnavailableReply

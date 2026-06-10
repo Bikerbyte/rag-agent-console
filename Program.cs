@@ -122,7 +122,7 @@ builder.Services.AddHttpClient<IAiChatClient, AiChatClient>((serviceProvider, ht
     var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
     httpClient.Timeout = TimeSpan.FromSeconds(Math.Clamp(aiOptions.ChatTimeoutSeconds, 5, 180));
 });
-builder.Services.AddHttpClient<IAdvisoryEmbeddingService, AdvisoryEmbeddingService>((serviceProvider, httpClient) =>
+builder.Services.AddHttpClient<IRagEmbeddingService, RagEmbeddingService>((serviceProvider, httpClient) =>
 {
     var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
     httpClient.Timeout = TimeSpan.FromSeconds(Math.Clamp(aiOptions.EmbeddingTimeoutSeconds, 5, 180));
@@ -156,19 +156,22 @@ builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncSer
 builder.Services.AddSingleton<ITokenizer, MixedScriptTokenizer>();
 builder.Services.AddSingleton<IBm25Index, InMemoryBm25Index>();
 builder.Services.AddHostedService<Bm25IndexInitializationService>();
-builder.Services.AddScoped<IAdvisoryTextScorer, AdvisoryTextScorer>();
-builder.Services.AddScoped<EfAdvisoryVectorStore>();
-builder.Services.AddScoped<PgVectorAdvisoryVectorStore>();
-builder.Services.AddScoped<IAdvisoryVectorStore, ConfiguredAdvisoryVectorStore>();
-builder.Services.AddScoped<IAdvisoryQueryPlanner, AdvisoryQueryPlanner>();
-builder.Services.AddScoped<ISecurityAdvisorySearchService, SecurityAdvisorySearchService>();
+builder.Services.AddScoped<IRetrievalTextScorer, RetrievalTextScorer>();
+builder.Services.AddScoped<EfRagVectorStore>();
+builder.Services.AddScoped<PgVectorRagVectorStore>();
+builder.Services.AddSingleton<IRagDomain, SecurityAdvisoryDomain>();
+builder.Services.AddSingleton<IRagDomain, GenericKnowledgeDomain>();
+builder.Services.AddSingleton<IRagDomainRegistry, RagDomainRegistry>();
+builder.Services.AddScoped<IRagVectorStore, ConfiguredRagVectorStore>();
+builder.Services.AddScoped<IRagQueryPlanner, RagQueryPlanner>();
+builder.Services.AddScoped<IRagRetrievalService, RagRetrievalService>();
 builder.Services.AddScoped<IRetrievalEvaluationService, RetrievalEvaluationService>();
-builder.Services.AddScoped<ISecurityAdvisoryAnswerService, SecurityAdvisoryAnswerService>();
+builder.Services.AddScoped<IRagAnswerService, RagAnswerService>();
 builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTextExtractor>();
 builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingService>();
 builder.Services.AddScoped<IKnowledgeDocumentIngestionService, KnowledgeDocumentIngestionService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
-builder.Services.AddScoped<ISecurityAdvisoryAgentService, SecurityAdvisoryAgentService>();
+builder.Services.AddScoped<IRagAgentService, RagAgentService>();
 builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();

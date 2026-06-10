@@ -80,21 +80,30 @@ else
 
             <label class="field-block">
                 <span>@L["問題"]</span>
-                <input asp-for="Input.Question" class="form-control" placeholder="@L["例如：遠端工作核准流程 或 最新 Cisco 風險"].Value" />
+                <input asp-for="Input.Question" class="form-control" placeholder="@L["例如：離職帳號多久要停用？"]" />
             </label>
 
             <div class="form-row">
                 <label class="field-block">
-                    <span>@L["預期 CVE"]</span>
-                    <textarea asp-for="Input.ExpectedCveIds" class="form-control" rows="3" placeholder="CVE-2023-3519&#10;CVE-2023-4966"></textarea>
-                    <small class="field-hint">@L["每行一個（CVE 與文件標題至少填一邊）。"]</small>
+                    <span>@L["預期文件標題"]</span>
+                    <textarea asp-for="Input.ExpectedDocumentTitles" class="form-control" rows="4" placeholder="@L["例如：帳號生命週期管理 SOP"]"></textarea>
+                    <small class="field-hint">@L["每行一個完整標題；任一標題命中即可。"]</small>
                 </label>
                 <label class="field-block">
-                    <span>@L["預期文件標題"]</span>
-                    <textarea asp-for="Input.ExpectedDocumentTitles" class="form-control" rows="3" placeholder="@L["新人政策、SOP、產品 FAQ"].Value"></textarea>
-                    <small class="field-hint">@L["每行一個。"]</small>
+                    <span>@L["預期內容關鍵字"]</span>
+                    <textarea asp-for="Input.ExpectedContentKeywords" class="form-control" rows="4" placeholder="@L["例如：離職後 24 小時內停用帳號"]"></textarea>
+                    <small class="field-hint">@L["每行一個詞句；標題或命中片段包含任一詞句即可。"]</small>
                 </label>
             </div>
+
+            <details class="eval-advanced-fields">
+                <summary>@L["進階命中條件"]</summary>
+                <label class="field-block">
+                    <span>@L["預期 Metadata（選填）"]</span>
+                    <textarea asp-for="Input.ExpectedMetadata" class="form-control" rows="3" placeholder="documentType=sop&#10;department=it"></textarea>
+                    <small class="field-hint">@L["每行一組 key=value，命中結果需全部符合。"]</small>
+                </label>
+            </details>
 
             <label class="field-block">
                 <span>@L["備註"]</span>
@@ -112,7 +121,7 @@ else
             <div class="panel-title-group">
                 <span class="section-kicker">@Model.ManagedCases.Count @L["個評估案例"]</span>
                 <h2 class="panel-title">@L["評估案例"]</h2>
-                <p class="panel-subtitle">@L["每個案例要求預期的 CVE / 文件至少出現在前 5 筆結果中。"]</p>
+                <p class="panel-subtitle">@L["每個案例以文件標題、內容關鍵字或進階條件判定前 5 筆是否命中。"]</p>
             </div>
         </div>
 
@@ -130,13 +139,17 @@ else
                             <span class="table-title">@item.Question</span>
                             <p class="table-copy">
                                 <code>@item.CaseKey</code>
-                                @if (!string.IsNullOrWhiteSpace(item.ExpectedCveIds))
-                                {
-                                    <span> · CVE: @string.Join(", ", item.ExpectedCveIds.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
-                                }
                                 @if (!string.IsNullOrWhiteSpace(item.ExpectedDocumentTitles))
                                 {
                                     <span> · @L["文件"]: @string.Join(", ", item.ExpectedDocumentTitles.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ExpectedContentKeywords))
+                                {
+                                    <span> · @L["內容"]: @string.Join(", ", item.ExpectedContentKeywords.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.ExpectedMetadata))
+                                {
+                                    <span> · Metadata: @string.Join(", ", item.ExpectedMetadata.Split('\n', StringSplitOptions.RemoveEmptyEntries))</span>
                                 }
                             </p>
                         </div>

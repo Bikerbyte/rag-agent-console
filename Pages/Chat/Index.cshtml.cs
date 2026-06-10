@@ -9,7 +9,7 @@ namespace RagAgentConsole.Pages.Chat;
 
 public class IndexModel(
     IAppSettingsService appSettingsService,
-    ISecurityAdvisoryAgentService advisoryAgent,
+    IRagAgentService ragAgent,
     ILogger<IndexModel> logger) : PageModel
 {
     public bool IsAiChatEnabled { get; private set; }
@@ -83,13 +83,13 @@ public class IndexModel(
         CancellationToken cancellationToken)
     {
         var history = messages
-            .Select(message => new AdvisoryConversationMessage(message.Role, message.Content))
+            .Select(message => new AgentConversationMessage(message.Role, message.Content))
             .ToList();
 
         var userMessage = AgentInput.Message!.Trim();
         messages.Add(new AgentChatMessageViewModel("user", userMessage));
 
-        var agentReply = await advisoryAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
+        var agentReply = await ragAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
         var agentChatMessage = new AgentChatMessageViewModel("assistant", agentReply.Content, AgentTraceViewModel.FromTrace(agentReply.Trace));
         messages.Add(agentChatMessage);
         return agentChatMessage;
@@ -154,13 +154,13 @@ public class IndexModel(
                 trace.Planner.ModuleName,
                 trace.Planner.RetrievalQuery,
                 trace.RetrievalMode,
-                trace.Planner.RiskFilter,
-                trace.Planner.Version,
+                trace.Planner.GetFilter(SecurityAdvisoryPlanKeys.RiskFilter),
+                trace.Planner.GetEntity(PlanEntityKeys.Version),
                 trace.Matches.Select(match => new AgentTraceMatchViewModel(
                     match.Rank,
                     match.ModuleName,
                     match.SourceKind,
-                    match.CveId ?? match.Title,
+                    match.GetMetadata(SecurityAdvisoryTraceKeys.CveId) ?? match.Title,
                     match.Score,
                     match.VectorScore,
                     match.TextScore)).ToList());

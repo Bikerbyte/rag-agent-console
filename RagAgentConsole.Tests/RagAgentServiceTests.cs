@@ -5,15 +5,15 @@ using Xunit;
 
 namespace RagAgentConsole.Tests;
 
-public class SecurityAdvisoryAgentServiceTests
+public class RagAgentServiceTests
 {
     [Fact]
     public async Task BuildReplyAsync_DelegatesNaturalLanguageMessageToAnswerService()
     {
         var answerService = new FakeAnswerService();
-        var service = new SecurityAdvisoryAgentService(
+        var service = new RagAgentService(
             answerService,
-            NullLogger<SecurityAdvisoryAgentService>.Instance);
+            NullLogger<RagAgentService>.Instance);
 
         var reply = await service.BuildReplyAsync("最近 Cisco 有哪些高風險 CVE？", "chat-1");
 
@@ -27,13 +27,13 @@ public class SecurityAdvisoryAgentServiceTests
         var answerService = new FakeAnswerService();
         var history = new[]
         {
-            new AdvisoryConversationMessage("user", "最近 Cisco 有哪些高風險 CVE？"),
-            new AdvisoryConversationMessage("assistant", "answer")
+            new AgentConversationMessage("user", "最近 Cisco 有哪些高風險 CVE？"),
+            new AgentConversationMessage("assistant", "answer")
         };
 
-        var service = new SecurityAdvisoryAgentService(
+        var service = new RagAgentService(
             answerService,
-            NullLogger<SecurityAdvisoryAgentService>.Instance);
+            NullLogger<RagAgentService>.Instance);
 
         await service.BuildReplyAsync("那哪些已經被利用？", "chat-1", history);
 
@@ -43,30 +43,30 @@ public class SecurityAdvisoryAgentServiceTests
     [Fact]
     public async Task BuildReplyAsync_ReturnsCapabilitiesForEmptyMessage()
     {
-        var service = new SecurityAdvisoryAgentService(
+        var service = new RagAgentService(
             new FakeAnswerService(),
-            NullLogger<SecurityAdvisoryAgentService>.Instance);
+            NullLogger<RagAgentService>.Instance);
 
         var reply = await service.BuildReplyAsync(" ");
 
         Assert.Contains("知識庫", reply);
     }
 
-    private sealed class FakeAnswerService : ISecurityAdvisoryAnswerService
+    private sealed class FakeAnswerService : IRagAnswerService
     {
         public string? LastQuestion { get; private set; }
-        public IReadOnlyList<AdvisoryConversationMessage>? LastHistory { get; private set; }
+        public IReadOnlyList<AgentConversationMessage>? LastHistory { get; private set; }
 
         public Task<string> BuildAnswerAsync(
             string question,
-            IReadOnlyList<AdvisoryConversationMessage>? history = null,
+            IReadOnlyList<AgentConversationMessage>? history = null,
             CancellationToken cancellationToken = default)
             => BuildAnswerWithTraceAsync(question, history, cancellationToken)
                 .ContinueWith(task => task.Result.Content, cancellationToken);
 
         public Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
             string question,
-            IReadOnlyList<AdvisoryConversationMessage>? history = null,
+            IReadOnlyList<AgentConversationMessage>? history = null,
             CancellationToken cancellationToken = default)
         {
             LastQuestion = question;

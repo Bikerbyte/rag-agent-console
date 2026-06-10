@@ -5,17 +5,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace RagAgentConsole.Services;
 
-public class EfAdvisoryVectorStore(
+public class EfRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
-    IAdvisoryTextScorer scorer,
-    ILogger<EfAdvisoryVectorStore> logger) : IAdvisoryVectorStore
+    IRetrievalTextScorer scorer,
+    IRagDomainRegistry domainRegistry,
+    ILogger<EfRagVectorStore> logger) : IRagVectorStore
 {
-    public async Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
-        AdvisoryVectorSearchRequest request,
+    public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
         CancellationToken cancellationToken = default)
     {
-        var candidates = new List<AdvisoryVectorSearchCandidate>();
+        var candidates = new List<RetrievalCandidate>();
+
+        // The advisory corpus is the security advisory domain's storage;
+        // its filters arrive as opaque entity/filter values and are parsed
+        // through the domain's typed filter view.
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
         var chunkQuery = dbContext.SecurityAdvisoryChunks
             .Include(chunk => chunk.Advisory)
             .AsQueryable();
@@ -34,29 +40,29 @@ public class EfAdvisoryVectorStore(
                 chunk.Advisory.PublishedAt < request.PublishedTo.Value);
         }
 
-        if (request.CveYear.HasValue)
+        if (advisoryFilter.CveYear.HasValue)
         {
-            var cvePrefix = $"CVE-{request.CveYear.Value}-";
+            var cvePrefix = $"CVE-{advisoryFilter.CveYear.Value}-";
             chunkQuery = chunkQuery.Where(chunk =>
                 chunk.Advisory != null &&
                 chunk.Advisory.CveId != null &&
                 chunk.Advisory.CveId.StartsWith(cvePrefix));
         }
 
-        if (!string.IsNullOrWhiteSpace(request.CveId))
+        if (!string.IsNullOrWhiteSpace(advisoryFilter.CveId))
         {
             chunkQuery = chunkQuery.Where(chunk =>
                 chunk.Advisory != null &&
-                (chunk.Advisory.CveId == request.CveId || chunk.Advisory.ExternalId == request.CveId));
+                (chunk.Advisory.CveId == advisoryFilter.CveId || chunk.Advisory.ExternalId == advisoryFilter.CveId));
         }
         else
         {
-            if (request.KevOnly)
+            if (advisoryFilter.KevOnly)
             {
                 chunkQuery = chunkQuery.Where(chunk => chunk.Advisory != null && chunk.Advisory.IsKnownExploited);
             }
 
-            if (request.HighRiskOnly)
+            if (advisoryFilter.HighRiskOnly)
             {
                 chunkQuery = chunkQuery.Where(chunk =>
                     chunk.Advisory != null &&
@@ -141,9 +147,11 @@ public class EfAdvisoryVectorStore(
             .Take(limit)
             .ToListAsync(cancellationToken);
 
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         foreach (var chunk in documentChunks)
         {
-            if (chunk.Document is null)
+            if (chunk.Document is null ||
+                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
             {
                 continue;
             }
@@ -175,7 +183,7 @@ public class EfAdvisoryVectorStore(
         }
     }
 
-    private static bool ShouldSearchAdvisories(AdvisoryVectorSearchRequest request)
+    private static bool ShouldSearchAdvisories(RetrievalRequest request)
         => string.IsNullOrWhiteSpace(request.ModuleName) ||
            string.Equals(request.ModuleName, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase);
 }

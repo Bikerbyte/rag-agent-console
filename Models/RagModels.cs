@@ -1,22 +1,38 @@
 namespace RagAgentConsole.Models;
 
-public sealed record AdvisoryVectorSearchRequest(
+/// <summary>
+/// Well-known keys for <see cref="RetrievalPlan"/> entity values shared by
+/// multiple domains. Domain-specific keys (e.g. CVE id) are declared next to
+/// the domain that interprets them.
+/// </summary>
+public static class PlanEntityKeys
+{
+    public const string Vendor = "vendor";
+    public const string Product = "product";
+    public const string Version = "version";
+}
+
+public sealed record RetrievalRequest(
     string Question,
-    string? CveId,
-    string? Version,
-    bool KevOnly,
-    bool HighRiskOnly,
     IReadOnlyList<string> Keywords,
+    IReadOnlyDictionary<string, string?> Entities,
+    IReadOnlyDictionary<string, string?> Filters,
     float[] QueryEmbedding,
     int MaxResults,
     string? ModuleName = null,
     string RetrievalMode = RetrievalModes.Hybrid,
     DateTimeOffset? PublishedFrom = null,
     DateTimeOffset? PublishedTo = null,
-    bool PreferRecent = false,
-    int? CveYear = null);
+    bool PreferRecent = false)
+{
+    public string? GetEntity(string key)
+        => Entities.TryGetValue(key, out var value) ? value : null;
 
-public abstract record AdvisoryVectorSearchCandidate(
+    public string? GetFilter(string key)
+        => Filters.TryGetValue(key, out var value) ? value : null;
+}
+
+public abstract record RetrievalCandidate(
     string ChunkText,
     float[] Embedding,
     double TextScore);
@@ -26,40 +42,39 @@ public sealed record AdvisoryCandidate(
     string ChunkText,
     float[] Embedding,
     double TextScore)
-    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
+    : RetrievalCandidate(ChunkText, Embedding, TextScore);
 
 public sealed record DocumentCandidate(
     KnowledgeDocument Document,
     string ChunkText,
     float[] Embedding,
     double TextScore)
-    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
+    : RetrievalCandidate(ChunkText, Embedding, TextScore);
 
-public enum PlannerStrategy { Ai }
+public enum PlannerStrategy { Ai, RawFallback }
 
-public sealed record AdvisoryQueryPlan(
+public sealed record RetrievalPlan(
     string OriginalQuestion,
     string RetrievalQuery,
     string? Intent,
-    string? Vendor,
-    string? Product,
-    string? Version,
-    string? CveId,
-    string? RiskFilter,
     IReadOnlyList<string> SearchKeywords,
     IReadOnlyList<string> Notes,
+    IReadOnlyDictionary<string, string?> Entities,
+    IReadOnlyDictionary<string, string?> Filters,
     string ModuleName = KnowledgeModuleNames.CveAdvisory,
     PlannerStrategy Strategy = PlannerStrategy.Ai,
     DateTimeOffset? PublishedFrom = null,
     DateTimeOffset? PublishedTo = null,
-    bool PreferRecent = false,
-    int? CveYear = null)
+    bool PreferRecent = false)
 {
-    public bool KevOnly => string.Equals(RiskFilter, "known_exploited", StringComparison.OrdinalIgnoreCase);
+    public static readonly IReadOnlyDictionary<string, string?> EmptyValues =
+        new Dictionary<string, string?>();
 
-    public bool HighRiskOnly =>
-        string.Equals(RiskFilter, "critical", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(RiskFilter, "high_risk", StringComparison.OrdinalIgnoreCase);
+    public string? GetEntity(string key)
+        => Entities.TryGetValue(key, out var value) ? value : null;
+
+    public string? GetFilter(string key)
+        => Filters.TryGetValue(key, out var value) ? value : null;
 }
 
 public static class RetrievalModes
@@ -77,7 +92,7 @@ public static class RetrievalModes
         };
 }
 
-public sealed record SecurityAdvisorySearchResult(
+public sealed record RetrievalResult(
     SecurityAdvisory? Advisory,
     KnowledgeDocument? Document,
     string ChunkText,
@@ -88,20 +103,14 @@ public sealed record SecurityAdvisorySearchResult(
     public string ModuleName => Document?.ModuleName ?? KnowledgeModuleNames.CveAdvisory;
     public string SourceKind => Advisory is not null ? "OfficialAdvisory" : "ManagedDocument";
     public string Title => Advisory?.Title ?? Document?.Title ?? "Untitled";
-    public string? CveId => Advisory?.CveId ?? Advisory?.ExternalId;
-    public string? Vendor => Advisory?.Vendor ?? Document?.Vendor;
-    public string? Product => Advisory?.Product ?? Document?.Product;
-    public string? Severity => Advisory?.Severity;
-    public decimal? CvssScore => Advisory?.CvssScore;
-    public bool IsKnownExploited => Advisory?.IsKnownExploited == true;
     public string SourceName => Advisory?.SourceName ?? Document?.SourceType ?? "Knowledge";
     public string? SourceUrl => Advisory?.SourceUrl;
 }
 
-public sealed record SecurityAdvisorySearchResponse(
-    AdvisoryQueryPlan Plan,
+public sealed record RetrievalResponse(
+    RetrievalPlan Plan,
     string RetrievalMode,
-    IReadOnlyList<SecurityAdvisorySearchResult> Results);
+    IReadOnlyList<RetrievalResult> Results);
 
 public sealed record AgentAnswerResult(
     string Content,
@@ -109,7 +118,7 @@ public sealed record AgentAnswerResult(
 
 public sealed record AgentRetrievalTrace(
     string OriginalQuestion,
-    AdvisoryQueryPlan Planner,
+    RetrievalPlan Planner,
     string RetrievalMode,
     IReadOnlyList<AgentRetrievalMatch> Matches);
 
@@ -118,13 +127,13 @@ public sealed record AgentRetrievalMatch(
     string ModuleName,
     string SourceKind,
     string Title,
-    string? CveId,
-    string? Vendor,
-    string? Product,
-    string? Severity,
-    bool IsKnownExploited,
     string SourceName,
     double Score,
     double VectorScore,
     double TextScore,
-    string ChunkPreview);
+    string ChunkPreview,
+    IReadOnlyDictionary<string, string?> Metadata)
+{
+    public string? GetMetadata(string key)
+        => Metadata.TryGetValue(key, out var value) ? value : null;
+}
