@@ -2,9 +2,9 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
-public interface IAdvisoryVectorStore
+public interface IRagVectorStore
 {
-    Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
-        AdvisoryVectorSearchRequest request,
+    Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
         CancellationToken cancellationToken = default);
 }

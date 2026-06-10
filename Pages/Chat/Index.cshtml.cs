@@ -9,7 +9,7 @@ namespace RagAgentConsole.Pages.Chat;
 
 public class IndexModel(
     IAppSettingsService appSettingsService,
-    ISecurityAdvisoryAgentService advisoryAgent,
+    IRagAgentService ragAgent,
     ILogger<IndexModel> logger) : PageModel
 {
     public bool IsAiChatEnabled { get; private set; }
@@ -83,13 +83,13 @@ public class IndexModel(
         CancellationToken cancellationToken)
     {
         var history = messages
-            .Select(message => new AdvisoryConversationMessage(message.Role, message.Content))
+            .Select(message => new AgentConversationMessage(message.Role, message.Content))
             .ToList();
 
         var userMessage = AgentInput.Message!.Trim();
         messages.Add(new AgentChatMessageViewModel("user", userMessage));
 
-        var agentReply = await advisoryAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
+        var agentReply = await ragAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
         var agentChatMessage = new AgentChatMessageViewModel("assistant", agentReply.Content, AgentTraceViewModel.FromTrace(agentReply.Trace));
         messages.Add(agentChatMessage);
         return agentChatMessage;

@@ -5,17 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace RagAgentConsole.Services;
 
-public class EfAdvisoryVectorStore(
+public class EfRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
-    IAdvisoryTextScorer scorer,
-    ILogger<EfAdvisoryVectorStore> logger) : IAdvisoryVectorStore
+    IRetrievalTextScorer scorer,
+    ILogger<EfRagVectorStore> logger) : IRagVectorStore
 {
-    public async Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
-        AdvisoryVectorSearchRequest request,
+    public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
         CancellationToken cancellationToken = default)
     {
-        var candidates = new List<AdvisoryVectorSearchCandidate>();
+        var candidates = new List<RetrievalCandidate>();
         var chunkQuery = dbContext.SecurityAdvisoryChunks
             .Include(chunk => chunk.Advisory)
             .AsQueryable();
@@ -175,7 +175,7 @@ public class EfAdvisoryVectorStore(
         }
     }
 
-    private static bool ShouldSearchAdvisories(AdvisoryVectorSearchRequest request)
+    private static bool ShouldSearchAdvisories(RetrievalRequest request)
         => string.IsNullOrWhiteSpace(request.ModuleName) ||
            string.Equals(request.ModuleName, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase);
 }

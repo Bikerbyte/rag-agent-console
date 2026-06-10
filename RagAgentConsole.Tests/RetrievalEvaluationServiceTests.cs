@@ -170,7 +170,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private RetrievalEvaluationService CreateService(ISecurityAdvisorySearchService search, ApplicationDbContext dbContext)
+    private RetrievalEvaluationService CreateService(IRagRetrievalService search, ApplicationDbContext dbContext)
         => new(search, dbContext, _environment, NullLogger<RetrievalEvaluationService>.Instance);
 
     private static ApplicationDbContext NewDb()
@@ -216,9 +216,9 @@ public class RetrievalEvaluationServiceTests : IDisposable
         File.WriteAllText(path, JsonSerializer.Serialize(payload));
     }
 
-    private static SecurityAdvisorySearchResponse Response(params string[] cveIds)
+    private static RetrievalResponse Response(params string[] cveIds)
     {
-        var results = cveIds.Select(cveId => new SecurityAdvisorySearchResult(
+        var results = cveIds.Select(cveId => new RetrievalResult(
             Advisory: new SecurityAdvisory
             {
                 SourceName = "test",
@@ -235,24 +235,24 @@ public class RetrievalEvaluationServiceTests : IDisposable
             VectorScore: 0.5,
             TextScore: 0.5)).ToList();
 
-        var plan = new AdvisoryQueryPlan("q", "q", null, null, null, null, null, "none", [], [], KnowledgeModuleNames.CveAdvisory);
-        return new SecurityAdvisorySearchResponse(plan, RetrievalModes.Hybrid, results);
+        var plan = new RetrievalPlan("q", "q", null, null, null, null, null, "none", [], [], KnowledgeModuleNames.CveAdvisory);
+        return new RetrievalResponse(plan, RetrievalModes.Hybrid, results);
     }
 
-    private sealed class ScriptedSearchService(IReadOnlyList<SecurityAdvisorySearchResponse> responses) : ISecurityAdvisorySearchService
+    private sealed class ScriptedSearchService(IReadOnlyList<RetrievalResponse> responses) : IRagRetrievalService
     {
         private int _index;
 
-        public Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(string question, int maxResults = 5, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<RetrievalResult>> SearchAsync(string question, int maxResults = 5, CancellationToken cancellationToken = default)
             => Task.FromResult(Next().Results);
 
-        public Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(string question, IReadOnlyList<AdvisoryConversationMessage>? history, int maxResults = 5, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<RetrievalResult>> SearchAsync(string question, IReadOnlyList<AgentConversationMessage>? history, int maxResults = 5, CancellationToken cancellationToken = default)
             => Task.FromResult(Next().Results);
 
-        public Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(string question, IReadOnlyList<AdvisoryConversationMessage>? history = null, int maxResults = 5, string? moduleName = null, string retrievalMode = RetrievalModes.Hybrid, CancellationToken cancellationToken = default)
+        public Task<RetrievalResponse> SearchWithTraceAsync(string question, IReadOnlyList<AgentConversationMessage>? history = null, int maxResults = 5, string? moduleName = null, string retrievalMode = RetrievalModes.Hybrid, CancellationToken cancellationToken = default)
             => Task.FromResult(Next());
 
-        private SecurityAdvisorySearchResponse Next()
+        private RetrievalResponse Next()
         {
             // Cycle if the test sets up fewer responses than calls;
             // for multi-strategy runs the same response is reused per strategy.

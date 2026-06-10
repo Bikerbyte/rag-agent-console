@@ -2,10 +2,10 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
-public interface IAdvisoryTextScorer
+public interface IRetrievalTextScorer
 {
-    double ScoreAdvisory(AdvisoryVectorSearchRequest request, SecurityAdvisory advisory, string chunkText);
-    double ScoreDocument(AdvisoryVectorSearchRequest request, KnowledgeDocument document, string chunkText);
+    double ScoreAdvisory(RetrievalRequest request, SecurityAdvisory advisory, string chunkText);
+    double ScoreDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText);
 }
 
 public interface IAiChatClient
@@ -16,67 +16,67 @@ public interface IAiChatClient
         CancellationToken cancellationToken = default);
 }
 
-public interface IAdvisoryEmbeddingService
+public interface IRagEmbeddingService
 {
     Task<float[]> BuildEmbeddingAsync(string text, CancellationToken cancellationToken = default);
 }
 
-public interface ISecurityAdvisoryAgentService
+public interface IRagAgentService
 {
     Task<string> BuildReplyAsync(
         string messageText,
         string? chatId = null,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
 
     Task<AgentAnswerResult> BuildReplyWithTraceAsync(
         string messageText,
         string? chatId = null,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
 }
 
-public interface ISecurityAdvisoryAnswerService
+public interface IRagAnswerService
 {
     Task<string> BuildAnswerAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
 
     Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
 }
 
-public interface ISecurityAdvisorySearchService
+public interface IRagRetrievalService
 {
-    Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
+    Task<IReadOnlyList<RetrievalResult>> SearchAsync(
         string question,
         int maxResults = 5,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
+    Task<IReadOnlyList<RetrievalResult>> SearchAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
+        IReadOnlyList<AgentConversationMessage>? history,
         int maxResults = 5,
         CancellationToken cancellationToken = default);
 
-    Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(
+    Task<RetrievalResponse> SearchWithTraceAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         int maxResults = 5,
         string? moduleName = null,
         string retrievalMode = RetrievalModes.Hybrid,
         CancellationToken cancellationToken = default);
 }
 
-public interface IAdvisoryQueryPlanner
+public interface IRagQueryPlanner
 {
-    Task<AdvisoryQueryPlan> BuildPlanAsync(
+    Task<RetrievalPlan> BuildPlanAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default);
 }
 
-public sealed record AdvisoryConversationMessage(string Role, string Content);
+public sealed record AgentConversationMessage(string Role, string Content);

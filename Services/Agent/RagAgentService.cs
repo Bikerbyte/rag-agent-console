@@ -2,21 +2,21 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
-public class SecurityAdvisoryAgentService(
-    ISecurityAdvisoryAnswerService answerService,
-    ILogger<SecurityAdvisoryAgentService> logger) : ISecurityAdvisoryAgentService
+public class RagAgentService(
+    IRagAnswerService answerService,
+    ILogger<RagAgentService> logger) : IRagAgentService
 {
     public async Task<string> BuildReplyAsync(
         string messageText,
         string? chatId = null,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
         => (await BuildReplyWithTraceAsync(messageText, chatId, history, cancellationToken)).Content;
 
     public async Task<AgentAnswerResult> BuildReplyWithTraceAsync(
         string messageText,
         string? chatId = null,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeMessage(messageText);

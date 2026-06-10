@@ -8,15 +8,15 @@ namespace RagAgentConsole.Services;
 /// small structural bonuses are layered on top for hard intent matches
 /// (CVE ID equality, KEV alignment, high-risk filter).
 /// </summary>
-public sealed class AdvisoryTextScorer(
+public sealed class RetrievalTextScorer(
     IBm25Index bm25Index,
-    ITokenizer tokenizer) : IAdvisoryTextScorer
+    ITokenizer tokenizer) : IRetrievalTextScorer
 {
     private const double CveExactMatchBonus = 4.0;
     private const double KevAlignmentBonus = 1.5;
     private const double HighRiskAlignmentBonus = 1.5;
 
-    public double ScoreAdvisory(AdvisoryVectorSearchRequest request, SecurityAdvisory advisory, string chunkText)
+    public double ScoreAdvisory(RetrievalRequest request, SecurityAdvisory advisory, string chunkText)
     {
         var documentText = string.Join(
             ' ',
@@ -50,7 +50,7 @@ public sealed class AdvisoryTextScorer(
         return score;
     }
 
-    public double ScoreDocument(AdvisoryVectorSearchRequest request, KnowledgeDocument document, string chunkText)
+    public double ScoreDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText)
     {
         var documentText = string.Join(
             ' ',
@@ -60,7 +60,7 @@ public sealed class AdvisoryTextScorer(
         return ScoreBm25(request, documentText);
     }
 
-    private double ScoreBm25(AdvisoryVectorSearchRequest request, string documentText)
+    private double ScoreBm25(RetrievalRequest request, string documentText)
     {
         if (string.IsNullOrWhiteSpace(documentText))
         {

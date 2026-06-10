@@ -1,6 +1,6 @@
 namespace RagAgentConsole.Models;
 
-public sealed record AdvisoryVectorSearchRequest(
+public sealed record RetrievalRequest(
     string Question,
     string? CveId,
     string? Version,
@@ -16,7 +16,7 @@ public sealed record AdvisoryVectorSearchRequest(
     bool PreferRecent = false,
     int? CveYear = null);
 
-public abstract record AdvisoryVectorSearchCandidate(
+public abstract record RetrievalCandidate(
     string ChunkText,
     float[] Embedding,
     double TextScore);
@@ -26,18 +26,18 @@ public sealed record AdvisoryCandidate(
     string ChunkText,
     float[] Embedding,
     double TextScore)
-    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
+    : RetrievalCandidate(ChunkText, Embedding, TextScore);
 
 public sealed record DocumentCandidate(
     KnowledgeDocument Document,
     string ChunkText,
     float[] Embedding,
     double TextScore)
-    : AdvisoryVectorSearchCandidate(ChunkText, Embedding, TextScore);
+    : RetrievalCandidate(ChunkText, Embedding, TextScore);
 
 public enum PlannerStrategy { Ai, RawFallback }
 
-public sealed record AdvisoryQueryPlan(
+public sealed record RetrievalPlan(
     string OriginalQuestion,
     string RetrievalQuery,
     string? Intent,
@@ -77,7 +77,7 @@ public static class RetrievalModes
         };
 }
 
-public sealed record SecurityAdvisorySearchResult(
+public sealed record RetrievalResult(
     SecurityAdvisory? Advisory,
     KnowledgeDocument? Document,
     string ChunkText,
@@ -98,10 +98,10 @@ public sealed record SecurityAdvisorySearchResult(
     public string? SourceUrl => Advisory?.SourceUrl;
 }
 
-public sealed record SecurityAdvisorySearchResponse(
-    AdvisoryQueryPlan Plan,
+public sealed record RetrievalResponse(
+    RetrievalPlan Plan,
     string RetrievalMode,
-    IReadOnlyList<SecurityAdvisorySearchResult> Results);
+    IReadOnlyList<RetrievalResult> Results);
 
 public sealed record AgentAnswerResult(
     string Content,
@@ -109,7 +109,7 @@ public sealed record AgentAnswerResult(
 
 public sealed record AgentRetrievalTrace(
     string OriginalQuestion,
-    AdvisoryQueryPlan Planner,
+    RetrievalPlan Planner,
     string RetrievalMode,
     IReadOnlyList<AgentRetrievalMatch> Matches);
 

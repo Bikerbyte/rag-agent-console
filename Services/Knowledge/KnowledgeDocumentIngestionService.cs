@@ -11,7 +11,7 @@ public class KnowledgeDocumentIngestionService(
     ApplicationDbContext dbContext,
     IKnowledgeDocumentTextExtractor textExtractor,
     IKnowledgeTextChunkingService chunkingService,
-    IAdvisoryEmbeddingService embeddingService,
+    IRagEmbeddingService embeddingService,
     IBm25Index bm25Index,
     ILogger<KnowledgeDocumentIngestionService> logger) : IKnowledgeDocumentIngestionService
 {

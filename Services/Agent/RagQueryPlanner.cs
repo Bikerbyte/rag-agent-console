@@ -5,14 +5,14 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
-public class AdvisoryQueryPlanner(
+public class RagQueryPlanner(
     IAiChatClient aiChatClient,
     IAppSettingsService appSettingsService,
-    ILogger<AdvisoryQueryPlanner> logger) : IAdvisoryQueryPlanner
+    ILogger<RagQueryPlanner> logger) : IRagQueryPlanner
 {
-    public async Task<AdvisoryQueryPlan> BuildPlanAsync(
+    public async Task<RetrievalPlan> BuildPlanAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
         // Planner failure must not break read-only RAG retrieval: when the AI
@@ -41,9 +41,9 @@ public class AdvisoryQueryPlanner(
         return FallbackPlan(question);
     }
 
-    private async Task<AdvisoryQueryPlan> BuildWithAiAsync(
+    private async Task<RetrievalPlan> BuildWithAiAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
+        IReadOnlyList<AgentConversationMessage>? history,
         CancellationToken cancellationToken)
     {
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
@@ -97,7 +97,7 @@ public class AdvisoryQueryPlanner(
                 ? BuildRetrievalQuery(dto.CveId, keywords, dto.RiskFilter)
                 : dto.RetrievalQuery.Trim();
 
-            return new AdvisoryQueryPlan(
+            return new RetrievalPlan(
                 question,
                 retrievalQuery,
                 NormalizeNullable(dto.Intent),
@@ -122,11 +122,11 @@ public class AdvisoryQueryPlanner(
         }
     }
 
-    private static AdvisoryQueryPlan FallbackPlan(string question)
+    private static RetrievalPlan FallbackPlan(string question)
         => new(question, question.Trim(), "knowledge_lookup", null, null, null, null, "none", [], [],
             KnowledgeModuleNames.CveAdvisory, PlannerStrategy.RawFallback);
 
-    internal static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
+    internal static string BuildHistoryText(IReadOnlyList<AgentConversationMessage>? history)
     {
         if (history is null || history.Count == 0)
             return "(none)";

@@ -5,9 +5,9 @@ using Xunit;
 
 namespace RagAgentConsole.Tests;
 
-public class AdvisoryTextScorerTests
+public class RetrievalTextScorerTests
 {
-    private static AdvisoryTextScorer CreateScorer(IEnumerable<string>? corpus = null)
+    private static RetrievalTextScorer CreateScorer(IEnumerable<string>? corpus = null)
     {
         var tokenizer = new MixedScriptTokenizer();
         var index = new InMemoryBm25Index(
@@ -28,10 +28,10 @@ public class AdvisoryTextScorerTests
             "antivirus deployment checklist"
         });
 
-        return new AdvisoryTextScorer(index, tokenizer);
+        return new RetrievalTextScorer(index, tokenizer);
     }
 
-    private static readonly AdvisoryTextScorer Scorer = CreateScorer();
+    private static readonly RetrievalTextScorer Scorer = CreateScorer();
 
     // ── ScoreAdvisory ────────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ public class AdvisoryTextScorerTests
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static AdvisoryVectorSearchRequest BuildAdvisoryRequest(
+    private static RetrievalRequest BuildAdvisoryRequest(
         string? cveId = null,
         IReadOnlyList<string>? keywords = null,
         bool kevOnly = false,

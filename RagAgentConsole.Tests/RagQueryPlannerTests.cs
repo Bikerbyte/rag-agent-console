@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RagAgentConsole.Tests;
 
-public class AdvisoryQueryPlannerTests
+public class RagQueryPlannerTests
 {
     [Fact]
     public async Task BuildPlanAsync_WhenAiDisabled_FallsBackToRawQuestion()
@@ -21,10 +21,10 @@ public class AdvisoryQueryPlannerTests
     [Fact]
     public async Task BuildPlanAsync_WhenAiClientThrows_FallsBackToRawQuestion()
     {
-        var planner = new AdvisoryQueryPlanner(
+        var planner = new RagQueryPlanner(
             new ThrowingAiChatClient(),
             new FakeAppSettingsService(enableChat: true),
-            NullLogger<AdvisoryQueryPlanner>.Instance);
+            NullLogger<RagQueryPlanner>.Instance);
 
         var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
 
@@ -184,12 +184,12 @@ public class AdvisoryQueryPlannerTests
         Assert.Equal(KnowledgeModuleNames.CveAdvisory, plan.ModuleName);
     }
 
-    private static AdvisoryQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
+    private static RagQueryPlanner CreatePlanner(bool enableChat, string? aiResponse)
     {
-        return new AdvisoryQueryPlanner(
+        return new RagQueryPlanner(
             new FakeAiChatClient(aiResponse),
             new FakeAppSettingsService(enableChat),
-            NullLogger<AdvisoryQueryPlanner>.Instance);
+            NullLogger<RagQueryPlanner>.Instance);
     }
 
     private sealed class FakeAiChatClient(string? response) : IAiChatClient

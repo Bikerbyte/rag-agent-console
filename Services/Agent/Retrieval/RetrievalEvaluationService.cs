@@ -37,7 +37,7 @@ public interface IRetrievalEvaluationService
 }
 
 public sealed class RetrievalEvaluationService(
-    ISecurityAdvisorySearchService searchService,
+    IRagRetrievalService searchService,
     ApplicationDbContext dbContext,
     IWebHostEnvironment hostEnvironment,
     ILogger<RetrievalEvaluationService> logger) : IRetrievalEvaluationService
@@ -326,7 +326,7 @@ public sealed class RetrievalEvaluationService(
     }
 
     private static bool IsRelevant(
-        SecurityAdvisorySearchResult result,
+        RetrievalResult result,
         HashSet<string> expectedCves,
         HashSet<string> expectedTitles)
     {

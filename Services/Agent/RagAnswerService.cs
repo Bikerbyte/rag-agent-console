@@ -5,143 +5,22 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
-public partial class SecurityAdvisorySearchService(
-    IAdvisoryEmbeddingService embeddingService,
-    IAdvisoryVectorStore vectorStore,
-    IAdvisoryQueryPlanner queryPlanner,
-    IOptions<SecurityAdvisoryOptions> options,
-    ILogger<SecurityAdvisorySearchService> logger) : ISecurityAdvisorySearchService
-{
-    public async Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
-        string question,
-        int maxResults = 5,
-        CancellationToken cancellationToken = default)
-        => await SearchAsync(question, history: null, maxResults, cancellationToken);
-
-    public async Task<IReadOnlyList<SecurityAdvisorySearchResult>> SearchAsync(
-        string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
-        int maxResults = 5,
-        CancellationToken cancellationToken = default)
-        => (await SearchWithTraceAsync(question, history, maxResults, cancellationToken: cancellationToken)).Results;
-
-    public async Task<SecurityAdvisorySearchResponse> SearchWithTraceAsync(
-        string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
-        int maxResults = 5,
-        string? moduleName = null,
-        string retrievalMode = RetrievalModes.Hybrid,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return new SecurityAdvisorySearchResponse(
-                new AdvisoryQueryPlan(question, string.Empty, null, null, null, null, null, "none", [], [], moduleName ?? KnowledgeModuleNames.CveAdvisory),
-                RetrievalModes.Normalize(retrievalMode),
-                []);
-        }
-
-        var plan = await queryPlanner.BuildPlanAsync(question, history, cancellationToken);
-        var effectiveModule = string.IsNullOrWhiteSpace(moduleName) ? plan.ModuleName : moduleName.Trim();
-        var effectiveMode = RetrievalModes.Normalize(retrievalMode);
-        var queryVector = await embeddingService.BuildEmbeddingAsync(plan.RetrievalQuery, cancellationToken);
-        var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
-        var request = new AdvisoryVectorSearchRequest(
-            plan.RetrievalQuery,
-            plan.CveId,
-            plan.Version,
-            plan.KevOnly,
-            plan.HighRiskOnly,
-            plan.SearchKeywords,
-            queryVector,
-            effectiveMax,
-            effectiveModule,
-            effectiveMode,
-            plan.PublishedFrom,
-            plan.PublishedTo,
-            plan.PreferRecent,
-            plan.CveYear);
-        var candidates = await vectorStore.SearchAsync(request, cancellationToken);
-
-        var ranked = new List<SecurityAdvisorySearchResult>();
-        foreach (var candidate in candidates)
-        {
-            var vectorScore = CosineSimilarity(queryVector, candidate.Embedding);
-            var score = effectiveMode switch
-            {
-                RetrievalModes.Vector => vectorScore,
-                RetrievalModes.Keyword => candidate.TextScore,
-                _ => vectorScore + candidate.TextScore
-            };
-            if (score <= 0)
-            {
-                continue;
-            }
-
-            ranked.Add(candidate switch
-            {
-                AdvisoryCandidate a => new SecurityAdvisorySearchResult(a.Advisory, null, a.ChunkText, score, vectorScore, a.TextScore),
-                DocumentCandidate d => new SecurityAdvisorySearchResult(null, d.Document, d.ChunkText, score, vectorScore, d.TextScore),
-                _ => throw new InvalidOperationException($"Unexpected candidate type: {candidate.GetType().Name}")
-            });
-        }
-
-        logger.LogDebug(
-            "RAG search produced {CandidateCount} candidates and {RankedCount} ranked results. RetrievalQuery={RetrievalQuery}, Version={Version}.",
-            candidates.Count,
-            ranked.Count,
-            plan.RetrievalQuery,
-            plan.Version);
-
-        var ordered = plan.PreferRecent
-            ? ranked.OrderByDescending(item => item.Advisory?.PublishedAt ?? DateTimeOffset.MinValue)
-                .ThenByDescending(item => item.Score)
-            : ranked.OrderByDescending(item => item.Score);
-
-        var results = ordered
-            .Take(effectiveMax)
-            .ToList();
-
-        return new SecurityAdvisorySearchResponse(
-            plan with { ModuleName = effectiveModule },
-            effectiveMode,
-            results);
-    }
-
-    private static double CosineSimilarity(IReadOnlyList<float> left, IReadOnlyList<float> right)
-    {
-        var length = Math.Min(left.Count, right.Count);
-        if (length == 0)
-        {
-            return 0;
-        }
-
-        var sum = 0d;
-        for (var index = 0; index < length; index++)
-        {
-            sum += left[index] * right[index];
-        }
-
-        return sum;
-    }
-}
-
-public class SecurityAdvisoryAnswerService(
-    ISecurityAdvisorySearchService searchService,
+public class RagAnswerService(
+    IRagRetrievalService searchService,
     IAppSettingsService appSettingsService,
     IOptions<SecurityAdvisoryOptions> options,
     IOptions<AiProviderOptions> aiProviderOptions,
-    IAiChatClient aiChatClient) : ISecurityAdvisoryAnswerService
+    IAiChatClient aiChatClient) : IRagAnswerService
 {
     public async Task<string> BuildAnswerAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
         => (await BuildAnswerWithTraceAsync(question, history, cancellationToken)).Content;
 
     public async Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history = null,
+        IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
         var aiOptions = aiProviderOptions.Value;
@@ -216,8 +95,8 @@ public class SecurityAdvisoryAnswerService(
 
     private async Task<string?> TryGenerateAnswerAsync(
         string question,
-        IReadOnlyList<SecurityAdvisorySearchResult> results,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
+        IReadOnlyList<RetrievalResult> results,
+        IReadOnlyList<AgentConversationMessage>? history,
         string systemPrompt,
         CancellationToken cancellationToken)
     {
@@ -259,7 +138,7 @@ public class SecurityAdvisoryAnswerService(
 
     private async Task<string?> TryGenerateGeneralAnswerAsync(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history,
+        IReadOnlyList<AgentConversationMessage>? history,
         string systemPrompt,
         CancellationToken cancellationToken)
     {
@@ -311,7 +190,7 @@ public class SecurityAdvisoryAnswerService(
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "...";
     }
 
-    private static AgentRetrievalTrace BuildTrace(string question, SecurityAdvisorySearchResponse searchResponse)
+    private static AgentRetrievalTrace BuildTrace(string question, RetrievalResponse searchResponse)
         => new(
             question,
             searchResponse.Plan,
@@ -337,7 +216,7 @@ public class SecurityAdvisoryAnswerService(
 
     private static string BuildFollowUpContext(
         string question,
-        IReadOnlyList<AdvisoryConversationMessage>? history)
+        IReadOnlyList<AgentConversationMessage>? history)
     {
         var currentVersion = ExtractVersion(question);
         var latestUserContext = history?
@@ -391,7 +270,7 @@ public class SecurityAdvisoryAnswerService(
             .ToList();
     }
 
-    private static string BuildHistoryText(IReadOnlyList<AdvisoryConversationMessage>? history)
+    private static string BuildHistoryText(IReadOnlyList<AgentConversationMessage>? history)
     {
         if (history is null || history.Count == 0)
         {

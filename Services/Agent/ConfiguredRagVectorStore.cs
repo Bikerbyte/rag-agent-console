@@ -2,14 +2,14 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
-public class ConfiguredAdvisoryVectorStore(
-    EfAdvisoryVectorStore efStore,
-    PgVectorAdvisoryVectorStore pgVectorStore,
+public class ConfiguredRagVectorStore(
+    EfRagVectorStore efStore,
+    PgVectorRagVectorStore pgVectorStore,
     IAppSettingsService appSettingsService,
-    ILogger<ConfiguredAdvisoryVectorStore> logger) : IAdvisoryVectorStore
+    ILogger<ConfiguredRagVectorStore> logger) : IRagVectorStore
 {
-    public async Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
-        AdvisoryVectorSearchRequest request,
+    public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
         CancellationToken cancellationToken = default)
     {
         var options = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);

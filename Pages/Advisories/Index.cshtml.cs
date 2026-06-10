@@ -11,13 +11,13 @@ public class IndexModel(
     ApplicationDbContext dbContext,
     ISecurityAdvisorySyncService syncService,
     IKnowledgeDocumentIngestionService knowledgeIngestionService,
-    ISecurityAdvisorySearchService searchService,
+    IRagRetrievalService searchService,
     IAppSettingsService appSettingsService) : PageModel
 {
     public IReadOnlyList<SecurityAdvisory> Advisories { get; private set; } = [];
     public IReadOnlyList<SecurityAdvisoryChunk> PreviewChunks { get; private set; } = [];
     public IReadOnlyList<KnowledgeDocument> ManagedDocuments { get; private set; } = [];
-    public IReadOnlyList<SecurityAdvisorySearchResult> RetrievalResults { get; private set; } = [];
+    public IReadOnlyList<RetrievalResult> RetrievalResults { get; private set; } = [];
     public int TotalCount { get; private set; }
     public int KevCount { get; private set; }
     public int CriticalCount { get; private set; }
