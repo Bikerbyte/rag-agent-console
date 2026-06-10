@@ -122,11 +122,11 @@ public class AiChatClient(
         => string.Equals(provider, AiProviderNames.Ollama, StringComparison.OrdinalIgnoreCase);
 }
 
-public partial class AdvisoryEmbeddingService(
+public partial class RagEmbeddingService(
     HttpClient httpClient,
     IOptions<SecurityAdvisoryOptions> advisoryOptions,
     IAppSettingsService appSettingsService,
-    ILogger<AdvisoryEmbeddingService> logger) : IAdvisoryEmbeddingService
+    ILogger<RagEmbeddingService> logger) : IRagEmbeddingService
 {
     public async Task<float[]> BuildEmbeddingAsync(string text, CancellationToken cancellationToken = default)
     {

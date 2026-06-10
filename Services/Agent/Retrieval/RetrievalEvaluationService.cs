@@ -37,7 +37,8 @@ public interface IRetrievalEvaluationService
 }
 
 public sealed class RetrievalEvaluationService(
-    ISecurityAdvisorySearchService searchService,
+    IRagRetrievalService searchService,
+    IRagDomainRegistry domainRegistry,
     ApplicationDbContext dbContext,
     IWebHostEnvironment hostEnvironment,
     ILogger<RetrievalEvaluationService> logger) : IRetrievalEvaluationService
@@ -68,9 +69,10 @@ public sealed class RetrievalEvaluationService(
         return entities.Select(entity => new RetrievalEvaluationCase(
             entity.CaseKey,
             entity.Question,
-            ParseList(entity.ExpectedCveIds, splitOnCommas: true),
             ParseList(entity.ExpectedDocumentTitles, splitOnCommas: false),
-            entity.Notes)).ToList();
+            entity.Notes,
+            ParseMetadata(entity.ExpectedMetadata),
+            ParseList(entity.ExpectedContentKeywords, splitOnCommas: false))).ToList();
     }
 
     public async Task<IReadOnlyList<RetrievalEvaluationCaseEntity>> GetManagedCasesAsync(CancellationToken cancellationToken = default)
@@ -92,8 +94,9 @@ public sealed class RetrievalEvaluationService(
         {
             CaseKey = caseKey,
             Question = Trim(draft.Question, 500),
-            ExpectedCveIds = NormalizeStored(draft.ExpectedCveIdsText, 1200),
             ExpectedDocumentTitles = NormalizeStored(draft.ExpectedDocumentTitlesText, 2000),
+            ExpectedContentKeywords = NormalizeStored(draft.ExpectedContentKeywordsText, 2000),
+            ExpectedMetadata = NormalizeStored(draft.ExpectedMetadataText, 2000),
             Notes = NormalizeStored(draft.Notes, 1000),
             IsSeeded = false,
             CreatedTime = now,
@@ -112,8 +115,9 @@ public sealed class RetrievalEvaluationService(
         }
 
         entity.Question = Trim(draft.Question, 500);
-        entity.ExpectedCveIds = NormalizeStored(draft.ExpectedCveIdsText, 1200);
         entity.ExpectedDocumentTitles = NormalizeStored(draft.ExpectedDocumentTitlesText, 2000);
+        entity.ExpectedContentKeywords = NormalizeStored(draft.ExpectedContentKeywordsText, 2000);
+        entity.ExpectedMetadata = NormalizeStored(draft.ExpectedMetadataText, 2000);
         entity.Notes = NormalizeStored(draft.Notes, 1000);
         entity.LastUpdatedTime = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -152,8 +156,9 @@ public sealed class RetrievalEvaluationService(
             {
                 CaseKey = Trim(string.IsNullOrWhiteSpace(seed.Id) ? Slugify(seed.Question) : seed.Id, 96),
                 Question = Trim(seed.Question, 500),
-                ExpectedCveIds = NormalizeStored(string.Join('\n', seed.ExpectedCveIds), 1200),
                 ExpectedDocumentTitles = NormalizeStored(string.Join('\n', seed.ExpectedDocumentTitles), 2000),
+                ExpectedContentKeywords = NormalizeStored(string.Join('\n', seed.ExpectedContentKeywords ?? []), 2000),
+                ExpectedMetadata = NormalizeStored(FormatMetadata(seed.ExpectedMetadata), 2000),
                 Notes = NormalizeStored(seed.Notes, 1000),
                 IsSeeded = true,
                 CreatedTime = now,
@@ -181,9 +186,10 @@ public sealed class RetrievalEvaluationService(
             : payload.Cases.Select(item => new RetrievalEvaluationCase(
                 item.Id,
                 item.Question,
-                item.ExpectedCveIds ?? [],
                 item.ExpectedDocumentTitles ?? [],
-                item.Notes)).ToList();
+                item.Notes,
+                item.ExpectedMetadata,
+                item.ExpectedContentKeywords ?? [])).ToList();
     }
 
     private async Task<string> BuildUniqueCaseKeyAsync(string question, CancellationToken cancellationToken)
@@ -224,6 +230,40 @@ public sealed class RetrievalEvaluationService(
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return Trim(string.Join('\n', lines), maxLength);
     }
+
+    private static IReadOnlyDictionary<string, string?>? ParseMetadata(string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            return null;
+        }
+
+        var pairs = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in stored.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var separator = line.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var key = line[..separator].Trim();
+            var value = line[(separator + 1)..].Trim();
+            if (key.Length > 0 && value.Length > 0)
+            {
+                pairs[key] = value;
+            }
+        }
+
+        return pairs.Count == 0 ? null : pairs;
+    }
+
+    private static string? FormatMetadata(IReadOnlyDictionary<string, string?>? metadata)
+        => metadata is null or { Count: 0 }
+            ? null
+            : string.Join('\n', metadata
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+                .Select(pair => $"{pair.Key.Trim()}={pair.Value!.Trim()}"));
 
     private static IReadOnlyList<string> ParseList(string? stored, bool splitOnCommas)
     {
@@ -286,8 +326,9 @@ public sealed class RetrievalEvaluationService(
             retrievalMode: mode,
             cancellationToken: cancellationToken);
 
-        var expectedCves = new HashSet<string>(evalCase.ExpectedCveIds, StringComparer.OrdinalIgnoreCase);
         var expectedTitles = new HashSet<string>(evalCase.ExpectedDocumentTitles, StringComparer.OrdinalIgnoreCase);
+        var expectedContentKeywords = evalCase.ExpectedContentKeywords ?? [];
+        var expectedMetadata = evalCase.ExpectedMetadata;
 
         var matches = new List<RetrievalEvaluationMatch>();
         int? firstRelevantRank = null;
@@ -295,7 +336,7 @@ public sealed class RetrievalEvaluationService(
         {
             var result = searchResponse.Results[index];
             var rank = index + 1;
-            var isRelevant = IsRelevant(result, expectedCves, expectedTitles);
+            var isRelevant = IsRelevant(result, expectedTitles, expectedContentKeywords, expectedMetadata);
             if (isRelevant && firstRelevantRank is null)
             {
                 firstRelevantRank = rank;
@@ -304,7 +345,6 @@ public sealed class RetrievalEvaluationService(
             matches.Add(new RetrievalEvaluationMatch(
                 rank,
                 result.Title,
-                result.CveId,
                 result.Score,
                 result.VectorScore,
                 result.TextScore,
@@ -325,19 +365,32 @@ public sealed class RetrievalEvaluationService(
             matches);
     }
 
-    private static bool IsRelevant(
-        SecurityAdvisorySearchResult result,
-        HashSet<string> expectedCves,
-        HashSet<string> expectedTitles)
+    private bool IsRelevant(
+        RetrievalResult result,
+        HashSet<string> expectedTitles,
+        IReadOnlyList<string> expectedContentKeywords,
+        IReadOnlyDictionary<string, string?>? expectedMetadata)
     {
-        if (!string.IsNullOrWhiteSpace(result.CveId) && expectedCves.Contains(result.CveId))
+        if (expectedTitles.Count > 0 && expectedTitles.Contains(result.Title))
         {
             return true;
         }
 
-        if (expectedTitles.Count > 0 && expectedTitles.Contains(result.Title))
+        if (expectedContentKeywords.Any(keyword =>
+                result.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                result.ChunkText.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
+        }
+
+        if (expectedMetadata is { Count: > 0 })
+        {
+            // Generic label path: a result is relevant when every expected
+            // pair matches its domain trace metadata (e.g. vendor=Citrix).
+            var metadata = domainRegistry.ResolveForResult(result).BuildTraceMetadata(result);
+            return expectedMetadata.All(pair =>
+                metadata.TryGetValue(pair.Key, out var value) &&
+                string.Equals(value, pair.Value, StringComparison.OrdinalIgnoreCase));
         }
 
         return false;
@@ -373,11 +426,14 @@ public sealed class RetrievalEvaluationService(
         [JsonPropertyName("question")]
         public string Question { get; set; } = string.Empty;
 
-        [JsonPropertyName("expectedCveIds")]
-        public List<string>? ExpectedCveIds { get; set; }
-
         [JsonPropertyName("expectedDocumentTitles")]
         public List<string>? ExpectedDocumentTitles { get; set; }
+
+        [JsonPropertyName("expectedContentKeywords")]
+        public List<string>? ExpectedContentKeywords { get; set; }
+
+        [JsonPropertyName("expectedMetadata")]
+        public Dictionary<string, string?>? ExpectedMetadata { get; set; }
 
         [JsonPropertyName("notes")]
         public string? Notes { get; set; }

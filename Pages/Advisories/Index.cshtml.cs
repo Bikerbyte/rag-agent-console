@@ -11,13 +11,13 @@ public class IndexModel(
     ApplicationDbContext dbContext,
     ISecurityAdvisorySyncService syncService,
     IKnowledgeDocumentIngestionService knowledgeIngestionService,
-    ISecurityAdvisorySearchService searchService,
+    IRagRetrievalService searchService,
     IAppSettingsService appSettingsService) : PageModel
 {
     public IReadOnlyList<SecurityAdvisory> Advisories { get; private set; } = [];
     public IReadOnlyList<SecurityAdvisoryChunk> PreviewChunks { get; private set; } = [];
     public IReadOnlyList<KnowledgeDocument> ManagedDocuments { get; private set; } = [];
-    public IReadOnlyList<SecurityAdvisorySearchResult> RetrievalResults { get; private set; } = [];
+    public IReadOnlyList<RetrievalResult> RetrievalResults { get; private set; } = [];
     public int TotalCount { get; private set; }
     public int KevCount { get; private set; }
     public int CriticalCount { get; private set; }
@@ -32,11 +32,11 @@ public class IndexModel(
     public KnowledgeDocument? SelectedDocument { get; private set; }
     public string? SelectedDocumentSample { get; private set; }
 
-    // 知識庫已合併為單一來源清單：未選取任何文件時，預設顯示「資安公告自動同步」這個系統託管來源的明細。
-    public bool CveSourceSelected => SelectedDocument is null;
-
     [BindProperty]
     public FileKnowledgeInput FileInput { get; set; } = new();
+
+    [BindProperty]
+    public List<int> SelectedDocumentIds { get; set; } = [];
 
     [TempData]
     public string? StatusMessage { get; set; }
@@ -96,8 +96,7 @@ public class IndexModel(
 
         ManagedDocuments = await dbContext.KnowledgeDocuments
             .AsNoTracking()
-            .OrderByDescending(document => document.LastUpdatedTime)
-            .Take(12)
+            .OrderByDescending(document => document.CreatedTime)
             .ToListAsync(cancellationToken);
 
         if (doc is int selectedDocumentId)
@@ -247,6 +246,26 @@ public class IndexModel(
     {
         await knowledgeIngestionService.DeleteAsync(id, cancellationToken);
         StatusMessage = "文件已刪除。";
+        return RedirectToPage(new { section = "documents" });
+    }
+
+    public async Task<IActionResult> OnPostBulkDocumentsAsync(string action, CancellationToken cancellationToken)
+    {
+        var ids = SelectedDocumentIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            StatusMessage = "請先勾選要操作的文件。";
+            return RedirectToPage(new { section = "documents" });
+        }
+
+        StatusMessage = action switch
+        {
+            "enable" => $"已啟用 {await knowledgeIngestionService.SetEnabledManyAsync(ids, true, cancellationToken)} 份文件。",
+            "disable" => $"已停用 {await knowledgeIngestionService.SetEnabledManyAsync(ids, false, cancellationToken)} 份文件。",
+            "delete" => $"已刪除 {await knowledgeIngestionService.DeleteManyAsync(ids, cancellationToken)} 份文件。",
+            _ => "不支援的批次操作。"
+        };
+
         return RedirectToPage(new { section = "documents" });
     }
 

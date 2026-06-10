@@ -87,49 +87,134 @@
                             <h2>@L["知識來源"]</h2>
                             <p>@L["點選任一來源即可在下方檢視明細。"]</p>
                         </div>
-                        <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
                     </div>
 
-                    <div class="managed-document-list">
-                        @* CVE 自動同步收成單一系統託管來源列，與上傳文件並排，不再是另一塊獨立面板。 *@
-                        <article class="managed-document-row is-managed @(Model.CveSourceSelected ? "is-selected" : string.Empty)">
-                            <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents">
-                                <strong>@L["資安公告自動同步"]</strong>
-                                <p>CISA KEV / NVD · @Model.TotalCount.ToString("N0") @L["筆"] · @Model.KevCount.ToString("N0") KEV · @Model.CriticalCount.ToString("N0") @L["高危"]</p>
-                            </a>
-                            <div class="document-actions">
-                                <span class="status-pill is-info">@L["系統託管"]</span>
-                                <form method="post" asp-page-handler="Sync">
-                                    <button class="icon-button" type="submit" title="@L["同步"].Value">⟳</button>
-                                </form>
-                            </div>
-                        </article>
-
-                        @foreach (var document in Model.ManagedDocuments)
-                        {
-                            var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
-                            <article class="managed-document-row @(isSelected ? "is-selected" : string.Empty)">
-                                <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
-                                    <strong>@document.Title</strong>
-                                    <p>@document.ModuleName · @document.CharacterCount.ToString("N0") @L["字"] · @document.ChunkCount @L["片段"]</p>
-                                </a>
-                                <div class="document-actions">
-                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
-                                        @(document.IsEnabled ? L["啟用"] : L["停用"])
-                                    </span>
-                                    <form method="post" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)">
-                                        <button class="icon-button" type="submit" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
-                                    </form>
-                                    <form method="post" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                        <button class="icon-button" type="submit" title="@L["重新索引"].Value">R</button>
-                                    </form>
-                                    <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId">
-                                        <button class="icon-button is-danger" type="submit" title="@L["刪除"].Value">X</button>
-                                    </form>
+                    @if (Model.ManagedDocuments.Count == 0)
+                    {
+                        <div class="empty-state">
+                            <p class="empty-copy">@L["尚未上傳任何文件。可以從「匯入來源」上傳 Markdown / TXT / HTML / CSV / DOCX 檔案。"]</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" id="doc-table-form">
+                            <div class="doc-batch-bar">
+                                <span class="doc-batch-count" data-doc-count>@L["已選"] 0</span>
+                                <div class="doc-batch-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="enable" data-doc-bulk disabled>@L["啟用"]</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="disable" data-doc-bulk disabled>@L["停用"]</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                                            asp-page-handler="BulkDocuments" asp-route-action="delete" data-doc-bulk disabled
+                                            onclick="return confirm('@L["確定要刪除選取的文件嗎？此動作無法復原。"]');">@L["刪除"]</button>
                                 </div>
-                            </article>
-                        }
-                    </div>
+                            </div>
+
+                            <div class="table-section">
+                                <table class="data-table doc-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="doc-col-check">
+                                                <input type="checkbox" data-doc-check-all aria-label="@L["全選"]" />
+                                            </th>
+                                            <th>@L["標題"]</th>
+                                            <th>@L["模組"]</th>
+                                            <th>@L["來源"]</th>
+                                            <th class="doc-col-num">@L["片段"]</th>
+                                            <th>@L["上傳日期"]</th>
+                                            <th>@L["最後更新"]</th>
+                                            <th>@L["狀態"]</th>
+                                            <th class="doc-col-actions">@L["操作"]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var document in Model.ManagedDocuments)
+                                        {
+                                            var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
+                                            <tr class="@(isSelected ? "is-selected" : string.Empty)">
+                                                <td class="doc-col-check">
+                                                    <input type="checkbox" name="SelectedDocumentIds" value="@document.KnowledgeDocumentId" data-doc-check aria-label="@L["選取"]" />
+                                                </td>
+                                                <td>
+                                                    <a class="doc-title-link" asp-page="/Advisories/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId">
+                                                        <span class="table-title">@document.Title</span>
+                                                    </a>
+                                                    @if (!string.IsNullOrWhiteSpace(document.FileName))
+                                                    {
+                                                        <p class="table-copy">@document.FileName</p>
+                                                    }
+                                                </td>
+                                                <td>@document.ModuleName</td>
+                                                <td>@document.SourceType</td>
+                                                <td class="doc-col-num">@document.ChunkCount</td>
+                                                <td>
+                                                    <span title="@document.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")">
+                                                        @document.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span title="@document.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")">
+                                                        @document.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">
+                                                        @(document.IsEnabled ? L["啟用"] : L["停用"])
+                                                    </span>
+                                                </td>
+                                                <td class="doc-col-actions">
+                                                    <div class="document-actions">
+                                                        <button class="icon-button" type="submit"
+                                                                asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)"
+                                                                title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
+                                                        <button class="icon-button" type="submit"
+                                                                asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId"
+                                                                title="@L["重新索引"].Value">R</button>
+                                                        <button class="icon-button is-danger" type="submit"
+                                                                asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId"
+                                                                onclick="return confirm('@L["確定要刪除這份文件嗎？此動作無法復原。"]');"
+                                                                title="@L["刪除"].Value">X</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+
+                        <script>
+                            (function () {
+                                const form = document.getElementById('doc-table-form');
+                                if (!form) { return; }
+                                const all = form.querySelector('[data-doc-check-all]');
+                                const boxes = Array.from(form.querySelectorAll('[data-doc-check]'));
+                                const counter = form.querySelector('[data-doc-count]');
+                                const bulkButtons = Array.from(form.querySelectorAll('[data-doc-bulk]'));
+                                const countLabel = counter ? counter.textContent.replace(/\d+\s*$/, '').trim() : '';
+
+                                function refresh() {
+                                    const selected = boxes.filter(box => box.checked).length;
+                                    if (counter) { counter.textContent = countLabel + ' ' + selected; }
+                                    bulkButtons.forEach(button => { button.disabled = selected === 0; });
+                                    if (all) {
+                                        all.checked = selected > 0 && selected === boxes.length;
+                                        all.indeterminate = selected > 0 && selected < boxes.length;
+                                    }
+                                }
+
+                                if (all) {
+                                    all.addEventListener('change', function () {
+                                        boxes.forEach(box => { box.checked = all.checked; });
+                                        refresh();
+                                    });
+                                }
+                                boxes.forEach(box => box.addEventListener('change', refresh));
+                                refresh();
+                            })();
+                        </script>
+                    }
                 </article>
 
                 @if (Model.SelectedDocument is { } selected)
@@ -152,67 +237,69 @@
                 }
                 else
                 {
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
+                    <details class="knowledge-card advisory-disclosure">
+                        <summary class="advisory-disclosure-summary">
                             <div>
                                 <h2>@L["資安公告自動同步"]</h2>
                                 <p>@L["由系統自動同步並建立索引，無法手動編輯。"]</p>
                             </div>
                             <span class="status-pill is-info">@L["系統託管"]</span>
-                        </div>
+                        </summary>
 
-                        <form class="knowledge-filter" method="get">
-                            <input type="hidden" name="section" value="documents" />
-                            <input class="form-control" type="search" name="q" placeholder="@L["搜尋範例資料 / 廠商 / 產品"].Value" value="@activeQuery" />
-                            <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
-                                <input type="checkbox" name="kev" value="true" checked="@kevActive" />
-                                KEV
-                            </label>
-                            <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
-                                <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
-                                @L["高危"]
-                            </label>
-                            <button class="btn btn-outline-secondary" type="submit">@L["套用"]</button>
-                        </form>
+                        <div class="advisory-disclosure-body">
+                            <form class="knowledge-filter" method="get">
+                                <input type="hidden" name="section" value="documents" />
+                                <input class="form-control" type="search" name="q" placeholder="@L["搜尋範例資料 / 廠商 / 產品"].Value" value="@activeQuery" />
+                                <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
+                                    <input type="checkbox" name="kev" value="true" checked="@kevActive" />
+                                    KEV
+                                </label>
+                                <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
+                                    <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
+                                    @L["高危"]
+                                </label>
+                                <button class="btn btn-outline-secondary" type="submit">@L["套用"]</button>
+                            </form>
 
-                        <div class="knowledge-table">
-                            @if (Model.Advisories.Count == 0)
-                            {
-                                <div class="empty-state">
-                                    <p class="empty-copy">@L["目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。"]</p>
-                                </div>
-                            }
-                            else
-                            {
-                                @foreach (var advisory in Model.Advisories.Take(10))
+                            <div class="knowledge-table">
+                                @if (Model.Advisories.Count == 0)
                                 {
-                                    var riskParts = new List<string>();
-                                    if (!string.IsNullOrWhiteSpace(advisory.Severity))
-                                    {
-                                        riskParts.Add(advisory.Severity);
-                                    }
-                                    if (advisory.CvssScore.HasValue)
-                                    {
-                                        riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
-                                    }
-                                    if (advisory.IsKnownExploited)
-                                    {
-                                        riskParts.Add("KEV");
-                                    }
-
-                                    <article class="advisory-row">
-                                        <div>
-                                            <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
-                                            <p>@advisory.Title</p>
-                                        </div>
-                                        <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
-                                            @(riskParts.Count == 0 ? L["未標示"].Value : string.Join(" / ", riskParts))
-                                        </span>
-                                    </article>
+                                    <div class="empty-state">
+                                        <p class="empty-copy">@L["目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。"]</p>
+                                    </div>
                                 }
-                            }
+                                else
+                                {
+                                    @foreach (var advisory in Model.Advisories.Take(10))
+                                    {
+                                        var riskParts = new List<string>();
+                                        if (!string.IsNullOrWhiteSpace(advisory.Severity))
+                                        {
+                                            riskParts.Add(advisory.Severity);
+                                        }
+                                        if (advisory.CvssScore.HasValue)
+                                        {
+                                            riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
+                                        }
+                                        if (advisory.IsKnownExploited)
+                                        {
+                                            riskParts.Add("KEV");
+                                        }
+
+                                        <article class="advisory-row">
+                                            <div>
+                                                <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
+                                                <p>@advisory.Title</p>
+                                            </div>
+                                            <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                                @(riskParts.Count == 0 ? L["未標示"].Value : string.Join(" / ", riskParts))
+                                            </span>
+                                        </article>
+                                    }
+                                }
+                            </div>
                         </div>
-                    </article>
+                    </details>
                 }
             </section>
         }
@@ -343,9 +430,9 @@
                                 <div class="retrieval-result-head">
                                     <div>
                                         <span class="chunk-rank"># @((index + 1).ToString("000"))</span>
-                                        <strong>@(result.CveId ?? result.Title)</strong>
+                                        <strong>@(result.Advisory?.CveId ?? result.Advisory?.ExternalId ?? result.Title)</strong>
                                     </div>
-                                    <span class="status-pill @(result.IsKnownExploited || result.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                    <span class="status-pill @(result.Advisory?.IsKnownExploited == true || result.Advisory?.CvssScore >= 9 ? "is-danger" : "is-neutral")">
                                         Score @FormatScore(result.Score)
                                     </span>
                                 </div>

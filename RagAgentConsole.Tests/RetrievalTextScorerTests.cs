@@ -5,9 +5,9 @@ using Xunit;
 
 namespace RagAgentConsole.Tests;
 
-public class AdvisoryTextScorerTests
+public class RetrievalTextScorerTests
 {
-    private static AdvisoryTextScorer CreateScorer(IEnumerable<string>? corpus = null)
+    private static RetrievalTextScorer CreateScorer(IEnumerable<string>? corpus = null)
     {
         var tokenizer = new MixedScriptTokenizer();
         var index = new InMemoryBm25Index(
@@ -28,10 +28,10 @@ public class AdvisoryTextScorerTests
             "antivirus deployment checklist"
         });
 
-        return new AdvisoryTextScorer(index, tokenizer);
+        return new RetrievalTextScorer(index, tokenizer);
     }
 
-    private static readonly AdvisoryTextScorer Scorer = CreateScorer();
+    private static readonly RetrievalTextScorer Scorer = CreateScorer();
 
     // ── ScoreAdvisory ────────────────────────────────────────────────────────
 
@@ -177,22 +177,38 @@ public class AdvisoryTextScorerTests
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static AdvisoryVectorSearchRequest BuildAdvisoryRequest(
+    private static RetrievalRequest BuildAdvisoryRequest(
         string? cveId = null,
         IReadOnlyList<string>? keywords = null,
         bool kevOnly = false,
         bool highRiskOnly = false)
-        => new(
+    {
+        var entities = new Dictionary<string, string?>();
+        if (cveId is not null)
+        {
+            entities[SecurityAdvisoryPlanKeys.CveId] = cveId;
+        }
+
+        var filters = new Dictionary<string, string?>();
+        if (kevOnly)
+        {
+            filters[SecurityAdvisoryPlanKeys.RiskFilter] = SecurityAdvisoryFilter.RiskKnownExploited;
+        }
+        else if (highRiskOnly)
+        {
+            filters[SecurityAdvisoryPlanKeys.RiskFilter] = SecurityAdvisoryFilter.RiskCritical;
+        }
+
+        return new(
             Question: "test query",
-            CveId: cveId,
-            Version: null,
-            KevOnly: kevOnly,
-            HighRiskOnly: highRiskOnly,
             Keywords: keywords ?? [],
+            Entities: entities,
+            Filters: filters,
             QueryEmbedding: [],
             MaxResults: 5,
             ModuleName: KnowledgeModuleNames.CveAdvisory,
             RetrievalMode: RetrievalModes.Hybrid);
+    }
 
     private static SecurityAdvisory BuildAdvisory(
         string? cveId = null,

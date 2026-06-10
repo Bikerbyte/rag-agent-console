@@ -64,6 +64,13 @@
                     <span>@L["對話輸入提示"]</span>
                     <input asp-for="Input.ChatPlaceholder" class="form-control" placeholder="@Model.DefaultAgentOptions.ChatPlaceholder" />
                 </label>
+                <label class="field-block">
+                    <span>@L["預設知識領域"]</span>
+                    <select asp-for="Input.DefaultDomain" class="form-select">
+                        <option value="security_advisory">security_advisory</option>
+                        <option value="generic_knowledge">generic_knowledge</option>
+                    </select>
+                </label>
                 <div class="field-block field-span-2">
                     <div class="settings-prompt-header">
                         <span>@L["查詢規劃提示詞"]</span>

@@ -7,14 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace RagAgentConsole.Services;
 
-public class PgVectorAdvisoryVectorStore(
+public class PgVectorRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
-    IAdvisoryTextScorer scorer,
-    ILogger<PgVectorAdvisoryVectorStore> logger) : IAdvisoryVectorStore
+    IRetrievalTextScorer scorer,
+    IRagDomainRegistry domainRegistry,
+    ILogger<PgVectorRagVectorStore> logger) : IRagVectorStore
 {
-    public async Task<IReadOnlyList<AdvisoryVectorSearchCandidate>> SearchAsync(
-        AdvisoryVectorSearchRequest request,
+    public async Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
         CancellationToken cancellationToken = default)
     {
         if (request.QueryEmbedding.Length == 0)
@@ -27,7 +28,7 @@ public class PgVectorAdvisoryVectorStore(
         var queryVector = BuildVectorLiteral(request.QueryEmbedding);
         var vectorStoreOptions = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var limit = Math.Clamp(vectorStoreOptions.CandidateLimit, 50, 10000);
-        var candidates = new List<AdvisoryVectorSearchCandidate>();
+        var candidates = new List<RetrievalCandidate>();
 
         if (ShouldSearchAdvisories(request))
         {
@@ -86,9 +87,12 @@ public class PgVectorAdvisoryVectorStore(
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         foreach (var chunk in documentChunks)
         {
-            if (chunk.Document is null || !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText))
+            if (chunk.Document is null ||
+                !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText) ||
+                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
             {
                 continue;
             }
@@ -179,15 +183,16 @@ public class PgVectorAdvisoryVectorStore(
         }
     }
 
-    private static bool ShouldSearchAdvisories(AdvisoryVectorSearchRequest request)
+    private static bool ShouldSearchAdvisories(RetrievalRequest request)
         => string.IsNullOrWhiteSpace(request.ModuleName) ||
            string.Equals(request.ModuleName, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase);
 
     private static bool MatchesAdvisoryRequest(
-        AdvisoryVectorSearchRequest request,
+        RetrievalRequest request,
         SecurityAdvisory advisory,
         string chunkText)
     {
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
         if (request.PublishedFrom.HasValue && advisory.PublishedAt < request.PublishedFrom.Value)
         {
             return false;
@@ -198,19 +203,19 @@ public class PgVectorAdvisoryVectorStore(
             return false;
         }
 
-        if (request.CveYear.HasValue &&
+        if (advisoryFilter.CveYear.HasValue &&
             (advisory.CveId is null ||
-             !advisory.CveId.StartsWith($"CVE-{request.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
+             !advisory.CveId.StartsWith($"CVE-{advisoryFilter.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
 
-        if (request.KevOnly && !advisory.IsKnownExploited)
+        if (advisoryFilter.KevOnly && !advisory.IsKnownExploited)
         {
             return false;
         }
 
-        if (request.HighRiskOnly &&
+        if (advisoryFilter.HighRiskOnly &&
             !advisory.IsKnownExploited &&
             advisory.CvssScore < 9 &&
             !string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase))
@@ -223,12 +228,12 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = AdvisoryTextScorer.BuildStructuredAdvisoryText(advisory);
+        var searchable = RetrievalTextScorer.BuildStructuredAdvisoryText(advisory);
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool MatchesDocumentRequest(
-        AdvisoryVectorSearchRequest request,
+        RetrievalRequest request,
         KnowledgeDocument document,
         string chunkText)
     {
@@ -248,7 +253,7 @@ public class PgVectorAdvisoryVectorStore(
             return true;
         }
 
-        var searchable = AdvisoryTextScorer.BuildStructuredDocumentText(document) + " " + chunkText;
+        var searchable = RetrievalTextScorer.BuildStructuredDocumentText(document) + " " + chunkText;
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 }

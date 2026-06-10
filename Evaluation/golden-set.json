@@ -1,62 +1,62 @@
 {
   "$schema": "Evaluation cases for retrieval quality.",
-  "description": "Golden set used by RetrievalEvaluationService to compute Hit@K and MRR. Each case asserts that at least one of the expected CVE IDs or document titles appears in the top-K results. Cases mix English, Chinese, follow-up phrasing, and intent variation so that the metrics surface real retrieval weaknesses (rare-vendor recall, KEV filtering, version handling) rather than rewarding only the easy queries.",
+  "description": "Golden set used to compute Hit@K and MRR. Relevant results are identified through document titles, content phrases, or domain metadata so the evaluation remains independent of any specific knowledge domain.",
   "cases": [
     {
-      "id": "kev-citrix-netscaler",
-      "question": "Citrix NetScaler 有哪些已知遭利用的弱點",
-      "expectedCveIds": ["CVE-2023-3519", "CVE-2023-4966"],
-      "expectedDocumentTitles": [],
-      "notes": "KEV-only query in Chinese; expects vector + sparse to surface high-profile Citrix CVEs."
+      "id": "password-expiration",
+      "question": "一般員工密碼多久會過期？",
+      "expectedDocumentTitles": ["07-password-expiration-policy"],
+      "expectedContentKeywords": ["一般員工帳號 | 90 天"],
+      "notes": "Tests retrieval of a precise policy duration."
     },
     {
-      "id": "fortinet-recent",
-      "question": "recent fortinet fortigate vulnerabilities",
-      "expectedCveIds": ["CVE-2024-21762", "CVE-2024-23113"],
-      "expectedDocumentTitles": [],
-      "notes": "English vendor + product query; tests sparse vendor matching."
+      "id": "privileged-password-length",
+      "question": "管理者密碼最少要幾個字元",
+      "expectedDocumentTitles": ["05-password-lockout-standard", "07-password-expiration-policy"],
+      "expectedContentKeywords": ["管理者與特權帳號密碼至少 20 個字元", "管理者與特權帳號密碼至少 22 個字元"],
+      "notes": "Allows either applicable password policy document."
     },
     {
-      "id": "microsoft-defender-dos",
-      "question": "Microsoft Defender denial of service",
-      "expectedCveIds": ["CVE-2026-45498"],
-      "expectedDocumentTitles": [],
-      "notes": "Specific product + vulnerability class; common-term query relies on BM25 IDF."
+      "id": "tier-one-recovery",
+      "question": "Tier 1 核心系統的 RTO 和 RPO 是多少？",
+      "expectedDocumentTitles": ["03-backup-recovery-standard"],
+      "expectedContentKeywords": ["2 小時 | 15 分鐘"],
+      "notes": "Tests table-value retrieval."
     },
     {
-      "id": "cve-direct-lookup",
-      "question": "What is CVE-2024-21762?",
-      "expectedCveIds": ["CVE-2024-21762"],
-      "expectedDocumentTitles": [],
-      "notes": "Direct CVE ID lookup; structural CVE bonus should make this trivial."
+      "id": "sev-one-reporting",
+      "question": "SEV-1 事件要多久內通報？",
+      "expectedDocumentTitles": ["02-incident-severity-matrix"],
+      "expectedContentKeywords": ["10 分鐘內"],
+      "notes": "Tests retrieval of an incident response deadline."
     },
     {
-      "id": "high-risk-cisco",
-      "question": "最近 Cisco 有哪些 critical 等級的弱點",
-      "expectedCveIds": ["CVE-2024-20356", "CVE-2024-20399"],
-      "expectedDocumentTitles": [],
-      "notes": "Vendor + severity filter; depends on high-risk structural bonus."
+      "id": "administrator-log-retention",
+      "question": "管理者操作日誌要保存多久",
+      "expectedDocumentTitles": ["04-log-retention-standard"],
+      "expectedContentKeywords": ["180 天 | 730 天"],
+      "notes": "Tests retention-policy retrieval."
     },
     {
-      "id": "internal-firewall-policy",
-      "question": "firewall policy guide",
-      "expectedCveIds": [],
-      "expectedDocumentTitles": ["Firewall policy", "Firewall configuration guide"],
-      "notes": "Pure knowledge-document query; should not be dominated by CVE results."
+      "id": "third-party-account-disable",
+      "question": "第三方人員離開專案後多久要停用帳號",
+      "expectedDocumentTitles": ["06-third-party-risk-standard"],
+      "expectedContentKeywords": ["第三方帳號必須在 8 小時內停用"],
+      "notes": "Tests SOP-style account offboarding retrieval."
     },
     {
-      "id": "ransomware-context",
-      "question": "ransomware exploited vulnerabilities",
-      "expectedCveIds": ["CVE-2023-4966"],
-      "expectedDocumentTitles": [],
-      "notes": "Tests ransomware tag handling and BM25 over multi-term query."
+      "id": "backup-encryption",
+      "question": "備份資料需要使用什麼加密？",
+      "expectedDocumentTitles": ["03-backup-recovery-standard"],
+      "expectedContentKeywords": ["AES-256 加密"],
+      "notes": "Tests retrieval by a technical control."
     },
     {
-      "id": "version-followup",
-      "question": "netscaler 59.22 版本",
-      "expectedCveIds": ["CVE-2023-3519", "CVE-2023-4966"],
-      "expectedDocumentTitles": [],
-      "notes": "Version-bearing query; planner must keep vendor + product even when version dominates the literal text."
+      "id": "session-timeout",
+      "question": "財務系統閒置多久會自動登出",
+      "expectedDocumentTitles": ["05-password-lockout-standard"],
+      "expectedContentKeywords": ["財務與人資系統閒置 15 分鐘後自動登出"],
+      "notes": "Tests retrieval of a specific operational rule."
     }
   ]
 }

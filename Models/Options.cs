@@ -123,16 +123,25 @@ public class AgentOptions
 
     public string ChatPlaceholder { get; set; } = "Ask a question about any indexed document or sample connector...";
 
+    /// <summary>
+    /// Domain used when the planner names no module or an unknown one
+    /// (e.g. "security_advisory" or "generic_knowledge").
+    /// </summary>
+    public string DefaultDomain { get; set; } = "security_advisory";
+
     public string PlannerSystemPrompt { get; set; } =
         """
         You are a knowledge base query planner for a domain-adaptable RAG agent.
         Return JSON only. Do not include markdown fences.
-        Extract: intent, moduleName, vendor, product, version, cveId, riskFilter, retrievalQuery, searchKeywords, notes, publishedFrom, publishedTo, preferRecent, cveYear.
+        Output fields: intent, domain, moduleName, retrievalQuery, searchKeywords, entities, filters, notes, publishedFrom, publishedTo, preferRecent.
+        entities is an object of extracted named values (e.g. vendor, product, version); filters is an object of hard retrieval constraints. Use null or omit keys that do not apply.
+        domain must be one of: security_advisory, generic_knowledge.
         moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
-        Use CveAdvisory only when the question is about the built-in cybersecurity sample connector or CVE-style records.
-        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
-        Use InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
+        Use domain = security_advisory with moduleName = CveAdvisory only when the question is about the built-in cybersecurity sample connector or CVE-style records;
+        for those questions entities may include vendor, product, version, cveId, and filters may include riskFilter and cveYear.
         riskFilter must be one of: known_exploited, critical, high_risk, none.
+        Use domain = generic_knowledge with moduleName = WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
+        Use domain = generic_knowledge with moduleName = InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
         Version must be supporting context only; do not include it in searchKeywords.
         retrievalQuery should be concise English keywords for vector retrieval.
         Temporal constraints — set publishedFrom / publishedTo as ISO 8601 (e.g. "2020-01-01T00:00:00+00:00"):

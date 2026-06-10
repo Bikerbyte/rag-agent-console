@@ -11,7 +11,7 @@ namespace RagAgentConsole.Services;
 public class SecurityAdvisorySyncService(
     ApplicationDbContext dbContext,
     IEnumerable<ISecurityAdvisorySource> sources,
-    IAdvisoryEmbeddingService embeddingService,
+    IRagEmbeddingService embeddingService,
     IBm25Index bm25Index,
     IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<SecurityAdvisorySyncService> logger) : ISecurityAdvisorySyncService

@@ -19,13 +19,21 @@ public class RetrievalEvaluationCaseEntity
     [MaxLength(500)]
     public required string Question { get; set; }
 
-    /// <summary>Expected CVE IDs, one per line (commas also accepted).</summary>
-    [MaxLength(1200)]
-    public string? ExpectedCveIds { get; set; }
-
     /// <summary>Expected knowledge-document titles, one per line.</summary>
     [MaxLength(2000)]
     public string? ExpectedDocumentTitles { get; set; }
+
+    /// <summary>Expected phrases in a retrieved title or chunk, one per line.</summary>
+    [MaxLength(2000)]
+    public string? ExpectedContentKeywords { get; set; }
+
+    /// <summary>
+    /// Expected domain trace metadata, one key=value pair per line
+    /// (e.g. "department=IT" or "documentType=SOP"). A result is relevant
+    /// when all pairs match its domain metadata.
+    /// </summary>
+    [MaxLength(2000)]
+    public string? ExpectedMetadata { get; set; }
 
     [MaxLength(1000)]
     public string? Notes { get; set; }
@@ -40,9 +48,10 @@ public class RetrievalEvaluationCaseEntity
 /// <summary>Raw form input for creating or editing an evaluation case.</summary>
 public sealed record RetrievalEvaluationCaseDraft(
     string Question,
-    string? ExpectedCveIdsText,
     string? ExpectedDocumentTitlesText,
-    string? Notes);
+    string? Notes,
+    string? ExpectedMetadataText = null,
+    string? ExpectedContentKeywordsText = null);
 
 /// <summary>
 /// A single evaluation case: a query plus the set of identifiers that
@@ -50,21 +59,26 @@ public sealed record RetrievalEvaluationCaseDraft(
 /// </summary>
 /// <param name="Id">Stable identifier used to track cases across eval runs.</param>
 /// <param name="Question">The natural-language query.</param>
-/// <param name="ExpectedCveIds">
-/// CVE IDs that should appear in the top-K. A case passes Hit@K if any
-/// of these IDs appears in the first K results.
-/// </param>
 /// <param name="ExpectedDocumentTitles">
-/// Knowledge document titles that should appear in the top-K, used for
-/// non-CVE knowledge questions.
+/// Knowledge document titles that should appear in the top-K.
 /// </param>
 /// <param name="Notes">Free-form notes explaining the case intent.</param>
+/// <param name="ExpectedMetadata">
+/// Domain trace metadata pairs a result must all match to count as
+/// relevant (e.g. vendor=Citrix). Generic alternative to the id/title
+/// label lists for domains with richer metadata.
+/// </param>
+/// <param name="ExpectedContentKeywords">
+/// Phrases that may appear in a retrieved title or chunk. Any matching
+/// phrase marks the result as relevant.
+/// </param>
 public sealed record RetrievalEvaluationCase(
     string Id,
     string Question,
-    IReadOnlyList<string> ExpectedCveIds,
     IReadOnlyList<string> ExpectedDocumentTitles,
-    string? Notes = null);
+    string? Notes = null,
+    IReadOnlyDictionary<string, string?>? ExpectedMetadata = null,
+    IReadOnlyList<string>? ExpectedContentKeywords = null);
 
 /// <summary>The outcome of running a single case through a retrieval strategy.</summary>
 public sealed record RetrievalEvaluationCaseResult(
@@ -79,7 +93,6 @@ public sealed record RetrievalEvaluationCaseResult(
 public sealed record RetrievalEvaluationMatch(
     int Rank,
     string Title,
-    string? CveId,
     double Score,
     double VectorScore,
     double TextScore,
