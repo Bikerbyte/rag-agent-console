@@ -87,23 +87,6 @@
                             <h2>@L["知識來源"]</h2>
                             <p>@L["點選任一來源即可在下方檢視明細。"]</p>
                         </div>
-                        <a class="btn btn-sm btn-primary" asp-page="/Advisories/Index" asp-route-section="sources">@L["新增文件"]</a>
-                    </div>
-
-                    <div class="managed-document-list">
-                        @* CVE 自動同步收成單一系統託管來源列，放在文件表格上方，與上傳文件分開管理。 *@
-                        <article class="managed-document-row is-managed @(Model.CveSourceSelected ? "is-selected" : string.Empty)">
-                            <a class="managed-document-main" asp-page="/Advisories/Index" asp-route-section="documents">
-                                <strong>@L["資安公告自動同步"]</strong>
-                                <p>CISA KEV / NVD · @Model.TotalCount.ToString("N0") @L["筆"] · @Model.KevCount.ToString("N0") KEV · @Model.CriticalCount.ToString("N0") @L["高危"]</p>
-                            </a>
-                            <div class="document-actions">
-                                <span class="status-pill is-info">@L["系統託管"]</span>
-                                <form method="post" asp-page-handler="Sync">
-                                    <button class="icon-button" type="submit" title="@L["同步"].Value">⟳</button>
-                                </form>
-                            </div>
-                        </article>
                     </div>
 
                     @if (Model.ManagedDocuments.Count == 0)
@@ -254,67 +237,69 @@
                 }
                 else
                 {
-                    <article class="knowledge-card">
-                        <div class="knowledge-card-header">
+                    <details class="knowledge-card advisory-disclosure">
+                        <summary class="advisory-disclosure-summary">
                             <div>
                                 <h2>@L["資安公告自動同步"]</h2>
                                 <p>@L["由系統自動同步並建立索引，無法手動編輯。"]</p>
                             </div>
                             <span class="status-pill is-info">@L["系統託管"]</span>
-                        </div>
+                        </summary>
 
-                        <form class="knowledge-filter" method="get">
-                            <input type="hidden" name="section" value="documents" />
-                            <input class="form-control" type="search" name="q" placeholder="@L["搜尋範例資料 / 廠商 / 產品"].Value" value="@activeQuery" />
-                            <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
-                                <input type="checkbox" name="kev" value="true" checked="@kevActive" />
-                                KEV
-                            </label>
-                            <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
-                                <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
-                                @L["高危"]
-                            </label>
-                            <button class="btn btn-outline-secondary" type="submit">@L["套用"]</button>
-                        </form>
+                        <div class="advisory-disclosure-body">
+                            <form class="knowledge-filter" method="get">
+                                <input type="hidden" name="section" value="documents" />
+                                <input class="form-control" type="search" name="q" placeholder="@L["搜尋範例資料 / 廠商 / 產品"].Value" value="@activeQuery" />
+                                <label class="filter-chip @(kevActive ? "is-active" : string.Empty)">
+                                    <input type="checkbox" name="kev" value="true" checked="@kevActive" />
+                                    KEV
+                                </label>
+                                <label class="filter-chip @(criticalActive ? "is-active" : string.Empty)">
+                                    <input type="checkbox" name="critical" value="true" checked="@criticalActive" />
+                                    @L["高危"]
+                                </label>
+                                <button class="btn btn-outline-secondary" type="submit">@L["套用"]</button>
+                            </form>
 
-                        <div class="knowledge-table">
-                            @if (Model.Advisories.Count == 0)
-                            {
-                                <div class="empty-state">
-                                    <p class="empty-copy">@L["目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。"]</p>
-                                </div>
-                            }
-                            else
-                            {
-                                @foreach (var advisory in Model.Advisories.Take(10))
+                            <div class="knowledge-table">
+                                @if (Model.Advisories.Count == 0)
                                 {
-                                    var riskParts = new List<string>();
-                                    if (!string.IsNullOrWhiteSpace(advisory.Severity))
-                                    {
-                                        riskParts.Add(advisory.Severity);
-                                    }
-                                    if (advisory.CvssScore.HasValue)
-                                    {
-                                        riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
-                                    }
-                                    if (advisory.IsKnownExploited)
-                                    {
-                                        riskParts.Add("KEV");
-                                    }
-
-                                    <article class="advisory-row">
-                                        <div>
-                                            <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
-                                            <p>@advisory.Title</p>
-                                        </div>
-                                        <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
-                                            @(riskParts.Count == 0 ? L["未標示"].Value : string.Join(" / ", riskParts))
-                                        </span>
-                                    </article>
+                                    <div class="empty-state">
+                                        <p class="empty-copy">@L["目前沒有符合條件的範例資料。可以先同步資料或調整搜尋條件。"]</p>
+                                    </div>
                                 }
-                            }
+                                else
+                                {
+                                    @foreach (var advisory in Model.Advisories.Take(10))
+                                    {
+                                        var riskParts = new List<string>();
+                                        if (!string.IsNullOrWhiteSpace(advisory.Severity))
+                                        {
+                                            riskParts.Add(advisory.Severity);
+                                        }
+                                        if (advisory.CvssScore.HasValue)
+                                        {
+                                            riskParts.Add($"CVSS {advisory.CvssScore:0.0}");
+                                        }
+                                        if (advisory.IsKnownExploited)
+                                        {
+                                            riskParts.Add("KEV");
+                                        }
+
+                                        <article class="advisory-row">
+                                            <div>
+                                                <strong>@(advisory.CveId ?? advisory.ExternalId)</strong>
+                                                <p>@advisory.Title</p>
+                                            </div>
+                                            <span class="status-pill @(advisory.IsKnownExploited || advisory.CvssScore >= 9 ? "is-danger" : "is-neutral")">
+                                                @(riskParts.Count == 0 ? L["未標示"].Value : string.Join(" / ", riskParts))
+                                            </span>
+                                        </article>
+                                    }
+                                }
+                            </div>
                         </div>
-                    </article>
+                    </details>
                 }
             </section>
         }

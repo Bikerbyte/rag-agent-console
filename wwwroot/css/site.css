@@ -1117,6 +1117,57 @@ hr {
   font-size: 0.88rem;
 }
 
+.advisory-disclosure {
+  padding: 0;
+  overflow: hidden;
+}
+
+.advisory-disclosure-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 3rem 1rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+}
+
+.advisory-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.advisory-disclosure-summary::after {
+  content: "+";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-soft);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.advisory-disclosure[open] .advisory-disclosure-summary::after {
+  content: "-";
+}
+
+.advisory-disclosure-summary h2 {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.advisory-disclosure-summary p {
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.advisory-disclosure-body {
+  padding: 1rem;
+  border-top: 1px solid var(--panel-border);
+}
+
 .knowledge-preview-panel {
   position: sticky;
   top: 4.4rem;

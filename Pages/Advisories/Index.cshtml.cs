@@ -32,9 +32,6 @@ public class IndexModel(
     public KnowledgeDocument? SelectedDocument { get; private set; }
     public string? SelectedDocumentSample { get; private set; }
 
-    // 知識庫已合併為單一來源清單：未選取任何文件時，預設顯示「資安公告自動同步」這個系統託管來源的明細。
-    public bool CveSourceSelected => SelectedDocument is null;
-
     [BindProperty]
     public FileKnowledgeInput FileInput { get; set; } = new();
 
