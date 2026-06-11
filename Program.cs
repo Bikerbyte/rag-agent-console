@@ -17,7 +17,6 @@ var appRuntimeSection = builder.Configuration.GetSection(AppRuntimeOptions.Secti
 var appRuntimeOptions = appRuntimeSection.Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
 var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
-appRuntimeOptions.ApplyRuntimeProfile(appRuntimeSection);
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
@@ -44,11 +43,7 @@ builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentO
 builder.Services.Configure<VectorStoreOptions>(builder.Configuration.GetSection(VectorStoreOptions.SectionName));
 builder.Services.Configure<ObservabilityOptions>(builder.Configuration.GetSection(ObservabilityOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
-builder.Services.PostConfigure<AppRuntimeOptions>(options =>
-{
-    options.ApplyRuntimeProfile(appRuntimeSection);
-    options.InstanceName = options.GetEffectiveInstanceName();
-});
+builder.Services.PostConfigure<AppRuntimeOptions>(options => options.InstanceName = options.GetEffectiveInstanceName());
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -172,12 +167,10 @@ builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingS
 builder.Services.AddScoped<IKnowledgeDocumentIngestionService, KnowledgeDocumentIngestionService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
 builder.Services.AddScoped<IRagAgentService, RagAgentService>();
-builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
-builder.Services.AddHostedService<RuntimeNodeHeartbeatBackgroundService>();
 
-// 背景工作角色先用設定切開，之後部署到多台 VM 時比較不會互相撞工作。
+// 背景工作角色用環境變數切開：同一個 image 可以只跑 web（ingress）或只跑 worker。
 if (appRuntimeOptions.EnableTelegramWebhookIngress && telegramBotOptions.UseWebhookMode)
 {
     builder.Services.AddHostedService<TelegramWebhookRegistrationBackgroundService>();
@@ -309,11 +302,6 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     StartedAt = applicationStartedAt,
     Runtime = new
     {
-        runtimeOptions.Value.Profile,
-        runtimeOptions.Value.EnableLeadershipLease,
-        runtimeOptions.Value.LeaseDurationSeconds,
-        runtimeOptions.Value.LeaseRenewIntervalSeconds,
-        runtimeOptions.Value.LeaseAcquireRetrySeconds,
         runtimeOptions.Value.EnableTelegramWebhookIngress,
         runtimeOptions.Value.EnableTelegramPollingWorker,
         runtimeOptions.Value.EnableTelegramUpdateQueueWorker,
@@ -322,33 +310,6 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     },
     Urls = app.Urls
 }));
-
-app.MapGet("/api/runtime/leases", async (ApplicationDbContext dbContext, CancellationToken cancellationToken) =>
-{
-    var now = DateTimeOffset.UtcNow;
-    var leases = await dbContext.RuntimeLeadershipLeases
-        .OrderBy(item => item.LeaseName)
-        .Select(item => new
-        {
-            item.LeaseName,
-            item.OwnerInstanceName,
-            item.AcquiredAt,
-            item.RenewedAt,
-            item.ExpiresAt,
-            IsActive = item.ExpiresAt > now,
-            ExpiresInSeconds = item.ExpiresAt <= now
-                ? 0
-                : Math.Max(0, (int)Math.Round((item.ExpiresAt - now).TotalSeconds))
-        })
-        .ToListAsync(cancellationToken);
-
-    return Results.Ok(new
-    {
-        ServerTime = now,
-        Count = leases.Count,
-        Leases = leases
-    });
-});
 
 // 啟動時輸出一段 banner，方便看本機 console 或 App Service log。
 app.Lifetime.ApplicationStarted.Register(() =>
@@ -370,13 +331,12 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => Profile: {Profile}, Roles: {RoleSummary}, LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s)",
-        appRuntimeOptions.Profile,
-        appRuntimeOptions.BuildRoleSummary(),
-        appRuntimeOptions.EnableLeadershipLease,
-        appRuntimeOptions.LeaseDurationSeconds,
-        appRuntimeOptions.LeaseRenewIntervalSeconds,
-        appRuntimeOptions.LeaseAcquireRetrySeconds);
+        "Runtime => WebhookIngress: {EnableTelegramWebhookIngress}, PollingWorker: {EnableTelegramPollingWorker}, QueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        appRuntimeOptions.EnableTelegramWebhookIngress,
+        appRuntimeOptions.EnableTelegramPollingWorker,
+        appRuntimeOptions.EnableTelegramUpdateQueueWorker,
+        appRuntimeOptions.EnableOfficialDataSyncWorker,
+        appRuntimeOptions.EnableNotificationWorker);
     app.Logger.LogInformation(
         "Telegram => UseWebhookMode: {UseWebhookMode}, WebhookPath: {WebhookPath}",
         telegramBotOptions.UseWebhookMode,

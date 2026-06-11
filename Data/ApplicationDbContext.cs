@@ -8,8 +8,6 @@ namespace RagAgentConsole.Data;
 /// </summary>
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public DbSet<RuntimeLeadershipLease> RuntimeLeadershipLeases => Set<RuntimeLeadershipLease>();
-    public DbSet<RuntimeNodeHeartbeat> RuntimeNodeHeartbeats => Set<RuntimeNodeHeartbeat>();
     public DbSet<TelegramChatSubscription> TelegramChatSubscriptions => Set<TelegramChatSubscription>();
     public DbSet<TelegramUpdateInbox> TelegramUpdateInboxes => Set<TelegramUpdateInbox>();
     public DbSet<PushLog> PushLogs => Set<PushLog>();
@@ -34,15 +32,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<TelegramUpdateInbox>()
             .HasIndex(updateInbox => updateInbox.UpdateId)
             .IsUnique();
-
-        // 後台要集中顯示節點狀態，所以 instance name 也保持唯一。
-        modelBuilder.Entity<RuntimeNodeHeartbeat>()
-            .HasIndex(heartbeat => heartbeat.InstanceName)
-            .IsUnique();
-
-        // 每種 scheduled job 的租約名稱只保留一筆，讓多節點只會有一個有效持有者。
-        modelBuilder.Entity<RuntimeLeadershipLease>()
-            .HasKey(lease => lease.LeaseName);
 
         modelBuilder.Entity<AppSetting>()
             .HasIndex(setting => setting.SettingKey)

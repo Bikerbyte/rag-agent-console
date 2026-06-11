@@ -18,7 +18,6 @@ public class IndexModel(
     public int KnownExploitedCount { get; private set; }
     public int RagChunkCount { get; private set; }
     public int ChatCount { get; private set; }
-    public int ActiveNodeCount { get; private set; }
     public int PendingTelegramUpdateCount { get; private set; }
     public string EnvironmentName { get; private set; } = string.Empty;
     public string InstanceName { get; private set; } = string.Empty;
@@ -37,13 +36,10 @@ public class IndexModel(
         AgentName = agentOptions.AgentName;
         AgentTagline = agentOptions.AgentTagline;
 
-        var activeThreshold = DateTimeOffset.UtcNow.AddSeconds(-45);
-
         AdvisoryCount = await dbContext.SecurityAdvisories.CountAsync();
         KnownExploitedCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.IsKnownExploited);
         RagChunkCount = await dbContext.SecurityAdvisoryChunks.CountAsync();
         ChatCount = await dbContext.TelegramChatSubscriptions.CountAsync();
-        ActiveNodeCount = await dbContext.RuntimeNodeHeartbeats.CountAsync(item => item.LastSeenTime >= activeThreshold);
         PendingTelegramUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
 
         var latestAdvisorySync = await dbContext.SyncJobLogs
