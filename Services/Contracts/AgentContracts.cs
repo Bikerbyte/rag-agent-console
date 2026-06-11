@@ -21,21 +21,6 @@ public interface IRagEmbeddingService
     Task<float[]> BuildEmbeddingAsync(string text, CancellationToken cancellationToken = default);
 }
 
-public interface IRagAgentService
-{
-    Task<string> BuildReplyAsync(
-        string messageText,
-        string? chatId = null,
-        IReadOnlyList<AgentConversationMessage>? history = null,
-        CancellationToken cancellationToken = default);
-
-    Task<AgentAnswerResult> BuildReplyWithTraceAsync(
-        string messageText,
-        string? chatId = null,
-        IReadOnlyList<AgentConversationMessage>? history = null,
-        CancellationToken cancellationToken = default);
-}
-
 public interface IRagAnswerService
 {
     Task<string> BuildAnswerAsync(

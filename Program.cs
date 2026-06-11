@@ -166,7 +166,6 @@ builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTex
 builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingService>();
 builder.Services.AddScoped<IKnowledgeDocumentIngestionService, KnowledgeDocumentIngestionService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
-builder.Services.AddScoped<IRagAgentService, RagAgentService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
 

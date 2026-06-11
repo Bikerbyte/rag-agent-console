@@ -11,7 +11,7 @@ namespace RagAgentConsole.Services;
 /// </summary>
 public class TelegramUpdateProcessingService(
     ApplicationDbContext dbContext,
-    IRagAgentService ragAgent,
+    IRagAnswerService answerService,
     ITelegramBotClient telegramBotClient,
     IOptions<AppRuntimeOptions> runtimeOptions,
     ILogger<TelegramUpdateProcessingService> logger) : ITelegramUpdateProcessingService
@@ -49,7 +49,7 @@ public class TelegramUpdateProcessingService(
         try
         {
             var chatId = chat.Id.ToString();
-            var replyText = await ragAgent.BuildReplyAsync(text, chatId, cancellationToken: cancellationToken);
+            var replyText = await answerService.BuildAnswerAsync(text, cancellationToken: cancellationToken);
             var sendResult = await telegramBotClient.SendTextMessageAsync(chatId, replyText, cancellationToken);
 
             dbContext.PushLogs.Add(new PushLog

@@ -9,7 +9,7 @@ namespace RagAgentConsole.Pages.Chat;
 
 public class IndexModel(
     IAppSettingsService appSettingsService,
-    IRagAgentService ragAgent,
+    IRagAnswerService answerService,
     ILogger<IndexModel> logger) : PageModel
 {
     public bool IsAiChatEnabled { get; private set; }
@@ -89,7 +89,7 @@ public class IndexModel(
         var userMessage = AgentInput.Message!.Trim();
         messages.Add(new AgentChatMessageViewModel("user", userMessage));
 
-        var agentReply = await ragAgent.BuildReplyWithTraceAsync(userMessage, "web-chat", history, cancellationToken);
+        var agentReply = await answerService.BuildAnswerWithTraceAsync(userMessage, history, cancellationToken);
         var agentChatMessage = new AgentChatMessageViewModel("assistant", agentReply.Content, AgentTraceViewModel.FromTrace(agentReply.Trace));
         messages.Add(agentChatMessage);
         return agentChatMessage;
