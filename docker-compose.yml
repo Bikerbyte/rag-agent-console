@@ -43,13 +43,24 @@ services:
       VectorStore__Provider: ${VECTOR_STORE_PROVIDER:-EfJson}
       VectorStore__CandidateLimit: ${VECTOR_STORE_CANDIDATE_LIMIT:-3000}
       VectorStore__UseJsonFallback: ${VECTOR_STORE_USE_JSON_FALLBACK:-true}
-      Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-false}
+      Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-true}
       Observability__EnableConsoleExporter: ${ENABLE_OPEN_TELEMETRY_CONSOLE_EXPORTER:-false}
+      Observability__OtlpEndpoint: ${OTEL_OTLP_ENDPOINT:-http://lgtm:4317}
       Observability__ServiceName: ${OPEN_TELEMETRY_SERVICE_NAME:-RagAgentConsole}
     ports:
       - "${APP_PORT:-8080}:8080"
     volumes:
       - app_data:/app/App_Data
+    restart: unless-stopped
+
+  # Grafana + Tempo + Prometheus + Loki 一體包：app 的 trace/metric 由 OTLP(4317) 收進來，
+  # Grafana UI 開在 http://localhost:3000（demo 用，匿名登入）。
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: rag-agent-lgtm
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+      - "${OTLP_GRPC_PORT:-4317}:4317"
     restart: unless-stopped
 
   db:

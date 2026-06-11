@@ -79,6 +79,10 @@ public class ObservabilityOptions
 
     public bool EnableOpenTelemetry { get; set; }
     public bool EnableConsoleExporter { get; set; }
+
+    /// <summary>OTLP gRPC endpoint（例如 http://localhost:4317 的 otel-lgtm）。留空就不外送。</summary>
+    public string OtlpEndpoint { get; set; } = string.Empty;
+
     public string ServiceName { get; set; } = "RagAgentConsole";
 }
 

@@ -49,6 +49,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 if (observabilityOptions.EnableOpenTelemetry)
 {
+    var otlpEndpoint = string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint)
+        ? null
+        : new Uri(observabilityOptions.OtlpEndpoint);
+
     builder.Services.AddOpenTelemetry()
         .ConfigureResource(resource => resource.AddService(observabilityOptions.ServiceName))
         .WithTracing(tracing =>
@@ -56,6 +60,11 @@ if (observabilityOptions.EnableOpenTelemetry)
             tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation();
+
+            if (otlpEndpoint is not null)
+            {
+                tracing.AddOtlpExporter(options => options.Endpoint = otlpEndpoint);
+            }
 
             if (observabilityOptions.EnableConsoleExporter)
             {
@@ -68,6 +77,11 @@ if (observabilityOptions.EnableOpenTelemetry)
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation();
+
+            if (otlpEndpoint is not null)
+            {
+                metrics.AddOtlpExporter(options => options.Endpoint = otlpEndpoint);
+            }
 
             if (observabilityOptions.EnableConsoleExporter)
             {
