@@ -5,6 +5,14 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
+public interface IRagQueryPlanner
+{
+    Task<RetrievalPlan> BuildPlanAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+}
+
 public class RagQueryPlanner(
     IAiChatClient aiChatClient,
     IAppSettingsService appSettingsService,

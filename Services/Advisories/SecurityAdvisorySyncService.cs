@@ -8,6 +8,11 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ISecurityAdvisorySyncService
+{
+    Task<SecurityAdvisorySyncResult> SyncAsync(CancellationToken cancellationToken = default);
+}
+
 public class SecurityAdvisorySyncService(
     ApplicationDbContext dbContext,
     IEnumerable<ISecurityAdvisorySource> sources,

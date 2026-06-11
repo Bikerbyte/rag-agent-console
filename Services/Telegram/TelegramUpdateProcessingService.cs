@@ -5,6 +5,11 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ITelegramUpdateProcessingService
+{
+    Task ProcessUpdateAsync(TelegramUpdate update, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// 實際處理 Telegram update 的 service。
 /// 先集中在這裡，後面若要改成 queue 化，搬移會比較容易。

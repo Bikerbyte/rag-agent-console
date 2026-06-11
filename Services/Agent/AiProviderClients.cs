@@ -6,6 +6,19 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface IAiChatClient
+{
+    Task<string?> CompleteAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IRagEmbeddingService
+{
+    Task<float[]> BuildEmbeddingAsync(string text, CancellationToken cancellationToken = default);
+}
+
 public class AiChatClient(
     HttpClient httpClient,
     IAppSettingsService appSettingsService,

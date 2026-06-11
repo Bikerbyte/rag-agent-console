@@ -4,6 +4,11 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ITelegramPushService
+{
+    Task<bool> SendPushAsync(string chatId, string messageTitle, string messageBody, string pushType, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// 送出單筆 Telegram 推播，並把結果寫進 <see cref="PushLog"/>。
 /// </summary>

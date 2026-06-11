@@ -5,6 +5,13 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ISecurityAdvisorySource
+{
+    string SourceName { get; }
+
+    Task<IReadOnlyList<SecurityAdvisoryCandidate>> FetchLatestAsync(CancellationToken cancellationToken = default);
+}
+
 public class CisaKevAdvisorySource(
     HttpClient httpClient,
     IOptions<SecurityAdvisoryOptions> options,

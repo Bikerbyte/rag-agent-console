@@ -6,6 +6,14 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ITelegramUpdateQueueService
+{
+    Task<bool> EnqueueAsync(TelegramUpdate update, string sourceType, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TelegramUpdateInbox>> ClaimBatchAsync(string workerName, int batchSize, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
+    Task MarkProcessedAsync(int inboxId, CancellationToken cancellationToken = default);
+    Task MarkFailedAsync(int inboxId, string errorMessage, bool moveToDeadLetter, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// 用資料庫表暫時承接 Telegram update。
 /// 先讓多台 VM 有共享收件佇列，之後若要換 Service Bus 或 RabbitMQ，主要替換這層即可。

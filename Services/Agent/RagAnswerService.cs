@@ -5,6 +5,21 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public sealed record AgentConversationMessage(string Role, string Content);
+
+public interface IRagAnswerService
+{
+    Task<string> BuildAnswerAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+
+    Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+}
+
 public class RagAnswerService(
     IRagRetrievalService searchService,
     IAppSettingsService appSettingsService,
