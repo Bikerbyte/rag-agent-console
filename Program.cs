@@ -341,8 +341,6 @@ app.Lifetime.ApplicationStarted.Register(() =>
     {
         app.Logger.LogWarning("Telegram ingress is enabled, but TelegramUpdateQueueWorker is disabled. Updates may queue without being processed.");
     }
-    app.Logger.LogInformation("Use Run-Local.cmd to keep a visible console.");
-    app.Logger.LogInformation("Use Status-Local.cmd or Stop-Local.cmd if the port stays occupied.");
     app.Logger.LogInformation("============================================================");
 });
 
