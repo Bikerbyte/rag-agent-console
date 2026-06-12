@@ -67,12 +67,19 @@ public class SecurityAdvisorySyncService(
                     }
 
                     existing.LastSyncedTime = DateTimeOffset.UtcNow;
-                    if (string.Equals(existing.ContentHash, contentHash, StringComparison.Ordinal))
+                    var contentChanged = !string.Equals(existing.ContentHash, contentHash, StringComparison.Ordinal);
+                    var embeddingMissing = existing.Chunks.Count == 0 || existing.Chunks.Any(chunk =>
+                        chunk.Embedding is null || chunk.EmbeddingDimensions <= 0);
+                    if (!contentChanged && !embeddingMissing)
                     {
                         continue;
                     }
 
-                    UpdateAdvisory(existing, candidate, contentHash);
+                    if (contentChanged)
+                    {
+                        UpdateAdvisory(existing, candidate, contentHash);
+                    }
+
                     dbContext.SecurityAdvisoryChunks.RemoveRange(existing.Chunks);
                     existing.Chunks.Clear();
                     existing.Chunks.Add(await BuildChunkAsync(existing, cancellationToken));

@@ -108,10 +108,13 @@ dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433
 docker build -t rag-agent-console:local .
 # minikube 要先 minikube image load rag-agent-console:local；kind 用 kind load docker-image
 kubectl apply -k k8s/demo
+kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate --timeout=180s
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
 web / worker / migration Job 用同一個 image，靠環境變數切角色。接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 自行覆寫；Secret 不要 commit 真值。
+
+升級 image 時要讓 migration Job 重跑；若前一個 Job 尚未被 TTL 清除，先執行 `kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found`，再重新 `kubectl apply -k ...` 並等待 Job 完成。
 
 ## 專案結構
 
