@@ -31,6 +31,8 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 });
 
 // Add Service Area - 共用平台服務
+// keys 落在 App_Data：docker compose 掛 app_data volume、k8s 掛 PVC 到 /app/App_Data。
+// 沒有共用儲存時 web 只能跑單 replica，否則 antiforgery/cookie 會在 pod 之間失效。
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys")));
 
@@ -205,14 +207,27 @@ var app = builder.Build();
 // 在第一個 request 進來前，先把本機資料夾和 seed data 準備好。
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data", "DataProtectionKeys"));
 
-using (var scope = app.Services.CreateScope())
+// `migrate` 進入點：給 k8s migration Job / initContainer 用，跑完 schema 與 seed 就退出。
+// 平常啟動則由 Database:MigrateOnStartup 控制（預設 true，方便本機與 docker compose；
+// k8s 多 replica 時設 false，避免多個 pod 同時搶 migration）。
+var migrateOnly = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
+if (migrateOnly || app.Configuration.GetValue("Database:MigrateOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    // 把內建 golden set 灌成第一批可編輯的評估案例；之後就交由使用者在後台維護。
+    // 把內建 golden set 灌成第一批可編輯的評估案例（冪等：有資料就跳過），
+    // 之後交由使用者在後台維護。
     var evaluationService = scope.ServiceProvider.GetRequiredService<IRetrievalEvaluationService>();
     await evaluationService.SeedCasesIfEmptyAsync();
+}
+
+if (migrateOnly)
+{
+    app.Logger.LogInformation("Database migration and seeding completed; exiting (migrate mode).");
+    await app.DisposeAsync();
+    return;
 }
 
 // Razor Build / 啟動管線
