@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -12,6 +13,9 @@ namespace RagAgentConsole.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("Npgsql:PostgresExtension:vector", ",,");
+
             migrationBuilder.CreateTable(
                 name: "AppSettings",
                 columns: table => new
@@ -203,7 +207,8 @@ namespace RagAgentConsole.Migrations
                     ChunkKind = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     ChunkIndex = table.Column<int>(type: "integer", nullable: false),
                     ChunkText = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
-                    EmbeddingJson = table.Column<string>(type: "text", nullable: false),
+                    Embedding = table.Column<Vector>(type: "vector", nullable: true),
+                    EmbeddingDimensions = table.Column<int>(type: "integer", nullable: false),
                     CreatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -226,7 +231,8 @@ namespace RagAgentConsole.Migrations
                     SecurityAdvisoryId = table.Column<int>(type: "integer", nullable: false),
                     ChunkKind = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     ChunkText = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
-                    EmbeddingJson = table.Column<string>(type: "text", nullable: false),
+                    Embedding = table.Column<Vector>(type: "vector", nullable: true),
+                    EmbeddingDimensions = table.Column<int>(type: "integer", nullable: false),
                     CreatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>

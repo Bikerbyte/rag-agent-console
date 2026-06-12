@@ -256,7 +256,8 @@ public class KnowledgeDocumentIngestionService(
         foreach (var chunk in document.Chunks.OrderBy(item => item.ChunkIndex))
         {
             var embedding = await embeddingService.BuildEmbeddingAsync(BuildEmbeddingText(document, chunk.ChunkText), cancellationToken);
-            chunk.EmbeddingJson = JsonSerializer.Serialize(embedding);
+            chunk.Embedding = embedding.Length > 0 ? new Pgvector.Vector(embedding) : null;
+            chunk.EmbeddingDimensions = embedding.Length;
         }
 
         document.Status = "Available";
@@ -324,7 +325,8 @@ public class KnowledgeDocumentIngestionService(
             {
                 ChunkIndex = index,
                 ChunkText = Trim(chunkText, 4000),
-                EmbeddingJson = JsonSerializer.Serialize(embedding),
+                Embedding = embedding.Length > 0 ? new Pgvector.Vector(embedding) : null,
+                EmbeddingDimensions = embedding.Length,
                 CreatedTime = now
             });
         }

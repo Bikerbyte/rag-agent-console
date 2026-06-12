@@ -1,5 +1,8 @@
+using System.Text.Json;
 using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Pgvector;
 
 namespace RagAgentConsole.Data;
 
@@ -22,6 +25,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        if (Database.IsRelational())
+        {
+            // 讓 migration 自帶 CREATE EXTENSION vector，部署時不需要手動準備。
+            modelBuilder.HasPostgresExtension("vector");
+        }
+        else
+        {
+            // 單元測試用 in-memory provider 時沒有 vector 型別，退化成 JSON 字串存放。
+            var vectorToJson = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<Vector, string>(
+                vector => JsonSerializer.Serialize(vector.ToArray(), (JsonSerializerOptions?)null),
+                json => new Vector(JsonSerializer.Deserialize<float[]>(json, (JsonSerializerOptions?)null) ?? Array.Empty<float>()));
+            var vectorComparer = new ValueComparer<Vector?>(
+                (left, right) => Equals(left, right),
+                vector => vector == null ? 0 : vector.GetHashCode());
+
+            modelBuilder.Entity<SecurityAdvisoryChunk>()
+                .Property(chunk => chunk.Embedding)
+                .HasConversion(vectorToJson!, vectorComparer);
+            modelBuilder.Entity<KnowledgeDocumentChunk>()
+                .Property(chunk => chunk.Embedding)
+                .HasConversion(vectorToJson!, vectorComparer);
+        }
 
         // 每個 Telegram chat 只保留一筆訂閱設定，後續管理和推播判斷會簡單很多。
         modelBuilder.Entity<TelegramChatSubscription>()

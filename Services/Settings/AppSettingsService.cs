@@ -100,9 +100,7 @@ public class AppSettingsService(
     {
         var values = await GetAllAsync(cancellationToken);
         var options = Clone(vectorStoreOptions.Value);
-        options.Provider = Get(values, "VectorStore:Provider", options.Provider);
         options.CandidateLimit = GetInt(values, "VectorStore:CandidateLimit", options.CandidateLimit);
-        options.UseJsonFallback = GetBool(values, "VectorStore:UseJsonFallback", options.UseJsonFallback);
         return options;
     }
 
@@ -212,9 +210,7 @@ public class AppSettingsService(
     private static VectorStoreOptions Clone(VectorStoreOptions source)
         => new()
         {
-            Provider = source.Provider,
-            CandidateLimit = source.CandidateLimit,
-            UseJsonFallback = source.UseJsonFallback
+            CandidateLimit = source.CandidateLimit
         };
 
     private static ObservabilityOptions Clone(ObservabilityOptions source)
@@ -222,6 +218,7 @@ public class AppSettingsService(
         {
             EnableOpenTelemetry = source.EnableOpenTelemetry,
             EnableConsoleExporter = source.EnableConsoleExporter,
+            OtlpEndpoint = source.OtlpEndpoint,
             ServiceName = source.ServiceName
         };
 

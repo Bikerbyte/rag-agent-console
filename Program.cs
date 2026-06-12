@@ -99,7 +99,8 @@ if (string.IsNullOrWhiteSpace(defaultConnection))
         "For local development start one with: docker compose -f docker-compose.deps.yml up -d");
 }
 
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(defaultConnection));
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(defaultConnection, npgsql => npgsql.UseVector()));
 
 // Add Service Area - 對外 HTTP Client
 builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((serviceProvider, httpClient) =>
@@ -157,12 +158,10 @@ builder.Services.AddSingleton<ITokenizer, MixedScriptTokenizer>();
 builder.Services.AddSingleton<IBm25Index, InMemoryBm25Index>();
 builder.Services.AddHostedService<Bm25IndexInitializationService>();
 builder.Services.AddScoped<IRetrievalTextScorer, RetrievalTextScorer>();
-builder.Services.AddScoped<EfRagVectorStore>();
-builder.Services.AddScoped<PgVectorRagVectorStore>();
 builder.Services.AddSingleton<IRagDomain, SecurityAdvisoryDomain>();
 builder.Services.AddSingleton<IRagDomain, GenericKnowledgeDomain>();
 builder.Services.AddSingleton<IRagDomainRegistry, RagDomainRegistry>();
-builder.Services.AddScoped<IRagVectorStore, ConfiguredRagVectorStore>();
+builder.Services.AddScoped<IRagVectorStore, PgVectorRagVectorStore>();
 builder.Services.AddScoped<IRagQueryPlanner, RagQueryPlanner>();
 builder.Services.AddScoped<IRagRetrievalService, RagRetrievalService>();
 builder.Services.AddScoped<IRetrievalEvaluationService, RetrievalEvaluationService>();

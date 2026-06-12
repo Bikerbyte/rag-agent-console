@@ -74,7 +74,10 @@ public class SecurityAdvisoryChunk
     [MaxLength(4000)]
     public required string ChunkText { get; set; }
 
-    public required string EmbeddingJson { get; set; }
+    /// <summary>pgvector 欄位。維度由 embedding provider 決定，查詢時用 <see cref="EmbeddingDimensions"/> 過濾不相容的舊資料。</summary>
+    public Pgvector.Vector? Embedding { get; set; }
+
+    public int EmbeddingDimensions { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
 
     public SecurityAdvisory? Advisory { get; set; }

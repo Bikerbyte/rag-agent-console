@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 using RagAgentConsole.Data;
 
 #nullable disable
@@ -20,6 +21,7 @@ namespace RagAgentConsole.Migrations
                 .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("RagAgentConsole.Models.AppSetting", b =>
@@ -154,9 +156,11 @@ namespace RagAgentConsole.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("EmbeddingJson")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector");
+
+                    b.Property<int>("EmbeddingDimensions")
+                        .HasColumnType("integer");
 
                     b.Property<int>("KnowledgeDocumentId")
                         .HasColumnType("integer");
@@ -389,9 +393,11 @@ namespace RagAgentConsole.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("EmbeddingJson")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector");
+
+                    b.Property<int>("EmbeddingDimensions")
+                        .HasColumnType("integer");
 
                     b.Property<int>("SecurityAdvisoryId")
                         .HasColumnType("integer");

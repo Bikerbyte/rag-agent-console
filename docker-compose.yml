@@ -40,9 +40,7 @@ services:
       AiProvider__OllamaApiBaseUrl: ${OLLAMA_API_BASE_URL:-http://host.docker.internal:11434}
       AiProvider__OllamaChatModel: ${OLLAMA_CHAT_MODEL:-llama3.1}
       AiProvider__OllamaEmbeddingModel: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-      VectorStore__Provider: ${VECTOR_STORE_PROVIDER:-EfJson}
       VectorStore__CandidateLimit: ${VECTOR_STORE_CANDIDATE_LIMIT:-3000}
-      VectorStore__UseJsonFallback: ${VECTOR_STORE_USE_JSON_FALLBACK:-true}
       Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-true}
       Observability__EnableConsoleExporter: ${ENABLE_OPEN_TELEMETRY_CONSOLE_EXPORTER:-false}
       Observability__OtlpEndpoint: ${OTEL_OTLP_ENDPOINT:-http://lgtm:4317}

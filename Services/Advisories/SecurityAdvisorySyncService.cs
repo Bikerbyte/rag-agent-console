@@ -175,7 +175,8 @@ public class SecurityAdvisorySyncService(
         {
             ChunkKind = "AdvisorySummary",
             ChunkText = chunkText,
-            EmbeddingJson = JsonSerializer.Serialize(embedding),
+            Embedding = embedding.Length > 0 ? new Pgvector.Vector(embedding) : null,
+            EmbeddingDimensions = embedding.Length,
             CreatedTime = DateTimeOffset.UtcNow
         };
     }

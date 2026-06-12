@@ -62,15 +62,7 @@ public class VectorStoreOptions
 {
     public const string SectionName = "VectorStore";
 
-    public string Provider { get; set; } = VectorStoreProviderNames.EfJson;
     public int CandidateLimit { get; set; } = 3000;
-    public bool UseJsonFallback { get; set; } = true;
-}
-
-public static class VectorStoreProviderNames
-{
-    public const string EfJson = "EfJson";
-    public const string PgVector = "PgVector";
 }
 
 public class ObservabilityOptions
