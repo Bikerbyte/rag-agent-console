@@ -49,8 +49,14 @@ public sealed class GenericKnowledgeDomain : IRagDomain
             document.Tags,
             chunkText);
 
-        foreach (var value in request.Filters.Values)
+        foreach (var (key, value) in request.Filters)
         {
+            if (string.Equals(key, SecurityAdvisoryPlanKeys.RiskFilter, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, SecurityAdvisoryPlanKeys.CveYear, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(value))
             {
                 continue;

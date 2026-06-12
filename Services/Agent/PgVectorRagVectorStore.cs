@@ -141,13 +141,15 @@ public class PgVectorRagVectorStore(
         int limit,
         CancellationToken cancellationToken)
     {
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         var query = dbContext.KnowledgeDocumentChunks
             .Include(chunk => chunk.Document)
             .Where(chunk => chunk.Document != null && chunk.Document.IsEnabled);
 
         if (!string.IsNullOrWhiteSpace(request.ModuleName))
         {
-            query = query.Where(chunk => chunk.Document!.ModuleName == request.ModuleName);
+            var moduleNames = documentDomain.ModuleNames;
+            query = query.Where(chunk => moduleNames.Contains(chunk.Document!.ModuleName));
         }
 
         if (queryVector is not null)
@@ -169,7 +171,6 @@ public class PgVectorRagVectorStore(
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        var documentDomain = domainRegistry.Resolve(request.ModuleName);
         var results = new List<RetrievalCandidate>();
         foreach (var chunk in chunks)
         {
