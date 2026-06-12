@@ -66,50 +66,39 @@ flowchart LR
 
 ## 開始方式
 
-唯一的硬性依賴是 PostgreSQL + pgvector。PostgreSQL 與 Grafana/LGTM 可以由外部平台或獨立 infra 專案提供；每個應用應使用獨立的 database/user 與 OpenTelemetry service name。
+唯一的硬性依賴是 PostgreSQL + pgvector（向量檢索與結構化過濾都在同一條 SQL 完成）。
 
-**Self-contained demo**（app + PostgreSQL + LGTM，使用隔離的 ports/volumes）：
-
-```bash
-cp .env.example .env
-docker compose \
-  -p rag-agent-console-demo \
-  -f docker-compose.yml \
-  -f docker-compose.demo.yml \
-  up -d --build
-```
-
-後台在 `http://localhost:8080`，demo Grafana 在 `http://localhost:3300`。清除 demo：
-
-```bash
-docker compose \
-  -p rag-agent-console-demo \
-  -f docker-compose.yml \
-  -f docker-compose.demo.yml \
-  down --volumes
-```
-
-**使用既有 PostgreSQL/LGTM**：
+**想直接試**——demo overlay 會帶起 app + PostgreSQL + LGTM，ports 和 volumes 都是隔離的，不會碰到機器上既有的服務：
 
 ```bash
 cp .env.example .env
-# 設定 POSTGRES_HOST/PORT/DB/USER/PASSWORD 與 OTEL_OTLP_ENDPOINT
+docker compose -p rag-demo -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+後台在 `http://localhost:8080`，Grafana（trace / metric）在 `http://localhost:3300`。  
+玩完用 `docker compose -p rag-demo -f docker-compose.yml -f docker-compose.demo.yml down --volumes` 整組清掉。
+
+**已經有 PostgreSQL / LGTM**——`docker-compose.yml` 只起 app，在 `.env` 填上連線資訊即可：
+
+```bash
+cp .env.example .env
+# 填 POSTGRES_HOST / PORT / DB / USER / PASSWORD 與 OTEL_OTLP_ENDPOINT
 docker compose up -d --build
 ```
 
-主要的 `docker-compose.yml` 只管理 app，不會停止或刪除外部 PostgreSQL/LGTM。容器要連同一台主機上的服務時，可使用 `host.docker.internal`；Linux Compose 已包含對應的 `host-gateway` 設定。
+服務跑在同一台主機上時，`POSTGRES_HOST` 可以用 `host.docker.internal`（Linux 也通，compose 已設好 `host-gateway`）。
 
-**本機開發**（host 跑 dotnet、基礎設施可在本機、VM 或其他主機）：
+**本機開發**——host 跑 dotnet，資料庫在哪台機器都行：
 
 ```bash
-dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433;Database=rag_agent;Username=rag_agent;Password=change-me;SSL Mode=Disable"
+dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433;Database=rag_agent;Username=postgres;Password=change-me;SSL Mode=Disable"
 ```
 
-啟動時自動套 EF migration 並植入評估 golden set，後台預設為 `http://localhost:5166`。
+啟動時自動套 EF migration 並植入評估 golden set，後台預設為 `http://localhost:5166`。也可以用 `dotnet run -- migrate` 只跑 migration 不起站（給 CI 或 k8s Job 用）。
 
-接著到「設定 → AI 供應商」選擇 Provider 並開啟「回答生成」（Query Planner 與對話皆需要 AI 模型）；OpenAI / Ollama 的金鑰與位址都能在後台「設定」頁改（存 DB），Ollama 也可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`。
+跑起來之後，到「設定 → AI 供應商」選擇 Provider 並開啟「回答生成」（Query Planner 與對話皆需要 AI 模型）。OpenAI / Ollama 的金鑰與位址都在後台「設定」頁改（存 DB），Ollama 也可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`。
 
-想試非資安情境，可將 repo 的 `docs/demo-corpus/onboarding-policy.zh-TW.md` 從「知識庫 → 新增文件」上傳，再進行「檢索測試」或建立評估案例。
+想試非資安情境，`docs/demo-corpus/` 有七份中文政策文件（到職規範、密碼政策、備份標準等），從「知識庫 → 新增文件」上傳後就能玩「檢索測試」和檢索評估——內建的 golden set 就是針對這批文件設計的。
 
 ## 專案結構
 
