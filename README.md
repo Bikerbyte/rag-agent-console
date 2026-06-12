@@ -111,17 +111,7 @@ kubectl apply -k k8s/demo
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
-設計上把原本自製的多節點機制全換成 k8s 原生做法：
-
-| 需求 | 做法 |
-| --- | --- |
-| schema migration | 獨立 Job 跑 `migrate` 參數（同一個 image），pod 啟動不自動 migrate |
-| 背景工作單實例 | worker Deployment `replicas: 1` + `Recreate`，取代自製 DB leadership lease |
-| web / worker 分離 | 同一個 image，靠 `AppRuntime__EnableXxx` 環境變數切角色 |
-| 節點識別 | Downward API 把 pod name 注入 `AppRuntime__InstanceName` |
-| 存活偵測 | `/healthz` liveness / readiness probe，取代自製 heartbeat 表 |
-
-接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 用自己的 Secret / ConfigMap 覆寫；正式環境的 Secret 請改用 `kubectl create secret` 或 sealed-secrets，不要 commit 真值。
+web / worker / migration Job 用同一個 image，靠環境變數切角色。接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 自行覆寫；Secret 不要 commit 真值。
 
 ## 專案結構
 
