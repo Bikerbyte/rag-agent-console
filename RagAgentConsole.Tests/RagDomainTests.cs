@@ -191,6 +191,18 @@ public class RagDomainTests
     }
 
     [Fact]
+    public void GenericDomain_AcceptsDocument_AdvisoryFilters_AreIgnored()
+    {
+        var request = Request(filters: new Dictionary<string, string?>
+        {
+            [SecurityAdvisoryPlanKeys.RiskFilter] = "none",
+            [SecurityAdvisoryPlanKeys.CveYear] = "2026"
+        });
+
+        Assert.True(GenericDomain.AcceptsDocument(request, PolicyDocument(), "annual leave policy"));
+    }
+
+    [Fact]
     public void SecurityDomain_AcceptsDocument_IgnoresAdvisoryFilters()
     {
         var request = Request(filters: new Dictionary<string, string?>

@@ -6,6 +6,11 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface ITelegramNotificationDispatchService
+{
+    Task ProcessPendingNotificationsAsync(CancellationToken cancellationToken = default);
+}
+
 public class SecurityAdvisoryNotificationDispatchService(
     ApplicationDbContext dbContext,
     ITelegramPushService telegramPushService,

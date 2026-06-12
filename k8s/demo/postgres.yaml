@@ -1,0 +1,56 @@
+# demo 用的 pgvector PostgreSQL。資料庫是有狀態服務，正式環境建議交給
+# 雲端代管或獨立 infra 專案管理，這裡只為了讓 demo 一個 kustomize 就能跑起來。
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:0.8.2-pg17-trixie
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: rag_agent
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: change-me
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "rag_agent"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432

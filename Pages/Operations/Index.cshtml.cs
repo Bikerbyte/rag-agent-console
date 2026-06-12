@@ -16,21 +16,17 @@ public class IndexModel(
     IAppSettingsService appSettingsService,
     ILogger<IndexModel> logger) : PageModel
 {
-    private static readonly TimeSpan OfflineThreshold = TimeSpan.FromSeconds(45);
-
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
     public string BotStatusMessage { get; private set; } = string.Empty;
     public string AiProviderText { get; private set; } = string.Empty;
     public bool IsAiChatEnabled { get; private set; }
     public TelegramBotProfile? BotProfile { get; private set; }
-    public int ActiveNodeCount { get; private set; }
     public int PendingUpdateCount { get; private set; }
     public string InstanceName { get; private set; } = string.Empty;
     public IReadOnlyList<TelegramChatSubscription> Subscriptions { get; private set; } = [];
     public IReadOnlyList<PushLog> PushLogs { get; private set; } = [];
     public IReadOnlyList<SyncJobLog> SyncJobLogs { get; private set; } = [];
-    public IReadOnlyList<NodeSummaryViewModel> Nodes { get; private set; } = [];
 
     [BindProperty]
     public ChatSubscriptionInput Input { get; set; } = new();
@@ -111,8 +107,6 @@ public class IndexModel(
     {
         var currentTelegramOptions = await appSettingsService.GetTelegramBotOptionsAsync();
         var currentAiOptions = await appSettingsService.GetAiProviderOptionsAsync();
-        var now = DateTimeOffset.UtcNow;
-        var activeThreshold = now.Subtract(OfflineThreshold);
 
         InstanceName = runtimeOptions.Value.InstanceName;
         AiProviderText = currentAiOptions.Provider;
@@ -138,7 +132,6 @@ public class IndexModel(
             }
         }
 
-        ActiveNodeCount = await dbContext.RuntimeNodeHeartbeats.CountAsync(item => item.LastSeenTime >= activeThreshold);
         PendingUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
 
         Subscriptions = await dbContext.TelegramChatSubscriptions
@@ -155,19 +148,6 @@ public class IndexModel(
         SyncJobLogs = await dbContext.SyncJobLogs
             .OrderByDescending(log => log.StartTime)
             .Take(8)
-            .ToListAsync();
-
-        Nodes = await dbContext.RuntimeNodeHeartbeats
-            .OrderByDescending(item => item.LastSeenTime)
-            .Take(8)
-            .Select(item => new NodeSummaryViewModel
-            {
-                InstanceName = item.InstanceName,
-                RoleSummary = item.RoleSummary,
-                MachineName = item.MachineName,
-                LastSeenTime = item.LastSeenTime,
-                StatusText = now - item.LastSeenTime > OfflineThreshold ? "Offline?" : "Online"
-            })
             .ToListAsync();
     }
 
@@ -214,12 +194,4 @@ public class IndexModel(
         public string? MinimumSeverity { get; set; }
     }
 
-    public class NodeSummaryViewModel
-    {
-        public required string InstanceName { get; init; }
-        public required string RoleSummary { get; init; }
-        public required string MachineName { get; init; }
-        public DateTimeOffset LastSeenTime { get; init; }
-        public required string StatusText { get; init; }
-    }
 }

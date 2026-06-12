@@ -18,8 +18,6 @@ public class IndexModel(
     public string AiStatusLabel { get; private set; } = "Offline";
     public string AiStatusDetail { get; private set; } = string.Empty;
     public string AiStatusClass { get; private set; } = "is-warning";
-    public string VectorStoreStatusLabel { get; private set; } = "EfJson";
-    public string VectorStoreStatusClass { get; private set; } = "is-neutral";
     public IReadOnlyList<SettingsHealthItem> AiHealthItems { get; private set; } = [];
 
     [BindProperty]
@@ -90,9 +88,7 @@ public class IndexModel(
             new("PushNotifications:EnableSecurityAdvisoryPush", Input.SecurityAdvisoryPushEnabled.ToString()),
             new("PushNotifications:WorkerIntervalSeconds", Input.PushWorkerIntervalSeconds.ToString()),
             new("PushNotifications:AdvisoryLookbackHours", Input.AdvisoryLookbackHours.ToString()),
-            new("VectorStore:Provider", Input.VectorStoreProvider),
             new("VectorStore:CandidateLimit", Input.VectorStoreCandidateLimit.ToString()),
-            new("VectorStore:UseJsonFallback", Input.VectorStoreUseJsonFallback.ToString()),
             new("Observability:EnableOpenTelemetry", Input.EnableOpenTelemetry.ToString()),
             new("Observability:EnableConsoleExporter", Input.EnableOpenTelemetryConsoleExporter.ToString()),
             new("Observability:ServiceName", Input.OpenTelemetryServiceName)
@@ -179,15 +175,6 @@ public class IndexModel(
         HasWebhookSecretToken = !string.IsNullOrWhiteSpace(telegram.WebhookSecretToken);
         Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability, agent);
         SetAiStatus(ai);
-        SetVectorStoreStatus(vectorStore);
-    }
-
-    private void SetVectorStoreStatus(VectorStoreOptions options)
-    {
-        VectorStoreStatusLabel = options.Provider;
-        VectorStoreStatusClass = string.Equals(options.Provider, VectorStoreProviderNames.PgVector, StringComparison.OrdinalIgnoreCase)
-            ? "is-success"
-            : "is-neutral";
     }
 
     private void SetAiStatus(AiProviderOptions options)
@@ -290,9 +277,7 @@ public class IndexModel(
         public bool SecurityAdvisoryPushEnabled { get; set; } = true;
         public int PushWorkerIntervalSeconds { get; set; } = 90;
         public int AdvisoryLookbackHours { get; set; } = 72;
-        public string VectorStoreProvider { get; set; } = VectorStoreProviderNames.EfJson;
         public int VectorStoreCandidateLimit { get; set; } = 3000;
-        public bool VectorStoreUseJsonFallback { get; set; } = true;
         public bool EnableOpenTelemetry { get; set; }
         public bool EnableOpenTelemetryConsoleExporter { get; set; }
         public string OpenTelemetryServiceName { get; set; } = "RagAgentConsole";
@@ -335,9 +320,7 @@ public class IndexModel(
                 SecurityAdvisoryPushEnabled = push.EnableSecurityAdvisoryPush,
                 PushWorkerIntervalSeconds = push.WorkerIntervalSeconds,
                 AdvisoryLookbackHours = push.AdvisoryLookbackHours,
-                VectorStoreProvider = vectorStore.Provider,
                 VectorStoreCandidateLimit = vectorStore.CandidateLimit,
-                VectorStoreUseJsonFallback = vectorStore.UseJsonFallback,
                 EnableOpenTelemetry = observability.EnableOpenTelemetry,
                 EnableOpenTelemetryConsoleExporter = observability.EnableConsoleExporter,
                 OpenTelemetryServiceName = observability.ServiceName

@@ -1,0 +1,16 @@
+# 非機密設定。web / worker 共用，角色開關在各自 Deployment 的 env 覆寫。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-agent-config
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:8080"
+  # migration 由獨立 Job 跑，pod 啟動不再自動 migrate（避免多 pod 互搶）。
+  Database__MigrateOnStartup: "false"
+  Observability__EnableOpenTelemetry: "true"
+  Observability__ServiceName: "RagAgentConsole"
+  # 指向叢集內或外部的 OTLP collector；demo overlay 會帶起 lgtm 並覆寫此值。
+  Observability__OtlpEndpoint: ""
+  TelegramBot__UseWebhookMode: "true"
+  TelegramBot__WebhookPath: "/api/telegram/webhook"

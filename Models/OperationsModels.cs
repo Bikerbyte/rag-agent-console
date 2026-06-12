@@ -44,57 +44,6 @@ public class SyncJobLog
     public string? Message { get; set; }
 }
 
-public class RuntimeLeadershipLease
-{
-    [MaxLength(128)]
-    public required string LeaseName { get; set; }
-
-    [MaxLength(128)]
-    public required string OwnerInstanceName { get; set; }
-
-    public DateTimeOffset AcquiredAt { get; set; }
-    public DateTimeOffset RenewedAt { get; set; }
-    public DateTimeOffset ExpiresAt { get; set; }
-    public DateTimeOffset LastUpdatedAt { get; set; }
-}
-
-public class RuntimeLeadershipLeaseResult
-{
-    public required string LeaseName { get; init; }
-    public required string InstanceName { get; init; }
-    public required string CurrentOwnerInstanceName { get; init; }
-    public DateTimeOffset ExpiresAt { get; init; }
-    public bool IsLeader { get; init; }
-    public required string Action { get; init; }
-}
-
-public class RuntimeNodeHeartbeat
-{
-    public int RuntimeNodeHeartbeatId { get; set; }
-
-    [MaxLength(128)]
-    public required string InstanceName { get; set; }
-
-    [MaxLength(128)]
-    public required string MachineName { get; set; }
-
-    [MaxLength(64)]
-    public required string EnvironmentName { get; set; }
-
-    [MaxLength(400)]
-    public required string RoleSummary { get; set; }
-
-    [MaxLength(32)]
-    public string Status { get; set; } = "Online";
-
-    public int ProcessId { get; set; }
-    public DateTimeOffset ProcessStartedTime { get; set; }
-    public DateTimeOffset LastSeenTime { get; set; }
-
-    [MaxLength(64)]
-    public string? AppVersion { get; set; }
-}
-
 public class AppSetting
 {
     public int AppSettingId { get; set; }

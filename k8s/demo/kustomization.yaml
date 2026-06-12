@@ -1,0 +1,18 @@
+# Self-contained demo：base 之上加自帶的 PostgreSQL + LGTM，
+# 對應 docker-compose.demo.yml 的角色——共用 infra 的環境請只用 base 並自行覆寫連線。
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+  - postgres.yaml
+  - lgtm.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: rag-agent-config
+    patch: |-
+      - op: replace
+        path: /data/Observability__OtlpEndpoint
+        value: http://lgtm:4317

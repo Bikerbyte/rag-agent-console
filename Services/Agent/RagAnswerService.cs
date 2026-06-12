@@ -5,6 +5,21 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public sealed record AgentConversationMessage(string Role, string Content);
+
+public interface IRagAnswerService
+{
+    Task<string> BuildAnswerAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+
+    Task<AgentAnswerResult> BuildAnswerWithTraceAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        CancellationToken cancellationToken = default);
+}
+
 public class RagAnswerService(
     IRagRetrievalService searchService,
     IAppSettingsService appSettingsService,
@@ -24,6 +39,12 @@ public class RagAnswerService(
         IReadOnlyList<AgentConversationMessage>? history = null,
         CancellationToken cancellationToken = default)
     {
+        question = NormalizeMessage(question);
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            return new AgentAnswerResult(CapabilitiesReply, null);
+        }
+
         var aiOptions = aiProviderOptions.Value;
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
 
@@ -121,6 +142,19 @@ public class RagAnswerService(
 
         return await aiChatClient.CompleteAsync(systemPrompt, userPrompt, cancellationToken);
     }
+
+    private static string NormalizeMessage(string value)
+        => string.Join(' ', value.Split(['\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Trim();
+
+    private const string CapabilitiesReply =
+        """
+        你可以直接詢問知識庫中的資料，或請我整理特定主題的重點。
+
+        例如：
+        - 最近有什麼需要關注的資訊？
+        - 幫我整理 [主題] 的處理建議
+        - 這個問題應該怎麼處理？
+        """;
 
     private static string Trim(string value, int maxLength)
     {

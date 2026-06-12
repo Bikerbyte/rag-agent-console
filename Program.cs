@@ -17,7 +17,6 @@ var appRuntimeSection = builder.Configuration.GetSection(AppRuntimeOptions.Secti
 var appRuntimeOptions = appRuntimeSection.Get<AppRuntimeOptions>() ?? new AppRuntimeOptions();
 var telegramBotOptions = builder.Configuration.GetSection(TelegramBotOptions.SectionName).Get<TelegramBotOptions>() ?? new TelegramBotOptions();
 var observabilityOptions = builder.Configuration.GetSection(ObservabilityOptions.SectionName).Get<ObservabilityOptions>() ?? new ObservabilityOptions();
-appRuntimeOptions.ApplyRuntimeProfile(appRuntimeSection);
 appRuntimeOptions.InstanceName = appRuntimeOptions.GetEffectiveInstanceName();
 
 // Pre-Build / 前置設定
@@ -32,6 +31,8 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 });
 
 // Add Service Area - 共用平台服務
+// keys 落在 App_Data：docker compose 掛 app_data volume、k8s 掛 PVC 到 /app/App_Data。
+// 沒有共用儲存時 web 只能跑單 replica，否則 antiforgery/cookie 會在 pod 之間失效。
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys")));
 
@@ -44,16 +45,16 @@ builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentO
 builder.Services.Configure<VectorStoreOptions>(builder.Configuration.GetSection(VectorStoreOptions.SectionName));
 builder.Services.Configure<ObservabilityOptions>(builder.Configuration.GetSection(ObservabilityOptions.SectionName));
 builder.Services.Configure<AppRuntimeOptions>(appRuntimeSection);
-builder.Services.PostConfigure<AppRuntimeOptions>(options =>
-{
-    options.ApplyRuntimeProfile(appRuntimeSection);
-    options.InstanceName = options.GetEffectiveInstanceName();
-});
+builder.Services.PostConfigure<AppRuntimeOptions>(options => options.InstanceName = options.GetEffectiveInstanceName());
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 
 if (observabilityOptions.EnableOpenTelemetry)
 {
+    var otlpEndpoint = string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint)
+        ? null
+        : new Uri(observabilityOptions.OtlpEndpoint);
+
     builder.Services.AddOpenTelemetry()
         .ConfigureResource(resource => resource.AddService(observabilityOptions.ServiceName))
         .WithTracing(tracing =>
@@ -61,6 +62,11 @@ if (observabilityOptions.EnableOpenTelemetry)
             tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation();
+
+            if (otlpEndpoint is not null)
+            {
+                tracing.AddOtlpExporter(options => options.Endpoint = otlpEndpoint);
+            }
 
             if (observabilityOptions.EnableConsoleExporter)
             {
@@ -74,6 +80,11 @@ if (observabilityOptions.EnableOpenTelemetry)
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation();
 
+            if (otlpEndpoint is not null)
+            {
+                metrics.AddOtlpExporter(options => options.Endpoint = otlpEndpoint);
+            }
+
             if (observabilityOptions.EnableConsoleExporter)
             {
                 metrics.AddConsoleExporter();
@@ -81,25 +92,17 @@ if (observabilityOptions.EnableOpenTelemetry)
         });
 }
 
-// Add Service Area - 資料庫
+// Add Service Area - 資料庫（只支援 PostgreSQL；向量檢索靠 pgvector，沒有第二種後端）
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+if (string.IsNullOrWhiteSpace(defaultConnection))
 {
-    if (string.IsNullOrWhiteSpace(defaultConnection))
-    {
-        options.UseInMemoryDatabase("security-advisory-bot");
-        return;
-    }
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is required and must point to a PostgreSQL instance. " +
+        "For a self-contained demo use docker-compose.yml with docker-compose.demo.yml.");
+}
 
-    if (defaultConnection.Contains("Host=", StringComparison.OrdinalIgnoreCase) ||
-        defaultConnection.Contains("Username=", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseNpgsql(defaultConnection);
-        return;
-    }
-
-    options.UseSqlServer(defaultConnection);
-});
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(defaultConnection, npgsql => npgsql.UseVector()));
 
 // Add Service Area - 對外 HTTP Client
 builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((serviceProvider, httpClient) =>
@@ -157,12 +160,10 @@ builder.Services.AddSingleton<ITokenizer, MixedScriptTokenizer>();
 builder.Services.AddSingleton<IBm25Index, InMemoryBm25Index>();
 builder.Services.AddHostedService<Bm25IndexInitializationService>();
 builder.Services.AddScoped<IRetrievalTextScorer, RetrievalTextScorer>();
-builder.Services.AddScoped<EfRagVectorStore>();
-builder.Services.AddScoped<PgVectorRagVectorStore>();
 builder.Services.AddSingleton<IRagDomain, SecurityAdvisoryDomain>();
 builder.Services.AddSingleton<IRagDomain, GenericKnowledgeDomain>();
 builder.Services.AddSingleton<IRagDomainRegistry, RagDomainRegistry>();
-builder.Services.AddScoped<IRagVectorStore, ConfiguredRagVectorStore>();
+builder.Services.AddScoped<IRagVectorStore, PgVectorRagVectorStore>();
 builder.Services.AddScoped<IRagQueryPlanner, RagQueryPlanner>();
 builder.Services.AddScoped<IRagRetrievalService, RagRetrievalService>();
 builder.Services.AddScoped<IRetrievalEvaluationService, RetrievalEvaluationService>();
@@ -171,13 +172,10 @@ builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTex
 builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingService>();
 builder.Services.AddScoped<IKnowledgeDocumentIngestionService, KnowledgeDocumentIngestionService>();
 builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
-builder.Services.AddScoped<IRagAgentService, RagAgentService>();
-builder.Services.AddScoped<IRuntimeLeadershipLeaseService, RuntimeLeadershipLeaseService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
-builder.Services.AddHostedService<RuntimeNodeHeartbeatBackgroundService>();
 
-// 背景工作角色先用設定切開，之後部署到多台 VM 時比較不會互相撞工作。
+// 背景工作角色用環境變數切開：同一個 image 可以只跑 web（ingress）或只跑 worker。
 if (appRuntimeOptions.EnableTelegramWebhookIngress && telegramBotOptions.UseWebhookMode)
 {
     builder.Services.AddHostedService<TelegramWebhookRegistrationBackgroundService>();
@@ -209,22 +207,27 @@ var app = builder.Build();
 // 在第一個 request 進來前，先把本機資料夾和 seed data 準備好。
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data", "DataProtectionKeys"));
 
-using (var scope = app.Services.CreateScope())
+// `migrate` 進入點：給 k8s migration Job / initContainer 用，跑完 schema 與 seed 就退出。
+// 平常啟動則由 Database:MigrateOnStartup 控制（預設 true，方便本機與 docker compose；
+// k8s 多 replica 時設 false，避免多個 pod 同時搶 migration）。
+var migrateOnly = args.Contains("migrate", StringComparer.OrdinalIgnoreCase);
+if (migrateOnly || app.Configuration.GetValue("Database:MigrateOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
 
-    if (dbContext.Database.IsRelational())
-    {
-        await dbContext.Database.MigrateAsync();
-    }
-    else
-    {
-        await dbContext.Database.EnsureCreatedAsync();
-    }
-
-    // 把內建 golden set 灌成第一批可編輯的評估案例；之後就交由使用者在後台維護。
+    // 把內建 golden set 灌成第一批可編輯的評估案例（冪等：有資料就跳過），
+    // 之後交由使用者在後台維護。
     var evaluationService = scope.ServiceProvider.GetRequiredService<IRetrievalEvaluationService>();
     await evaluationService.SeedCasesIfEmptyAsync();
+}
+
+if (migrateOnly)
+{
+    app.Logger.LogInformation("Database migration and seeding completed; exiting (migrate mode).");
+    await app.DisposeAsync();
+    return;
 }
 
 // Razor Build / 啟動管線
@@ -301,6 +304,9 @@ if (appRuntimeOptions.EnableTelegramWebhookIngress)
     });
 }
 
+// k8s liveness/readiness probe：不碰 DB，只回報 process 活著。
+app.MapGet("/healthz", () => Results.Ok("ok"));
+
 app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOptions> runtimeOptions) => Results.Ok(new
 {
     ProcessId = Environment.ProcessId,
@@ -309,11 +315,6 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     StartedAt = applicationStartedAt,
     Runtime = new
     {
-        runtimeOptions.Value.Profile,
-        runtimeOptions.Value.EnableLeadershipLease,
-        runtimeOptions.Value.LeaseDurationSeconds,
-        runtimeOptions.Value.LeaseRenewIntervalSeconds,
-        runtimeOptions.Value.LeaseAcquireRetrySeconds,
         runtimeOptions.Value.EnableTelegramWebhookIngress,
         runtimeOptions.Value.EnableTelegramPollingWorker,
         runtimeOptions.Value.EnableTelegramUpdateQueueWorker,
@@ -322,33 +323,6 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     },
     Urls = app.Urls
 }));
-
-app.MapGet("/api/runtime/leases", async (ApplicationDbContext dbContext, CancellationToken cancellationToken) =>
-{
-    var now = DateTimeOffset.UtcNow;
-    var leases = await dbContext.RuntimeLeadershipLeases
-        .OrderBy(item => item.LeaseName)
-        .Select(item => new
-        {
-            item.LeaseName,
-            item.OwnerInstanceName,
-            item.AcquiredAt,
-            item.RenewedAt,
-            item.ExpiresAt,
-            IsActive = item.ExpiresAt > now,
-            ExpiresInSeconds = item.ExpiresAt <= now
-                ? 0
-                : Math.Max(0, (int)Math.Round((item.ExpiresAt - now).TotalSeconds))
-        })
-        .ToListAsync(cancellationToken);
-
-    return Results.Ok(new
-    {
-        ServerTime = now,
-        Count = leases.Count,
-        Leases = leases
-    });
-});
 
 // 啟動時輸出一段 banner，方便看本機 console 或 App Service log。
 app.Lifetime.ApplicationStarted.Register(() =>
@@ -370,13 +344,12 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => Profile: {Profile}, Roles: {RoleSummary}, LeadershipLease: {EnableLeadershipLease} (Duration: {LeaseDurationSeconds}s, Renew: {LeaseRenewIntervalSeconds}s, Retry: {LeaseAcquireRetrySeconds}s)",
-        appRuntimeOptions.Profile,
-        appRuntimeOptions.BuildRoleSummary(),
-        appRuntimeOptions.EnableLeadershipLease,
-        appRuntimeOptions.LeaseDurationSeconds,
-        appRuntimeOptions.LeaseRenewIntervalSeconds,
-        appRuntimeOptions.LeaseAcquireRetrySeconds);
+        "Runtime => WebhookIngress: {EnableTelegramWebhookIngress}, PollingWorker: {EnableTelegramPollingWorker}, QueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        appRuntimeOptions.EnableTelegramWebhookIngress,
+        appRuntimeOptions.EnableTelegramPollingWorker,
+        appRuntimeOptions.EnableTelegramUpdateQueueWorker,
+        appRuntimeOptions.EnableOfficialDataSyncWorker,
+        appRuntimeOptions.EnableNotificationWorker);
     app.Logger.LogInformation(
         "Telegram => UseWebhookMode: {UseWebhookMode}, WebhookPath: {WebhookPath}",
         telegramBotOptions.UseWebhookMode,
@@ -386,8 +359,6 @@ app.Lifetime.ApplicationStarted.Register(() =>
     {
         app.Logger.LogWarning("Telegram ingress is enabled, but TelegramUpdateQueueWorker is disabled. Updates may queue without being processed.");
     }
-    app.Logger.LogInformation("Use Run-Local.cmd to keep a visible console.");
-    app.Logger.LogInformation("Use Status-Local.cmd or Stop-Local.cmd if the port stays occupied.");
     app.Logger.LogInformation("============================================================");
 });
 

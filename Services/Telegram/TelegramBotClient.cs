@@ -3,6 +3,16 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
+public interface ITelegramBotClient
+{
+    Task<TelegramBotProfile?> GetMeAsync(CancellationToken cancellationToken = default);
+    Task<bool> DeleteWebhookAsync(CancellationToken cancellationToken = default);
+    Task<bool> SetWebhookAsync(string webhookUrl, string? secretToken = null, bool dropPendingUpdates = false, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TelegramUpdate>> GetUpdatesAsync(long? offset, CancellationToken cancellationToken = default);
+    Task<TelegramSendResult> SendTextMessageAsync(string chatId, string messageText, CancellationToken cancellationToken = default);
+    Task<bool> AnswerCallbackQueryAsync(string callbackQueryId, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// Wraps the Telegram Bot API calls used by this project.
 /// </summary>

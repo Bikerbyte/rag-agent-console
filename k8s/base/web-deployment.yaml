@@ -1,0 +1,73 @@
+# web：對外 HTTP（後台 + Telegram webhook ingress），背景工作全關。
+# DataProtection keys 寫在 App_Data；沒掛共用儲存（PVC）前 replicas 固定 1，
+# 否則 antiforgery / cookie 會在 pod 之間失效。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-agent-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-agent-web
+  template:
+    metadata:
+      labels:
+        app: rag-agent-web
+    spec:
+      containers:
+        - name: web
+          image: rag-agent-console
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: rag-agent-config
+            - secretRef:
+                name: rag-agent-secrets
+          env:
+            # 取代原本的 InstanceName fallback 推導：直接用 pod name。
+            - name: AppRuntime__InstanceName
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: AppRuntime__EnableTelegramWebhookIngress
+              value: "true"
+            - name: AppRuntime__EnableTelegramPollingWorker
+              value: "false"
+            - name: AppRuntime__EnableTelegramUpdateQueueWorker
+              value: "false"
+            - name: AppRuntime__EnableOfficialDataSyncWorker
+              value: "false"
+            - name: AppRuntime__EnableNotificationWorker
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/App_Data
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: rag-agent-web-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rag-agent-web-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

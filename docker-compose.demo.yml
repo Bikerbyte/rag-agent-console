@@ -1,0 +1,40 @@
+# Self-contained demo overlay. It uses isolated ports and volumes and is not
+# intended to manage a workstation's shared PostgreSQL or LGTM services.
+services:
+  app:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-rag_agent};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-change-me}
+      Observability__OtlpEndpoint: http://lgtm:4317
+
+  db:
+    image: pgvector/pgvector:0.8.2-pg17-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag_agent}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "${DEMO_POSTGRES_PORT:-15433}:5432"
+    volumes:
+      - demo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rag_agent}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  lgtm:
+    image: grafana/otel-lgtm@sha256:10f48eb2f8670134df542177bb19536c55421b089e43f9dfc2a27d4c078204d8
+    ports:
+      - "${DEMO_GRAFANA_PORT:-3300}:3000"
+      - "${DEMO_OTLP_GRPC_PORT:-14317}:4317"
+    volumes:
+      - demo_lgtm_data:/data
+    restart: unless-stopped
+
+volumes:
+  demo_postgres_data:
+  demo_lgtm_data:
