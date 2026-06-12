@@ -1,0 +1,24 @@
+# 部署（或升級）時先跑一次：套 EF migration + 灌 golden set seed，跑完即結束。
+# 同一個 image，差別只在 args: ["migrate"]。
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rag-agent-migrate
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: rag-agent-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: rag-agent-console
+          args: ["migrate"]
+          envFrom:
+            - configMapRef:
+                name: rag-agent-config
+            - secretRef:
+                name: rag-agent-secrets

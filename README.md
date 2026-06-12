@@ -100,6 +100,29 @@ dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433
 
 想試非資安情境，`docs/demo-corpus/` 有七份中文政策文件（到職規範、密碼政策、備份標準等），從「知識庫 → 新增文件」上傳後就能玩「檢索測試」和檢索評估——內建的 golden set 就是針對這批文件設計的。
 
+## k8s 部署
+
+`k8s/` 是 kustomize 結構：`base` 只有 app（web / worker / migration Job），`demo` overlay 再帶起 PostgreSQL + LGTM，讓單機叢集（minikube / k3s / kind）能一份指令跑起來：
+
+```bash
+docker build -t rag-agent-console:local .
+# minikube 要先 minikube image load rag-agent-console:local；kind 用 kind load docker-image
+kubectl apply -k k8s/demo
+kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
+```
+
+設計上把原本自製的多節點機制全換成 k8s 原生做法：
+
+| 需求 | 做法 |
+| --- | --- |
+| schema migration | 獨立 Job 跑 `migrate` 參數（同一個 image），pod 啟動不自動 migrate |
+| 背景工作單實例 | worker Deployment `replicas: 1` + `Recreate`，取代自製 DB leadership lease |
+| web / worker 分離 | 同一個 image，靠 `AppRuntime__EnableXxx` 環境變數切角色 |
+| 節點識別 | Downward API 把 pod name 注入 `AppRuntime__InstanceName` |
+| 存活偵測 | `/healthz` liveness / readiness probe，取代自製 heartbeat 表 |
+
+接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 用自己的 Secret / ConfigMap 覆寫；正式環境的 Secret 請改用 `kubectl create secret` 或 sealed-secrets，不要 commit 真值。
+
 ## 專案結構
 
 ```text

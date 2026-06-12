@@ -304,6 +304,9 @@ if (appRuntimeOptions.EnableTelegramWebhookIngress)
     });
 }
 
+// k8s liveness/readiness probe：不碰 DB，只回報 process 活著。
+app.MapGet("/healthz", () => Results.Ok("ok"));
+
 app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOptions> runtimeOptions) => Results.Ok(new
 {
     ProcessId = Environment.ProcessId,

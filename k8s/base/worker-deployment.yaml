@@ -1,0 +1,49 @@
+# worker：背景工作（Telegram queue、官方資料同步、推播），不收 HTTP。
+# replicas 固定 1——這就是原本自製 DB leadership lease 的 k8s 替代方案：
+# 單實例保證交給 Deployment，不再自己選主。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-agent-worker
+spec:
+  replicas: 1
+  strategy:
+    # 先停舊再起新，避免換版瞬間出現兩個 worker 同時消化佇列。
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rag-agent-worker
+  template:
+    metadata:
+      labels:
+        app: rag-agent-worker
+    spec:
+      containers:
+        - name: worker
+          image: rag-agent-console
+          envFrom:
+            - configMapRef:
+                name: rag-agent-config
+            - secretRef:
+                name: rag-agent-secrets
+          env:
+            - name: AppRuntime__InstanceName
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: AppRuntime__EnableTelegramWebhookIngress
+              value: "false"
+            - name: AppRuntime__EnableTelegramPollingWorker
+              value: "false"
+            - name: AppRuntime__EnableTelegramUpdateQueueWorker
+              value: "true"
+            - name: AppRuntime__EnableOfficialDataSyncWorker
+              value: "true"
+            - name: AppRuntime__EnableNotificationWorker
+              value: "true"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
