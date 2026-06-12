@@ -1,4 +1,4 @@
-using RagAgentConsole.Models;
+﻿using RagAgentConsole.Models;
 using RagAgentConsole.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -25,6 +25,7 @@ public class RagQueryPlannerTests
             new ThrowingAiChatClient(),
             new FakeAppSettingsService(enableChat: true),
             CreateDomainRegistry(),
+            new MixedScriptTokenizer(),
             NullLogger<RagQueryPlanner>.Instance);
 
         var plan = await planner.BuildPlanAsync("citrix netscaler 弱點");
@@ -268,6 +269,7 @@ public class RagQueryPlannerTests
             new FakeAiChatClient(null),
             new FakeAppSettingsService(enableChat: false, defaultDomain: GenericKnowledgeDomain.DomainName),
             CreateDomainRegistry(),
+            new MixedScriptTokenizer(),
             NullLogger<RagQueryPlanner>.Instance);
 
         var plan = await planner.BuildPlanAsync("特休規定");
@@ -282,6 +284,7 @@ public class RagQueryPlannerTests
             new FakeAiChatClient(aiResponse),
             new FakeAppSettingsService(enableChat),
             CreateDomainRegistry(),
+            new MixedScriptTokenizer(),
             NullLogger<RagQueryPlanner>.Instance);
     }
 

@@ -2,6 +2,11 @@ using Microsoft.SemanticKernel.Text;
 
 namespace RagAgentConsole.Services;
 
+public interface IKnowledgeTextChunkingService
+{
+    IReadOnlyList<string> SplitIntoChunks(string text, bool isMarkdown = false);
+}
+
 #pragma warning disable SKEXP0050
 public class KnowledgeTextChunkingService : IKnowledgeTextChunkingService
 {

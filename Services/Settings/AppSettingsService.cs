@@ -5,6 +5,21 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface IAppSettingsService
+{
+    Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default);
+    Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default);
+    Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default);
+    Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default);
+    Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default);
+    Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default);
+    Task<AgentOptions> GetAgentOptionsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, AppSetting>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(IEnumerable<AppSettingUpdate> updates, CancellationToken cancellationToken = default);
+}
+
+public sealed record AppSettingUpdate(string Key, string? Value, bool IsSecret = false);
+
 public class AppSettingsService(
     ApplicationDbContext dbContext,
     IOptions<AiProviderOptions> aiOptions,
@@ -85,9 +100,7 @@ public class AppSettingsService(
     {
         var values = await GetAllAsync(cancellationToken);
         var options = Clone(vectorStoreOptions.Value);
-        options.Provider = Get(values, "VectorStore:Provider", options.Provider);
         options.CandidateLimit = GetInt(values, "VectorStore:CandidateLimit", options.CandidateLimit);
-        options.UseJsonFallback = GetBool(values, "VectorStore:UseJsonFallback", options.UseJsonFallback);
         return options;
     }
 
@@ -197,9 +210,7 @@ public class AppSettingsService(
     private static VectorStoreOptions Clone(VectorStoreOptions source)
         => new()
         {
-            Provider = source.Provider,
-            CandidateLimit = source.CandidateLimit,
-            UseJsonFallback = source.UseJsonFallback
+            CandidateLimit = source.CandidateLimit
         };
 
     private static ObservabilityOptions Clone(ObservabilityOptions source)
@@ -207,6 +218,7 @@ public class AppSettingsService(
         {
             EnableOpenTelemetry = source.EnableOpenTelemetry,
             EnableConsoleExporter = source.EnableConsoleExporter,
+            OtlpEndpoint = source.OtlpEndpoint,
             ServiceName = source.ServiceName
         };
 

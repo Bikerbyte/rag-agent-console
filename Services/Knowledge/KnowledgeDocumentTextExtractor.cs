@@ -10,6 +10,15 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
+public interface IKnowledgeDocumentTextExtractor
+{
+    Task<KnowledgeExtractedText> ExtractAsync(
+        string fileName,
+        string? contentType,
+        Stream contentStream,
+        CancellationToken cancellationToken = default);
+}
+
 public class KnowledgeDocumentTextExtractor : IKnowledgeDocumentTextExtractor
 {
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder()

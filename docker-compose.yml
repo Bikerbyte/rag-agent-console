@@ -3,14 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rag-agent-console
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: Host=${POSTGRES_HOST:-host.docker.internal};Port=${POSTGRES_PORT:-5433};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       TelegramBot__Enabled: ${TELEGRAM_BOT_ENABLED:-false}
       TelegramBot__BotToken: ${TELEGRAM_BOT_TOKEN:-}
       TelegramBot__ApiBaseUrl: https://api.telegram.org
@@ -19,12 +15,7 @@ services:
       TelegramBot__WebhookPath: ${TELEGRAM_BOT_WEBHOOK_PATH:-/api/telegram/webhook}
       TelegramBot__WebhookUrl: ${TELEGRAM_BOT_WEBHOOK_URL:-}
       TelegramBot__WebhookSecretToken: ${TELEGRAM_BOT_WEBHOOK_SECRET_TOKEN:-}
-      AppRuntime__Profile: ${APP_RUNTIME_PROFILE:-Standard}
-      AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-auto}
-      AppRuntime__EnableLeadershipLease: ${APP_RUNTIME_ENABLE_LEADERSHIP_LEASE:-true}
-      AppRuntime__LeaseDurationSeconds: ${APP_RUNTIME_LEASE_DURATION_SECONDS:-45}
-      AppRuntime__LeaseRenewIntervalSeconds: ${APP_RUNTIME_LEASE_RENEW_INTERVAL_SECONDS:-15}
-      AppRuntime__LeaseAcquireRetrySeconds: ${APP_RUNTIME_LEASE_ACQUIRE_RETRY_SECONDS:-10}
+      AppRuntime__InstanceName: ${APP_RUNTIME_INSTANCE_NAME:-}
       AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-}
       AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-}
       AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-}
@@ -45,36 +36,18 @@ services:
       AiProvider__OllamaApiBaseUrl: ${OLLAMA_API_BASE_URL:-http://host.docker.internal:11434}
       AiProvider__OllamaChatModel: ${OLLAMA_CHAT_MODEL:-llama3.1}
       AiProvider__OllamaEmbeddingModel: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-      VectorStore__Provider: ${VECTOR_STORE_PROVIDER:-EfJson}
       VectorStore__CandidateLimit: ${VECTOR_STORE_CANDIDATE_LIMIT:-3000}
-      VectorStore__UseJsonFallback: ${VECTOR_STORE_USE_JSON_FALLBACK:-true}
-      Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-false}
+      Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-true}
       Observability__EnableConsoleExporter: ${ENABLE_OPEN_TELEMETRY_CONSOLE_EXPORTER:-false}
+      Observability__OtlpEndpoint: ${OTEL_OTLP_ENDPOINT:-http://host.docker.internal:4317}
       Observability__ServiceName: ${OPEN_TELEMETRY_SERVICE_NAME:-RagAgentConsole}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${APP_PORT:-8080}:8080"
     volumes:
       - app_data:/app/App_Data
     restart: unless-stopped
 
-  db:
-    image: pgvector/pgvector:0.8.2-pg17-trixie
-    container_name: rag-agent-postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
 volumes:
   app_data:
-  postgres_data:

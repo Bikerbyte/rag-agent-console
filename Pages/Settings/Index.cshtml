@@ -29,7 +29,7 @@
 
         <div class="settings-status-card">
             <span class="metric-label">@L["向量資料庫"]</span>
-            <strong>@Model.VectorStoreStatusLabel</strong>
+            <strong>PgVector</strong>
         </div>
 
         <nav class="settings-anchor-nav" aria-label="Settings sections">
@@ -196,24 +196,13 @@
                     <span class="section-kicker">RAG</span>
                     <h3>@L["檢索與可觀測性"]</h3>
                 </div>
-                <span class="status-pill @Model.VectorStoreStatusClass">@Model.VectorStoreStatusLabel</span>
+                <span class="status-pill is-success">PgVector</span>
             </div>
 
             <div class="settings-control-grid">
                 <label class="field-block">
-                    <span>@L["向量資料庫"]</span>
-                    <select asp-for="Input.VectorStoreProvider" class="form-select">
-                        <option value="EfJson">EF JSON</option>
-                        <option value="PgVector">PgVector</option>
-                    </select>
-                </label>
-                <label class="field-block">
                     <span>@L["候選上限"]</span>
                     <input asp-for="Input.VectorStoreCandidateLimit" class="form-control" type="number" min="50" max="10000" />
-                </label>
-                <label class="field-switch">
-                    <input asp-for="Input.VectorStoreUseJsonFallback" class="form-check-input" />
-                    <span><strong>JSON @L["備援"]</strong></span>
                 </label>
                 <label class="field-switch">
                     <input asp-for="Input.EnableOpenTelemetry" class="form-check-input" />

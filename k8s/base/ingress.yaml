@@ -1,0 +1,21 @@
+# 對外入口：後台 + Telegram webhook。host 換成自己的網域；
+# Telegram 要求 webhook 走 HTTPS，正式環境記得配 cert-manager 或雲端 LB 憑證。
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag-agent-web
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: rag-agent.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rag-agent-web
+                port:
+                  number: 80

@@ -3,6 +3,28 @@ using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
+public interface IRagRetrievalService
+{
+    Task<IReadOnlyList<RetrievalResult>> SearchAsync(
+        string question,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RetrievalResult>> SearchAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default);
+
+    Task<RetrievalResponse> SearchWithTraceAsync(
+        string question,
+        IReadOnlyList<AgentConversationMessage>? history = null,
+        int maxResults = 5,
+        string? moduleName = null,
+        string retrievalMode = RetrievalModes.Hybrid,
+        CancellationToken cancellationToken = default);
+}
+
 public class RagRetrievalService(
     IRagEmbeddingService embeddingService,
     IRagVectorStore vectorStore,

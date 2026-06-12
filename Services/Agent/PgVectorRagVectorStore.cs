@@ -1,12 +1,22 @@
-using System.Data;
-using System.Globalization;
-using System.Text.Json;
 using RagAgentConsole.Data;
 using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
+using Pgvector.EntityFrameworkCore;
 
 namespace RagAgentConsole.Services;
 
+public interface IRagVectorStore
+{
+    Task<IReadOnlyList<RetrievalCandidate>> SearchAsync(
+        RetrievalRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// 唯一的向量檢索後端：結構化條件（日期、CVE 年份、模組、啟用狀態、維度）走 SQL WHERE，
+/// 相似度排序靠 pgvector 的 cosine distance，關鍵字與領域規則留在記憶體做後過濾。
+/// </summary>
 public class PgVectorRagVectorStore(
     ApplicationDbContext dbContext,
     IAppSettingsService appSettingsService,
@@ -18,211 +28,176 @@ public class PgVectorRagVectorStore(
         RetrievalRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (request.QueryEmbedding.Length == 0)
-        {
-            return [];
-        }
-
-        await EnsurePgVectorAvailableAsync(cancellationToken);
-
-        var queryVector = BuildVectorLiteral(request.QueryEmbedding);
         var vectorStoreOptions = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var limit = Math.Clamp(vectorStoreOptions.CandidateLimit, 50, 10000);
+        var queryVector = request.QueryEmbedding.Length > 0 ? new Vector(request.QueryEmbedding) : null;
         var candidates = new List<RetrievalCandidate>();
 
         if (ShouldSearchAdvisories(request))
         {
-            var chunks = await dbContext.SecurityAdvisoryChunks
-                .FromSqlRaw(
-                    """
-                    SELECT *
-                    FROM "SecurityAdvisoryChunks"
-                    WHERE "EmbeddingJson" IS NOT NULL AND "EmbeddingJson" <> ''
-                      AND vector_dims("EmbeddingJson"::vector) = {2}
-                    ORDER BY "EmbeddingJson"::vector <=> CAST({0} AS vector)
-                    LIMIT {1}
-                    """,
-                    queryVector,
-                    limit,
-                    request.QueryEmbedding.Length)
-                .Include(chunk => chunk.Advisory)
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-            foreach (var chunk in chunks)
-            {
-                if (chunk.Advisory is null || !MatchesAdvisoryRequest(request, chunk.Advisory, chunk.ChunkText))
-                {
-                    continue;
-                }
-
-                var vector = TryReadVector(chunk.EmbeddingJson, "advisory", chunk.SecurityAdvisoryChunkId);
-                if (vector is null)
-                {
-                    continue;
-                }
-
-                candidates.Add(new AdvisoryCandidate(
-                    chunk.Advisory,
-                    chunk.ChunkText,
-                    vector,
-                    scorer.ScoreAdvisory(request, chunk.Advisory, chunk.ChunkText)));
-            }
+            candidates.AddRange(await SearchAdvisoriesAsync(request, queryVector, limit, cancellationToken));
         }
 
-        var documentChunks = await dbContext.KnowledgeDocumentChunks
-            .FromSqlRaw(
-                """
-                SELECT *
-                FROM "KnowledgeDocumentChunks"
-                WHERE "EmbeddingJson" IS NOT NULL AND "EmbeddingJson" <> ''
-                  AND vector_dims("EmbeddingJson"::vector) = {2}
-                ORDER BY "EmbeddingJson"::vector <=> CAST({0} AS vector)
-                LIMIT {1}
-                """,
-                queryVector,
-                limit,
-                request.QueryEmbedding.Length)
-            .Include(chunk => chunk.Document)
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        var documentDomain = domainRegistry.Resolve(request.ModuleName);
-        foreach (var chunk in documentChunks)
-        {
-            if (chunk.Document is null ||
-                !MatchesDocumentRequest(request, chunk.Document, chunk.ChunkText) ||
-                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
-            {
-                continue;
-            }
-
-            var vector = TryReadVector(chunk.EmbeddingJson, "knowledge document", chunk.KnowledgeDocumentChunkId);
-            if (vector is null)
-            {
-                continue;
-            }
-
-            candidates.Add(new DocumentCandidate(
-                chunk.Document,
-                chunk.ChunkText,
-                vector,
-                scorer.ScoreDocument(request, chunk.Document, chunk.ChunkText)));
-        }
+        candidates.AddRange(await SearchDocumentsAsync(request, queryVector, limit, cancellationToken));
 
         logger.LogDebug("PgVector search produced {CandidateCount} candidates.", candidates.Count);
         return candidates;
     }
 
-    private async Task EnsurePgVectorAvailableAsync(CancellationToken cancellationToken)
+    private async Task<List<RetrievalCandidate>> SearchAdvisoriesAsync(
+        RetrievalRequest request,
+        Vector? queryVector,
+        int limit,
+        CancellationToken cancellationToken)
     {
-        if (!string.Equals(dbContext.Database.ProviderName, "Npgsql.EntityFrameworkCore.PostgreSQL", StringComparison.Ordinal))
+        var advisoryFilter = SecurityAdvisoryFilter.From(request);
+        var query = dbContext.SecurityAdvisoryChunks
+            .Include(chunk => chunk.Advisory)
+            .Where(chunk => chunk.Advisory != null)
+            .AsQueryable();
+
+        if (request.PublishedFrom.HasValue)
         {
-            throw new PgVectorUnavailableException("PgVector store requires PostgreSQL.");
+            query = query.Where(chunk => chunk.Advisory!.PublishedAt >= request.PublishedFrom.Value);
         }
 
-        var connection = dbContext.Database.GetDbConnection();
-        var openedHere = connection.State != ConnectionState.Open;
-        if (openedHere)
+        if (request.PublishedTo.HasValue)
         {
-            await connection.OpenAsync(cancellationToken);
+            query = query.Where(chunk => chunk.Advisory!.PublishedAt < request.PublishedTo.Value);
         }
 
-        try
+        if (advisoryFilter.CveYear.HasValue)
         {
-            try
-            {
-                await using (var createCommand = connection.CreateCommand())
-                {
-                    createCommand.CommandText = "CREATE EXTENSION IF NOT EXISTS vector";
-                    await createCommand.ExecuteNonQueryAsync(cancellationToken);
-                }
+            var cvePrefix = $"CVE-{advisoryFilter.CveYear.Value}-";
+            query = query.Where(chunk => chunk.Advisory!.CveId != null && chunk.Advisory.CveId.StartsWith(cvePrefix));
+        }
 
-                await using var command = connection.CreateCommand();
-                command.CommandText = "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')";
-                var result = await command.ExecuteScalarAsync(cancellationToken);
-                if (result is true)
-                {
-                    return;
-                }
-            }
-            catch (OperationCanceledException)
+        if (!string.IsNullOrWhiteSpace(advisoryFilter.CveId))
+        {
+            query = query.Where(chunk =>
+                chunk.Advisory!.CveId == advisoryFilter.CveId || chunk.Advisory.ExternalId == advisoryFilter.CveId);
+        }
+        else
+        {
+            if (advisoryFilter.KevOnly)
             {
-                throw;
-            }
-            catch (Exception exception)
-            {
-                throw new PgVectorUnavailableException($"PostgreSQL vector extension is not available: {exception.Message}");
+                query = query.Where(chunk => chunk.Advisory!.IsKnownExploited);
             }
 
-            throw new PgVectorUnavailableException("PostgreSQL vector extension is not installed.");
-        }
-        finally
-        {
-            if (openedHere)
+            if (advisoryFilter.HighRiskOnly)
             {
-                await connection.CloseAsync();
+                query = query.Where(chunk =>
+                    chunk.Advisory!.IsKnownExploited ||
+                    chunk.Advisory.CvssScore >= 9 ||
+                    chunk.Advisory.Severity == "CRITICAL" ||
+                    chunk.Advisory.Severity == "Critical");
             }
         }
+
+        // 有 query embedding 時依 cosine distance 排序；沒有（純關鍵字模式）就退回時間序。
+        // 維度過濾擋掉換 embedding provider 之後遺留的不相容向量。
+        if (queryVector is not null)
+        {
+            var dimensions = queryVector.ToArray().Length;
+            query = query
+                .Where(chunk => chunk.Embedding != null && chunk.EmbeddingDimensions == dimensions)
+                .OrderBy(chunk => chunk.Embedding!.CosineDistance(queryVector));
+        }
+        else
+        {
+            query = query
+                .Where(chunk => chunk.Embedding != null)
+                .OrderByDescending(chunk => chunk.Advisory!.PublishedAt);
+        }
+
+        var chunks = await query
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var results = new List<RetrievalCandidate>();
+        foreach (var chunk in chunks)
+        {
+            if (chunk.Advisory is null ||
+                chunk.Embedding is null ||
+                !MatchesAdvisoryKeywords(request, chunk.Advisory))
+            {
+                continue;
+            }
+
+            results.Add(new AdvisoryCandidate(
+                chunk.Advisory,
+                chunk.ChunkText,
+                chunk.Embedding.ToArray(),
+                scorer.ScoreAdvisory(request, chunk.Advisory, chunk.ChunkText)));
+        }
+
+        return results;
     }
 
-    private static string BuildVectorLiteral(IReadOnlyList<float> vector)
-        => "[" + string.Join(',', vector.Select(value => value.ToString("R", CultureInfo.InvariantCulture))) + "]";
-
-    private float[]? TryReadVector(string embeddingJson, string sourceKind, int chunkId)
+    private async Task<List<RetrievalCandidate>> SearchDocumentsAsync(
+        RetrievalRequest request,
+        Vector? queryVector,
+        int limit,
+        CancellationToken cancellationToken)
     {
-        try
+        var documentDomain = domainRegistry.Resolve(request.ModuleName);
+        var query = dbContext.KnowledgeDocumentChunks
+            .Include(chunk => chunk.Document)
+            .Where(chunk => chunk.Document != null && chunk.Document.IsEnabled);
+
+        if (!string.IsNullOrWhiteSpace(request.ModuleName))
         {
-            var vector = JsonSerializer.Deserialize<float[]>(embeddingJson);
-            return vector is { Length: > 0 } ? vector : null;
+            var moduleNames = documentDomain.ModuleNames;
+            query = query.Where(chunk => moduleNames.Contains(chunk.Document!.ModuleName));
         }
-        catch (JsonException exception)
+
+        if (queryVector is not null)
         {
-            logger.LogDebug(exception, "Skipping malformed pgvector {SourceKind} embedding for chunk {ChunkId}.", sourceKind, chunkId);
-            return null;
+            var dimensions = queryVector.ToArray().Length;
+            query = query
+                .Where(chunk => chunk.Embedding != null && chunk.EmbeddingDimensions == dimensions)
+                .OrderBy(chunk => chunk.Embedding!.CosineDistance(queryVector));
         }
+        else
+        {
+            query = query
+                .Where(chunk => chunk.Embedding != null)
+                .OrderByDescending(chunk => chunk.KnowledgeDocumentChunkId);
+        }
+
+        var chunks = await query
+            .Take(limit)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var results = new List<RetrievalCandidate>();
+        foreach (var chunk in chunks)
+        {
+            if (chunk.Document is null ||
+                chunk.Embedding is null ||
+                !MatchesDocumentKeywords(request, chunk.Document, chunk.ChunkText) ||
+                !documentDomain.AcceptsDocument(request, chunk.Document, chunk.ChunkText))
+            {
+                continue;
+            }
+
+            results.Add(new DocumentCandidate(
+                chunk.Document,
+                chunk.ChunkText,
+                chunk.Embedding.ToArray(),
+                scorer.ScoreDocument(request, chunk.Document, chunk.ChunkText)));
+        }
+
+        return results;
     }
 
     private static bool ShouldSearchAdvisories(RetrievalRequest request)
         => string.IsNullOrWhiteSpace(request.ModuleName) ||
            string.Equals(request.ModuleName, KnowledgeModuleNames.CveAdvisory, StringComparison.OrdinalIgnoreCase);
 
-    private static bool MatchesAdvisoryRequest(
-        RetrievalRequest request,
-        SecurityAdvisory advisory,
-        string chunkText)
+    private static bool MatchesAdvisoryKeywords(RetrievalRequest request, SecurityAdvisory advisory)
     {
-        var advisoryFilter = SecurityAdvisoryFilter.From(request);
-        if (request.PublishedFrom.HasValue && advisory.PublishedAt < request.PublishedFrom.Value)
-        {
-            return false;
-        }
-
-        if (request.PublishedTo.HasValue && advisory.PublishedAt >= request.PublishedTo.Value)
-        {
-            return false;
-        }
-
-        if (advisoryFilter.CveYear.HasValue &&
-            (advisory.CveId is null ||
-             !advisory.CveId.StartsWith($"CVE-{advisoryFilter.CveYear.Value}-", StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
-
-        if (advisoryFilter.KevOnly && !advisory.IsKnownExploited)
-        {
-            return false;
-        }
-
-        if (advisoryFilter.HighRiskOnly &&
-            !advisory.IsKnownExploited &&
-            advisory.CvssScore < 9 &&
-            !string.Equals(advisory.Severity, "Critical", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
         if (request.Keywords.Count == 0)
         {
             return true;
@@ -232,22 +207,8 @@ public class PgVectorRagVectorStore(
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool MatchesDocumentRequest(
-        RetrievalRequest request,
-        KnowledgeDocument document,
-        string chunkText)
+    private static bool MatchesDocumentKeywords(RetrievalRequest request, KnowledgeDocument document, string chunkText)
     {
-        if (!document.IsEnabled)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.ModuleName) &&
-            !string.Equals(request.ModuleName, document.ModuleName, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
         if (request.Keywords.Count == 0)
         {
             return true;
@@ -257,5 +218,3 @@ public class PgVectorRagVectorStore(
         return request.Keywords.Take(6).Any(keyword => searchable.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 }
-
-public sealed class PgVectorUnavailableException(string message) : InvalidOperationException(message);

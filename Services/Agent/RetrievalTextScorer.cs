@@ -2,6 +2,12 @@ using RagAgentConsole.Models;
 
 namespace RagAgentConsole.Services;
 
+public interface IRetrievalTextScorer
+{
+    double ScoreAdvisory(RetrievalRequest request, SecurityAdvisory advisory, string chunkText);
+    double ScoreDocument(RetrievalRequest request, KnowledgeDocument document, string chunkText);
+}
+
 /// <summary>
 /// Sparse text scorer used in hybrid retrieval. BM25 provides the bulk
 /// of the signal (corpus-aware TF-IDF with length normalization);

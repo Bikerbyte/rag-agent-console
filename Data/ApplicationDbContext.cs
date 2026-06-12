@@ -1,5 +1,8 @@
+using System.Text.Json;
 using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Pgvector;
 
 namespace RagAgentConsole.Data;
 
@@ -8,8 +11,6 @@ namespace RagAgentConsole.Data;
 /// </summary>
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public DbSet<RuntimeLeadershipLease> RuntimeLeadershipLeases => Set<RuntimeLeadershipLease>();
-    public DbSet<RuntimeNodeHeartbeat> RuntimeNodeHeartbeats => Set<RuntimeNodeHeartbeat>();
     public DbSet<TelegramChatSubscription> TelegramChatSubscriptions => Set<TelegramChatSubscription>();
     public DbSet<TelegramUpdateInbox> TelegramUpdateInboxes => Set<TelegramUpdateInbox>();
     public DbSet<PushLog> PushLogs => Set<PushLog>();
@@ -25,6 +26,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(modelBuilder);
 
+        if (Database.IsRelational())
+        {
+            // 讓 migration 自帶 CREATE EXTENSION vector，部署時不需要手動準備。
+            modelBuilder.HasPostgresExtension("vector");
+        }
+        else
+        {
+            // 單元測試用 in-memory provider 時沒有 vector 型別，退化成 JSON 字串存放。
+            var vectorToJson = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<Vector, string>(
+                vector => JsonSerializer.Serialize(vector.ToArray(), (JsonSerializerOptions?)null),
+                json => new Vector(JsonSerializer.Deserialize<float[]>(json, (JsonSerializerOptions?)null) ?? Array.Empty<float>()));
+            var vectorComparer = new ValueComparer<Vector?>(
+                (left, right) => Equals(left, right),
+                vector => vector == null ? 0 : vector.GetHashCode());
+
+            modelBuilder.Entity<SecurityAdvisoryChunk>()
+                .Property(chunk => chunk.Embedding)
+                .HasConversion(vectorToJson!, vectorComparer);
+            modelBuilder.Entity<KnowledgeDocumentChunk>()
+                .Property(chunk => chunk.Embedding)
+                .HasConversion(vectorToJson!, vectorComparer);
+        }
+
         // 每個 Telegram chat 只保留一筆訂閱設定，後續管理和推播判斷會簡單很多。
         modelBuilder.Entity<TelegramChatSubscription>()
             .HasIndex(chatSubscription => chatSubscription.ChatId)
@@ -34,15 +58,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<TelegramUpdateInbox>()
             .HasIndex(updateInbox => updateInbox.UpdateId)
             .IsUnique();
-
-        // 後台要集中顯示節點狀態，所以 instance name 也保持唯一。
-        modelBuilder.Entity<RuntimeNodeHeartbeat>()
-            .HasIndex(heartbeat => heartbeat.InstanceName)
-            .IsUnique();
-
-        // 每種 scheduled job 的租約名稱只保留一筆，讓多節點只會有一個有效持有者。
-        modelBuilder.Entity<RuntimeLeadershipLease>()
-            .HasKey(lease => lease.LeaseName);
 
         modelBuilder.Entity<AppSetting>()
             .HasIndex(setting => setting.SettingKey)

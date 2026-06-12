@@ -1,46 +1,29 @@
 namespace RagAgentConsole.Models;
 
+/// <summary>
+/// 角色開關：同一個 image 用環境變數切成 web（只開 ingress）或 worker（只開背景工作）。
+/// 多節點的單實例保證交給部署層（k8s 單副本 Deployment / CronJob），app 內不再自己協調。
+/// </summary>
 public class AppRuntimeOptions
 {
     public const string SectionName = "AppRuntime";
 
-    public string Profile { get; set; } = AppRuntimeProfiles.Standard;
-    public string InstanceName { get; set; } = "local-node";
-    public bool EnableLeadershipLease { get; set; } = true;
-    public int LeaseDurationSeconds { get; set; } = 45;
-    public int LeaseRenewIntervalSeconds { get; set; } = 15;
-    public int LeaseAcquireRetrySeconds { get; set; } = 10;
+    public string InstanceName { get; set; } = string.Empty;
     public bool EnableTelegramWebhookIngress { get; set; } = true;
     public bool EnableTelegramPollingWorker { get; set; } = true;
     public bool EnableTelegramUpdateQueueWorker { get; set; } = true;
     public bool EnableOfficialDataSyncWorker { get; set; } = true;
     public bool EnableNotificationWorker { get; set; } = true;
-}
 
-public static class AppRuntimeProfiles
-{
-    public const string Standard = "Standard";
-    public const string WorkerOnly = "WorkerOnly";
-    public const string IngressOnly = "IngressOnly";
-    public const string PollingNode = "PollingNode";
-    public const string Custom = "Custom";
-
-    public static string Normalize(string? profile)
+    public string GetEffectiveInstanceName()
     {
-        if (string.IsNullOrWhiteSpace(profile))
+        if (!string.IsNullOrWhiteSpace(InstanceName))
         {
-            return Standard;
+            return InstanceName.Trim();
         }
 
-        return profile.Trim() switch
-        {
-            var value when value.Equals(Standard, StringComparison.OrdinalIgnoreCase) => Standard,
-            var value when value.Equals(WorkerOnly, StringComparison.OrdinalIgnoreCase) => WorkerOnly,
-            var value when value.Equals(IngressOnly, StringComparison.OrdinalIgnoreCase) => IngressOnly,
-            var value when value.Equals(PollingNode, StringComparison.OrdinalIgnoreCase) => PollingNode,
-            var value when value.Equals(Custom, StringComparison.OrdinalIgnoreCase) => Custom,
-            _ => Custom
-        };
+        var machineName = Environment.MachineName?.Trim();
+        return string.IsNullOrWhiteSpace(machineName) ? $"node-{Environment.ProcessId}" : machineName;
     }
 }
 
@@ -79,15 +62,7 @@ public class VectorStoreOptions
 {
     public const string SectionName = "VectorStore";
 
-    public string Provider { get; set; } = VectorStoreProviderNames.EfJson;
     public int CandidateLimit { get; set; } = 3000;
-    public bool UseJsonFallback { get; set; } = true;
-}
-
-public static class VectorStoreProviderNames
-{
-    public const string EfJson = "EfJson";
-    public const string PgVector = "PgVector";
 }
 
 public class ObservabilityOptions
@@ -96,6 +71,10 @@ public class ObservabilityOptions
 
     public bool EnableOpenTelemetry { get; set; }
     public bool EnableConsoleExporter { get; set; }
+
+    /// <summary>OTLP gRPC endpoint（例如 http://localhost:4317 的 otel-lgtm）。留空就不外送。</summary>
+    public string OtlpEndpoint { get; set; } = string.Empty;
+
     public string ServiceName { get; set; } = "RagAgentConsole";
 }
 

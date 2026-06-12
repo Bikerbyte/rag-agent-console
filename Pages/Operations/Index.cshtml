@@ -26,7 +26,6 @@
     <article class="metric-strip">
         <span class="metric-label">@L["節點"]</span>
         <strong>@Model.InstanceName</strong>
-        <p>@Model.ActiveNodeCount @L["個線上節點"]</p>
     </article>
     <article class="metric-strip">
         <span class="metric-label">@L["AI 供應商"]</span>
@@ -182,37 +181,6 @@
         </div>
     </article>
 
-    <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">@L["執行階段"]</span>
-                <h2 class="panel-title">@L["節點"]</h2>
-            </div>
-        </div>
-
-        <div class="compact-list">
-            @if (Model.Nodes.Count == 0)
-            {
-                <p class="empty-copy">@L["尚無節點心跳。"]</p>
-            }
-            else
-            {
-                @foreach (var node in Model.Nodes)
-                {
-                    <div class="compact-row">
-                        <div>
-                            <span class="table-title">@node.InstanceName</span>
-                            <p class="table-copy">@node.MachineName · @node.RoleSummary</p>
-                        </div>
-                        <div class="row-actions">
-                            <span class="status-pill @(node.StatusText == "Online" ? "is-success" : "is-warning")">@(node.StatusText == "Online" ? L["線上"] : node.StatusText)</span>
-                            <span class="table-copy">@node.LastSeenTime.ToLocalTime().ToString("HH:mm:ss")</span>
-                        </div>
-                    </div>
-                }
-            }
-        </div>
-    </article>
 </section>
 
 @section Scripts {
