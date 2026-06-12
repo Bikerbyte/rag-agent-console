@@ -98,7 +98,7 @@ if (string.IsNullOrWhiteSpace(defaultConnection))
 {
     throw new InvalidOperationException(
         "ConnectionStrings:DefaultConnection is required and must point to a PostgreSQL instance. " +
-        "For local development start one with: docker compose -f docker-compose.deps.yml up -d");
+        "For a self-contained demo use docker-compose.yml with docker-compose.demo.yml.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

@@ -66,22 +66,43 @@ flowchart LR
 
 ## 開始方式
 
-唯一的硬性依賴是 PostgreSQL + pgvector（向量檢索與結構化過濾都在同一條 SQL 完成）。
+唯一的硬性依賴是 PostgreSQL + pgvector。PostgreSQL 與 Grafana/LGTM 可以由外部平台或獨立 infra 專案提供；每個應用應使用獨立的 database/user 與 OpenTelemetry service name。
 
-**Docker 一次起完整環境**（app + pgvector Postgres + grafana/otel-lgtm）：
+**Self-contained demo**（app + PostgreSQL + LGTM，使用隔離的 ports/volumes）：
 
 ```bash
 cp .env.example .env
+docker compose \
+  -p rag-agent-console-demo \
+  -f docker-compose.yml \
+  -f docker-compose.demo.yml \
+  up -d --build
+```
+
+後台在 `http://localhost:8080`，demo Grafana 在 `http://localhost:3300`。清除 demo：
+
+```bash
+docker compose \
+  -p rag-agent-console-demo \
+  -f docker-compose.yml \
+  -f docker-compose.demo.yml \
+  down --volumes
+```
+
+**使用既有 PostgreSQL/LGTM**：
+
+```bash
+cp .env.example .env
+# 設定 POSTGRES_HOST/PORT/DB/USER/PASSWORD 與 OTEL_OTLP_ENDPOINT
 docker compose up -d --build
 ```
 
-後台在 `http://localhost:8080`，Grafana（trace / metric）在 `http://localhost:3000`。
+主要的 `docker-compose.yml` 只管理 app，不會停止或刪除外部 PostgreSQL/LGTM。容器要連同一台主機上的服務時，可使用 `host.docker.internal`；Linux Compose 已包含對應的 `host-gateway` 設定。
 
-**本機開發**（host 跑 dotnet、基礎設施跑容器——容器可以在另一台機器 / VM 上）：
+**本機開發**（host 跑 dotnet、基礎設施可在本機、VM 或其他主機）：
 
 ```bash
-docker compose -f docker-compose.deps.yml up -d   # 只起 postgres + lgtm
-dotnet run --ConnectionStrings:DefaultConnection="Host=<docker-host>;Port=5433;Database=rag_agent;Username=postgres;Password=change-me;SSL Mode=Disable"
+dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433;Database=rag_agent;Username=rag_agent;Password=change-me;SSL Mode=Disable"
 ```
 
 啟動時自動套 EF migration 並植入評估 golden set，後台預設為 `http://localhost:5166`。

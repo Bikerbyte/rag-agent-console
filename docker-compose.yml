@@ -3,14 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rag-agent-console
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: Host=${POSTGRES_HOST:-host.docker.internal};Port=${POSTGRES_PORT:-5433};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       TelegramBot__Enabled: ${TELEGRAM_BOT_ENABLED:-false}
       TelegramBot__BotToken: ${TELEGRAM_BOT_TOKEN:-}
       TelegramBot__ApiBaseUrl: https://api.telegram.org
@@ -43,42 +39,15 @@ services:
       VectorStore__CandidateLimit: ${VECTOR_STORE_CANDIDATE_LIMIT:-3000}
       Observability__EnableOpenTelemetry: ${ENABLE_OPEN_TELEMETRY:-true}
       Observability__EnableConsoleExporter: ${ENABLE_OPEN_TELEMETRY_CONSOLE_EXPORTER:-false}
-      Observability__OtlpEndpoint: ${OTEL_OTLP_ENDPOINT:-http://lgtm:4317}
+      Observability__OtlpEndpoint: ${OTEL_OTLP_ENDPOINT:-http://host.docker.internal:4317}
       Observability__ServiceName: ${OPEN_TELEMETRY_SERVICE_NAME:-RagAgentConsole}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${APP_PORT:-8080}:8080"
     volumes:
       - app_data:/app/App_Data
     restart: unless-stopped
 
-  # Grafana + Tempo + Prometheus + Loki 一體包：app 的 trace/metric 由 OTLP(4317) 收進來，
-  # Grafana UI 開在 http://localhost:3000（demo 用，匿名登入）。
-  lgtm:
-    image: grafana/otel-lgtm:latest
-    container_name: rag-agent-lgtm
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-      - "${OTLP_GRPC_PORT:-4317}:4317"
-    restart: unless-stopped
-
-  db:
-    image: pgvector/pgvector:0.8.2-pg17-trixie
-    container_name: rag-agent-postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
 volumes:
   app_data:
-  postgres_data:
