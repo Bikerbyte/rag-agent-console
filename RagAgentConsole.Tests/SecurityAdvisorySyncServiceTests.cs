@@ -33,6 +33,48 @@ public class SecurityAdvisorySyncServiceTests
         Assert.Equal(2, embeddingService.CallCount);
     }
 
+    [Fact]
+    public async Task SyncAsync_AdvisoryOutsideCurrentFeedWithMissingEmbedding_RebuildsChunk()
+    {
+        await using var db = NewDb();
+        var embeddingService = new FakeEmbeddingService();
+        var service = CreateService(db, embeddingService);
+        var now = DateTimeOffset.UtcNow;
+        var staleAdvisory = new SecurityAdvisory
+        {
+            SourceName = "NVD",
+            ExternalId = "CVE-2013-0001",
+            CveId = "CVE-2013-0001",
+            Title = "Old advisory",
+            Description = "No longer returned by the current source window.",
+            SourceUrl = "https://example.test/CVE-2013-0001",
+            ContentHash = "stale-hash",
+            CreatedTime = now,
+            LastSyncedTime = now
+        };
+        staleAdvisory.Chunks.Add(new SecurityAdvisoryChunk
+        {
+            ChunkKind = "AdvisorySummary",
+            ChunkText = "Old advisory",
+            Embedding = null,
+            EmbeddingDimensions = 0,
+            CreatedTime = now
+        });
+        db.SecurityAdvisories.Add(staleAdvisory);
+        await db.SaveChangesAsync();
+
+        var result = await service.SyncAsync();
+
+        var rebuilt = await db.SecurityAdvisoryChunks
+            .SingleAsync(chunk => chunk.SecurityAdvisoryId == staleAdvisory.SecurityAdvisoryId);
+        Assert.NotNull(rebuilt.Embedding);
+        Assert.Equal(3, rebuilt.EmbeddingDimensions);
+        Assert.Equal(1, result.AddedCount);
+        Assert.Equal(1, result.UpdatedCount);
+        Assert.Equal(2, result.ChunkCount);
+        Assert.Equal(2, embeddingService.CallCount);
+    }
+
     private static SecurityAdvisorySyncService CreateService(
         ApplicationDbContext db,
         FakeEmbeddingService embeddingService)

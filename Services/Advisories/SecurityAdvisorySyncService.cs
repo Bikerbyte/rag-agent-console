@@ -90,6 +90,24 @@ public class SecurityAdvisorySyncService(
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
+            var advisoriesStillMissingEmbeddings = await dbContext.SecurityAdvisories
+                .Include(advisory => advisory.Chunks)
+                .Where(advisory => advisory.Chunks.Count == 0 || advisory.Chunks.Any(chunk =>
+                    chunk.Embedding == null || chunk.EmbeddingDimensions <= 0))
+                .ToListAsync(cancellationToken);
+
+            foreach (var advisory in advisoriesStillMissingEmbeddings)
+            {
+                var rebuiltChunk = await BuildChunkAsync(advisory, cancellationToken);
+                dbContext.SecurityAdvisoryChunks.RemoveRange(advisory.Chunks);
+                advisory.Chunks.Clear();
+                advisory.Chunks.Add(rebuiltChunk);
+                updatedCount++;
+                chunkCount++;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
             if (addedCount > 0 || updatedCount > 0)
             {
                 try
