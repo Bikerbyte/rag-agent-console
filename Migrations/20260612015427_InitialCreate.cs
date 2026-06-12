@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -7,11 +7,55 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RagAgentConsole.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialSecurityAdvisory : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "AppSettings",
+                columns: table => new
+                {
+                    AppSettingId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    SettingKey = table.Column<string>(type: "text", nullable: false),
+                    SettingValue = table.Column<string>(type: "text", nullable: true),
+                    IsSecret = table.Column<bool>(type: "boolean", nullable: false),
+                    UpdatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AppSettings", x => x.AppSettingId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "KnowledgeDocuments",
+                columns: table => new
+                {
+                    KnowledgeDocumentId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ModuleName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    Title = table.Column<string>(type: "character varying(160)", maxLength: 160, nullable: false),
+                    SourceType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    FileName = table.Column<string>(type: "character varying(260)", maxLength: 260, nullable: true),
+                    ContentType = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: true),
+                    Vendor = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: true),
+                    Product = table.Column<string>(type: "character varying(160)", maxLength: 160, nullable: true),
+                    Tags = table.Column<string>(type: "character varying(800)", maxLength: 800, nullable: true),
+                    ExtractedText = table.Column<string>(type: "text", nullable: false),
+                    ContentHash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    CharacterCount = table.Column<int>(type: "integer", nullable: false),
+                    ChunkCount = table.Column<int>(type: "integer", nullable: false),
+                    CreatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastUpdatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_KnowledgeDocuments", x => x.KnowledgeDocumentId);
+                });
+
             migrationBuilder.CreateTable(
                 name: "PushLogs",
                 columns: table => new
@@ -32,40 +76,24 @@ namespace RagAgentConsole.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "RuntimeLeadershipLeases",
+                name: "RetrievalEvaluationCases",
                 columns: table => new
                 {
-                    LeaseName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    OwnerInstanceName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    AcquiredAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    RenewedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LastUpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_RuntimeLeadershipLeases", x => x.LeaseName);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "RuntimeNodeHeartbeats",
-                columns: table => new
-                {
-                    RuntimeNodeHeartbeatId = table.Column<int>(type: "integer", nullable: false)
+                    RetrievalEvaluationCaseId = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    InstanceName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    MachineName = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    EnvironmentName = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    RoleSummary = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: false),
-                    Status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    ProcessId = table.Column<int>(type: "integer", nullable: false),
-                    ProcessStartedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LastSeenTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    AppVersion = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true)
+                    CaseKey = table.Column<string>(type: "character varying(96)", maxLength: 96, nullable: false),
+                    Question = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    ExpectedDocumentTitles = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    ExpectedContentKeywords = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    ExpectedMetadata = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    IsSeeded = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastUpdatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RuntimeNodeHeartbeats", x => x.RuntimeNodeHeartbeatId);
+                    table.PrimaryKey("PK_RetrievalEvaluationCases", x => x.RetrievalEvaluationCaseId);
                 });
 
             migrationBuilder.CreateTable(
@@ -166,6 +194,30 @@ namespace RagAgentConsole.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "KnowledgeDocumentChunks",
+                columns: table => new
+                {
+                    KnowledgeDocumentChunkId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    KnowledgeDocumentId = table.Column<int>(type: "integer", nullable: false),
+                    ChunkKind = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    ChunkIndex = table.Column<int>(type: "integer", nullable: false),
+                    ChunkText = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: false),
+                    EmbeddingJson = table.Column<string>(type: "text", nullable: false),
+                    CreatedTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_KnowledgeDocumentChunks", x => x.KnowledgeDocumentChunkId);
+                    table.ForeignKey(
+                        name: "FK_KnowledgeDocumentChunks_KnowledgeDocuments_KnowledgeDocumen~",
+                        column: x => x.KnowledgeDocumentId,
+                        principalTable: "KnowledgeDocuments",
+                        principalColumn: "KnowledgeDocumentId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SecurityAdvisoryChunks",
                 columns: table => new
                 {
@@ -189,9 +241,25 @@ namespace RagAgentConsole.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RuntimeNodeHeartbeats_InstanceName",
-                table: "RuntimeNodeHeartbeats",
-                column: "InstanceName",
+                name: "IX_AppSettings_SettingKey",
+                table: "AppSettings",
+                column: "SettingKey",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_KnowledgeDocumentChunks_KnowledgeDocumentId",
+                table: "KnowledgeDocumentChunks",
+                column: "KnowledgeDocumentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_KnowledgeDocuments_ModuleName",
+                table: "KnowledgeDocuments",
+                column: "ModuleName");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RetrievalEvaluationCases_CaseKey",
+                table: "RetrievalEvaluationCases",
+                column: "CaseKey",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -227,13 +295,16 @@ namespace RagAgentConsole.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AppSettings");
+
+            migrationBuilder.DropTable(
+                name: "KnowledgeDocumentChunks");
+
+            migrationBuilder.DropTable(
                 name: "PushLogs");
 
             migrationBuilder.DropTable(
-                name: "RuntimeLeadershipLeases");
-
-            migrationBuilder.DropTable(
-                name: "RuntimeNodeHeartbeats");
+                name: "RetrievalEvaluationCases");
 
             migrationBuilder.DropTable(
                 name: "SecurityAdvisoryChunks");
@@ -246,6 +317,9 @@ namespace RagAgentConsole.Migrations
 
             migrationBuilder.DropTable(
                 name: "TelegramUpdateInboxes");
+
+            migrationBuilder.DropTable(
+                name: "KnowledgeDocuments");
 
             migrationBuilder.DropTable(
                 name: "SecurityAdvisories");

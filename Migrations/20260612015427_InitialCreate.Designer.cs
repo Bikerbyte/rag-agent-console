@@ -12,8 +12,8 @@ using RagAgentConsole.Data;
 namespace RagAgentConsole.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260609073650_AddRetrievalEvaluationCases")]
-    partial class AddRetrievalEvaluationCases
+    [Migration("20260612015427_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -229,11 +229,15 @@ namespace RagAgentConsole.Migrations
                     b.Property<DateTimeOffset>("CreatedTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ExpectedCveIds")
-                        .HasMaxLength(1200)
-                        .HasColumnType("character varying(1200)");
+                    b.Property<string>("ExpectedContentKeywords")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("ExpectedDocumentTitles")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ExpectedMetadata")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
@@ -258,88 +262,6 @@ namespace RagAgentConsole.Migrations
                         .IsUnique();
 
                     b.ToTable("RetrievalEvaluationCases");
-                });
-
-            modelBuilder.Entity("RagAgentConsole.Models.RuntimeLeadershipLease", b =>
-                {
-                    b.Property<string>("LeaseName")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("AcquiredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("LastUpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OwnerInstanceName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("RenewedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("LeaseName");
-
-                    b.ToTable("RuntimeLeadershipLeases");
-                });
-
-            modelBuilder.Entity("RagAgentConsole.Models.RuntimeNodeHeartbeat", b =>
-                {
-                    b.Property<int>("RuntimeNodeHeartbeatId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RuntimeNodeHeartbeatId"));
-
-                    b.Property<string>("AppVersion")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("EnvironmentName")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("InstanceName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("LastSeenTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MachineName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<int>("ProcessId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("ProcessStartedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RoleSummary")
-                        .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("character varying(400)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.HasKey("RuntimeNodeHeartbeatId");
-
-                    b.HasIndex("InstanceName")
-                        .IsUnique();
-
-                    b.ToTable("RuntimeNodeHeartbeats");
                 });
 
             modelBuilder.Entity("RagAgentConsole.Models.SecurityAdvisory", b =>

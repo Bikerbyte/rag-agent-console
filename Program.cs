@@ -90,25 +90,16 @@ if (observabilityOptions.EnableOpenTelemetry)
         });
 }
 
-// Add Service Area - 資料庫
+// Add Service Area - 資料庫（只支援 PostgreSQL；向量檢索靠 pgvector，沒有第二種後端）
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+if (string.IsNullOrWhiteSpace(defaultConnection))
 {
-    if (string.IsNullOrWhiteSpace(defaultConnection))
-    {
-        options.UseInMemoryDatabase("security-advisory-bot");
-        return;
-    }
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is required and must point to a PostgreSQL instance. " +
+        "For local development start one with: docker compose -f docker-compose.deps.yml up -d");
+}
 
-    if (defaultConnection.Contains("Host=", StringComparison.OrdinalIgnoreCase) ||
-        defaultConnection.Contains("Username=", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseNpgsql(defaultConnection);
-        return;
-    }
-
-    options.UseSqlServer(defaultConnection);
-});
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(defaultConnection));
 
 // Add Service Area - 對外 HTTP Client
 builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((serviceProvider, httpClient) =>
@@ -218,15 +209,7 @@ Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Dat
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-    if (dbContext.Database.IsRelational())
-    {
-        await dbContext.Database.MigrateAsync();
-    }
-    else
-    {
-        await dbContext.Database.EnsureCreatedAsync();
-    }
+    await dbContext.Database.MigrateAsync();
 
     // 把內建 golden set 灌成第一批可編輯的評估案例；之後就交由使用者在後台維護。
     var evaluationService = scope.ServiceProvider.GetRequiredService<IRetrievalEvaluationService>();
