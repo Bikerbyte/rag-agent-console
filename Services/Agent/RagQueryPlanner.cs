@@ -17,6 +17,7 @@ public class RagQueryPlanner(
     IAiChatClient aiChatClient,
     IAppSettingsService appSettingsService,
     IRagDomainRegistry domainRegistry,
+    ITokenizer tokenizer,
     ILogger<RagQueryPlanner> logger) : IRagQueryPlanner
 {
     public async Task<RetrievalPlan> BuildPlanAsync(
@@ -164,11 +165,12 @@ public class RagQueryPlanner(
             logger.LogDebug(exception, "Could not load agent options for fallback plan; using registry default domain.");
         }
 
+        // 沒有 AI planner 時用斷詞器抽關鍵字，BM25 / 關鍵字後過濾才有訊號可用。
         var plan = new RetrievalPlan(
             question,
             question.Trim(),
             "knowledge_lookup",
-            [],
+            NormalizeKeywords(tokenizer.Tokenize(question)),
             [],
             RetrievalPlan.EmptyValues,
             RetrievalPlan.EmptyValues,

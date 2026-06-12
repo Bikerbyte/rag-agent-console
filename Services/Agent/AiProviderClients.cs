@@ -139,6 +139,7 @@ public partial class RagEmbeddingService(
     HttpClient httpClient,
     IOptions<SecurityAdvisoryOptions> advisoryOptions,
     IAppSettingsService appSettingsService,
+    ITokenizer tokenizer,
     ILogger<RagEmbeddingService> logger) : IRagEmbeddingService
 {
     public async Task<float[]> BuildEmbeddingAsync(string text, CancellationToken cancellationToken = default)
@@ -215,11 +216,11 @@ public partial class RagEmbeddingService(
     {
         var dimensions = Math.Clamp(advisoryOptions.Value.EmbeddingDimensions, 64, 2048);
         var vector = new float[dimensions];
-        var tokens = System.Text.RegularExpressions.Regex.Matches(text.ToLowerInvariant(), "[a-z0-9][a-z0-9_.:-]{1,}");
 
-        foreach (System.Text.RegularExpressions.Match token in tokens)
+        // 與 BM25 共用同一把中英混排斷詞器，CJK 文字才進得了向量空間。
+        foreach (var token in tokenizer.Tokenize(text))
         {
-            var bytes = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(token.Value));
+            var bytes = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(token));
             var bucket = BitConverter.ToUInt32(bytes, 0) % dimensions;
             var sign = (bytes[4] & 1) == 0 ? 1f : -1f;
             vector[bucket] += sign;
