@@ -1,4 +1,4 @@
-# worker：背景工作（Telegram queue、官方資料同步、推播），不收 HTTP。
+# worker：處理 Telegram queue，不承接外部流量。
 # replicas 固定 1——這就是原本自製 DB leadership lease 的 k8s 替代方案：
 # 單實例保證交給 Deployment，不再自己選主。
 apiVersion: apps/v1
@@ -36,10 +36,6 @@ spec:
             - name: AppRuntime__EnableTelegramPollingWorker
               value: "false"
             - name: AppRuntime__EnableTelegramUpdateQueueWorker
-              value: "true"
-            - name: AppRuntime__EnableOfficialDataSyncWorker
-              value: "true"
-            - name: AppRuntime__EnableNotificationWorker
               value: "true"
           livenessProbe:
             httpGet:

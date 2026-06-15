@@ -13,9 +13,8 @@ public class IndexModel(
     IAppSettingsService appSettingsService) : PageModel
 {
     public string AgentName { get; private set; } = "RAG Agent Console";
-    public string AgentTagline { get; private set; } = "Domain-adaptable knowledge agent";
-    public int AdvisoryCount { get; private set; }
-    public int KnownExploitedCount { get; private set; }
+    public string AgentTagline { get; private set; } = "Document knowledge agent";
+    public int DocumentCount { get; private set; }
     public int RagChunkCount { get; private set; }
     public int ChatCount { get; private set; }
     public int PendingTelegramUpdateCount { get; private set; }
@@ -24,7 +23,7 @@ public class IndexModel(
     public bool BotEnabled { get; private set; }
     public bool HasBotToken { get; private set; }
     public string AiProviderText { get; private set; } = string.Empty;
-    public string LatestAdvisorySyncText { get; private set; } = "No sample connector sync log yet.";
+    public string LatestDocumentText { get; private set; } = "No knowledge document indexed yet.";
     public string RagIndexText { get; private set; } = "No RAG chunks indexed yet.";
     public string LatestReplyText { get; private set; } = "No Telegram delivery log yet.";
 
@@ -36,20 +35,20 @@ public class IndexModel(
         AgentName = agentOptions.AgentName;
         AgentTagline = agentOptions.AgentTagline;
 
-        AdvisoryCount = await dbContext.SecurityAdvisories.CountAsync();
-        KnownExploitedCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.IsKnownExploited);
-        RagChunkCount = await dbContext.SecurityAdvisoryChunks.CountAsync();
-        ChatCount = await dbContext.TelegramChatSubscriptions.CountAsync();
-        PendingTelegramUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
+        DocumentCount = await dbContext.KnowledgeDocuments.CountAsync(cancellationToken);
+        RagChunkCount = await dbContext.KnowledgeDocumentChunks.CountAsync(cancellationToken);
+        ChatCount = await dbContext.TelegramChatSubscriptions.CountAsync(cancellationToken);
+        PendingTelegramUpdateCount = await dbContext.TelegramUpdateInboxes
+            .CountAsync(item => item.Status == "Pending" || item.Status == "Processing", cancellationToken);
 
-        var latestAdvisorySync = await dbContext.SyncJobLogs
-            .Where(log => log.JobName == "SecurityAdvisorySync")
-            .OrderByDescending(log => log.StartTime)
-            .FirstOrDefaultAsync();
-
+        var latestDocument = await dbContext.KnowledgeDocuments
+            .AsNoTracking()
+            .OrderByDescending(document => document.LastUpdatedTime)
+            .FirstOrDefaultAsync(cancellationToken);
         var latestReply = await dbContext.PushLogs
+            .AsNoTracking()
             .OrderByDescending(log => log.CreatedTime)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
         InstanceName = appRuntimeOptions.Value.InstanceName;
@@ -57,16 +56,15 @@ public class IndexModel(
         HasBotToken = !string.IsNullOrWhiteSpace(telegramBotOptions.BotToken);
         AiProviderText = aiProviderOptions.Provider;
 
-        if (latestAdvisorySync is not null)
+        if (latestDocument is not null)
         {
-            LatestAdvisorySyncText = $"{latestAdvisorySync.StartTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestAdvisorySync.Message}";
+            LatestDocumentText = $"{latestDocument.LastUpdatedTime.ToLocalTime():yyyy/MM/dd HH:mm} | {latestDocument.Title} | {latestDocument.ChunkCount} chunks";
         }
 
-        RagIndexText = $"{RagChunkCount} chunks indexed for RAG retrieval.";
-
+        RagIndexText = $"{RagChunkCount} chunks indexed across {DocumentCount} documents.";
         if (latestReply is not null)
         {
-            LatestReplyText = $"{latestReply.CreatedTime.ToOffset(TimeSpan.FromHours(8)):yyyy/MM/dd HH:mm} | {latestReply.MessageTitle} | {(latestReply.IsSuccess ? "success" : latestReply.ErrorMessage)}";
+            LatestReplyText = $"{latestReply.CreatedTime.ToLocalTime():yyyy/MM/dd HH:mm} | {latestReply.MessageTitle} | {(latestReply.IsSuccess ? "success" : latestReply.ErrorMessage)}";
         }
     }
 }

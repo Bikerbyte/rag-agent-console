@@ -37,9 +37,7 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys")));
 
 builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection(TelegramBotOptions.SectionName));
-builder.Services.Configure<DataSourceOptions>(builder.Configuration.GetSection(DataSourceOptions.SectionName));
-builder.Services.Configure<SecurityAdvisoryOptions>(builder.Configuration.GetSection(SecurityAdvisoryOptions.SectionName));
-builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection(PushNotificationOptions.SectionName));
+builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptions.SectionName));
 builder.Services.Configure<AiProviderOptions>(builder.Configuration.GetSection(AiProviderOptions.SectionName));
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
 builder.Services.Configure<VectorStoreOptions>(builder.Configuration.GetSection(VectorStoreOptions.SectionName));
@@ -110,16 +108,6 @@ builder.Services.AddHttpClient<ITelegramBotClient, TelegramBotClient>((servicePr
     httpClient.BaseAddress = new Uri(SettingsUrlValidator.DefaultTelegramApiBaseUrl);
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
-builder.Services.AddHttpClient<CisaKevAdvisorySource>(httpClient =>
-{
-    httpClient.Timeout = TimeSpan.FromSeconds(30);
-});
-builder.Services.AddHttpClient<NvdAdvisorySource>((serviceProvider, httpClient) =>
-{
-    var securityOptions = serviceProvider.GetRequiredService<IOptions<SecurityAdvisoryOptions>>().Value;
-    httpClient.BaseAddress = new Uri(securityOptions.NvdApiBaseUrl);
-    httpClient.Timeout = TimeSpan.FromSeconds(45);
-});
 builder.Services.AddHttpClient<IAiChatClient, AiChatClient>((serviceProvider, httpClient) =>
 {
     var aiOptions = serviceProvider.GetRequiredService<IOptions<AiProviderOptions>>().Value;
@@ -151,18 +139,11 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 
 // Add Service Area - 應用服務
 builder.Services.AddRazorPages();
-builder.Services.AddScoped<ITelegramPushService, TelegramPushService>();
 builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
-builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<CisaKevAdvisorySource>());
-builder.Services.AddScoped<ISecurityAdvisorySource>(serviceProvider => serviceProvider.GetRequiredService<NvdAdvisorySource>());
-builder.Services.AddScoped<ISecurityAdvisorySyncService, SecurityAdvisorySyncService>();
 builder.Services.AddSingleton<ITokenizer, MixedScriptTokenizer>();
 builder.Services.AddSingleton<IBm25Index, InMemoryBm25Index>();
 builder.Services.AddHostedService<Bm25IndexInitializationService>();
 builder.Services.AddScoped<IRetrievalTextScorer, RetrievalTextScorer>();
-builder.Services.AddSingleton<IRagDomain, SecurityAdvisoryDomain>();
-builder.Services.AddSingleton<IRagDomain, GenericKnowledgeDomain>();
-builder.Services.AddSingleton<IRagDomainRegistry, RagDomainRegistry>();
 builder.Services.AddScoped<IRagVectorStore, PgVectorRagVectorStore>();
 builder.Services.AddScoped<IRagQueryPlanner, RagQueryPlanner>();
 builder.Services.AddScoped<IRagRetrievalService, RagRetrievalService>();
@@ -171,7 +152,6 @@ builder.Services.AddScoped<IRagAnswerService, RagAnswerService>();
 builder.Services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTextExtractor>();
 builder.Services.AddScoped<IKnowledgeTextChunkingService, KnowledgeTextChunkingService>();
 builder.Services.AddScoped<IKnowledgeDocumentIngestionService, KnowledgeDocumentIngestionService>();
-builder.Services.AddScoped<ITelegramNotificationDispatchService, SecurityAdvisoryNotificationDispatchService>();
 builder.Services.AddScoped<ITelegramUpdateProcessingService, TelegramUpdateProcessingService>();
 builder.Services.AddScoped<ITelegramUpdateQueueService, TelegramUpdateQueueService>();
 
@@ -189,16 +169,6 @@ if (appRuntimeOptions.EnableTelegramPollingWorker)
 if (appRuntimeOptions.EnableTelegramUpdateQueueWorker)
 {
     builder.Services.AddHostedService<TelegramUpdateQueueBackgroundService>();
-}
-
-if (appRuntimeOptions.EnableOfficialDataSyncWorker)
-{
-    builder.Services.AddHostedService<OfficialDataSyncBackgroundService>();
-}
-
-if (appRuntimeOptions.EnableNotificationWorker)
-{
-    builder.Services.AddHostedService<TelegramNotificationBackgroundService>();
 }
 
 var app = builder.Build();
@@ -317,9 +287,7 @@ app.MapGet("/api/runtime", (IHostEnvironment environment, IOptions<AppRuntimeOpt
     {
         runtimeOptions.Value.EnableTelegramWebhookIngress,
         runtimeOptions.Value.EnableTelegramPollingWorker,
-        runtimeOptions.Value.EnableTelegramUpdateQueueWorker,
-        runtimeOptions.Value.EnableOfficialDataSyncWorker,
-        runtimeOptions.Value.EnableNotificationWorker
+        runtimeOptions.Value.EnableTelegramUpdateQueueWorker
     },
     Urls = app.Urls
 }));
@@ -344,12 +312,10 @@ app.Lifetime.ApplicationStarted.Register(() =>
     app.Logger.LogInformation("PID: {ProcessId}", Environment.ProcessId);
     app.Logger.LogInformation("URLs: {AddressText}", addressText);
     app.Logger.LogInformation(
-        "Runtime => WebhookIngress: {EnableTelegramWebhookIngress}, PollingWorker: {EnableTelegramPollingWorker}, QueueWorker: {EnableTelegramUpdateQueueWorker}, OfficialSync: {EnableOfficialDataSyncWorker}, Notification: {EnableNotificationWorker}",
+        "Runtime => WebhookIngress: {EnableTelegramWebhookIngress}, PollingWorker: {EnableTelegramPollingWorker}, QueueWorker: {EnableTelegramUpdateQueueWorker}",
         appRuntimeOptions.EnableTelegramWebhookIngress,
         appRuntimeOptions.EnableTelegramPollingWorker,
-        appRuntimeOptions.EnableTelegramUpdateQueueWorker,
-        appRuntimeOptions.EnableOfficialDataSyncWorker,
-        appRuntimeOptions.EnableNotificationWorker);
+        appRuntimeOptions.EnableTelegramUpdateQueueWorker);
     app.Logger.LogInformation(
         "Telegram => UseWebhookMode: {UseWebhookMode}, WebhookPath: {WebhookPath}",
         telegramBotOptions.UseWebhookMode,

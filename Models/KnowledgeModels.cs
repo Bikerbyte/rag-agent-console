@@ -4,9 +4,18 @@ namespace RagAgentConsole.Models;
 
 public static class KnowledgeModuleNames
 {
-    public const string CveAdvisory = "CveAdvisory";
     public const string WorkflowQa = "WorkflowQa";
     public const string InternalDocs = "InternalDocs";
+
+    public static string Normalize(string? value)
+    {
+        if (string.Equals(value, WorkflowQa, StringComparison.OrdinalIgnoreCase))
+        {
+            return WorkflowQa;
+        }
+
+        return InternalDocs;
+    }
 }
 
 public class KnowledgeDocument
@@ -14,7 +23,7 @@ public class KnowledgeDocument
     public int KnowledgeDocumentId { get; set; }
 
     [MaxLength(64)]
-    public string ModuleName { get; set; } = KnowledgeModuleNames.CveAdvisory;
+    public string ModuleName { get; set; } = KnowledgeModuleNames.InternalDocs;
 
     [MaxLength(160)]
     public required string Title { get; set; }

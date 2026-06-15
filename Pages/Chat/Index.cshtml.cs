@@ -138,8 +138,6 @@ public class IndexModel(
         string ModuleName,
         string RetrievalQuery,
         string RetrievalMode,
-        string? RiskFilter,
-        string? Version,
         IReadOnlyList<AgentTraceMatchViewModel> Matches)
     {
         public static AgentTraceViewModel? FromTrace(AgentRetrievalTrace? trace)
@@ -154,13 +152,11 @@ public class IndexModel(
                 trace.Planner.ModuleName,
                 trace.Planner.RetrievalQuery,
                 trace.RetrievalMode,
-                trace.Planner.GetFilter(SecurityAdvisoryPlanKeys.RiskFilter),
-                trace.Planner.GetEntity(PlanEntityKeys.Version),
                 trace.Matches.Select(match => new AgentTraceMatchViewModel(
                     match.Rank,
                     match.ModuleName,
                     match.SourceKind,
-                    match.GetMetadata(SecurityAdvisoryTraceKeys.CveId) ?? match.Title,
+                    match.Title,
                     match.Score,
                     match.VectorScore,
                     match.TextScore)).ToList());

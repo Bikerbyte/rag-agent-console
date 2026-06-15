@@ -137,7 +137,6 @@ public class AiChatClient(
 
 public partial class RagEmbeddingService(
     HttpClient httpClient,
-    IOptions<SecurityAdvisoryOptions> advisoryOptions,
     IAppSettingsService appSettingsService,
     ITokenizer tokenizer,
     ILogger<RagEmbeddingService> logger) : IRagEmbeddingService
@@ -168,7 +167,8 @@ public partial class RagEmbeddingService(
             }
         }
 
-        return BuildLocalHashEmbedding(text);
+        var ragOptions = await appSettingsService.GetRagOptionsAsync(cancellationToken);
+        return BuildLocalHashEmbedding(text, ragOptions.LocalEmbeddingDimensions);
     }
 
     private async Task<float[]> BuildOpenAiEmbeddingAsync(
@@ -212,9 +212,9 @@ public partial class RagEmbeddingService(
         return ReadFloatArray(document.RootElement.GetProperty("embedding"));
     }
 
-    private float[] BuildLocalHashEmbedding(string text)
+    private float[] BuildLocalHashEmbedding(string text, int configuredDimensions)
     {
-        var dimensions = Math.Clamp(advisoryOptions.Value.EmbeddingDimensions, 64, 2048);
+        var dimensions = Math.Clamp(configuredDimensions, 64, 2048);
         var vector = new float[dimensions];
 
         // 與 BM25 共用同一把中英混排斷詞器，CJK 文字才進得了向量空間。

@@ -48,7 +48,7 @@ public class TelegramUpdateProcessingService(
 
     private async Task ProcessIncomingTextAsync(TelegramChat chat, string text, CancellationToken cancellationToken)
     {
-        // 只要 chat 曾經對 bot 講過話，就先建立一筆訂閱資料，後面管理頁才接得上。
+        // 只要 chat 曾經對 bot 講過話，就保留基本識別資料供運行頁查看。
         await UpsertChatSubscriptionAsync(chat, cancellationToken);
 
         try
@@ -109,7 +109,6 @@ public class TelegramUpdateProcessingService(
             {
                 ChatId = chatId,
                 ChatTitle = displayName,
-                EnableAdvisoryPush = false,
                 CreatedTime = DateTimeOffset.UtcNow,
                 LastUpdatedTime = DateTimeOffset.UtcNow
             });
@@ -148,7 +147,7 @@ public class TelegramUpdateProcessingService(
 
     private async Task<string?> TrySendFallbackReplyAsync(string chatId, CancellationToken cancellationToken)
     {
-        var fallbackMessage = "處理弱點查詢時發生錯誤，系統已記錄，請稍後再試。";
+        var fallbackMessage = "處理知識庫查詢時發生錯誤，系統已記錄，請稍後再試。";
         var fallbackResult = await telegramBotClient.SendTextMessageAsync(chatId, fallbackMessage, cancellationToken);
         return fallbackResult.IsSuccess ? "Fallback reply sent after command failure." : fallbackResult.ErrorMessage;
     }

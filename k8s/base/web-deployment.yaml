@@ -37,10 +37,6 @@ spec:
               value: "false"
             - name: AppRuntime__EnableTelegramUpdateQueueWorker
               value: "false"
-            - name: AppRuntime__EnableOfficialDataSyncWorker
-              value: "false"
-            - name: AppRuntime__EnableNotificationWorker
-              value: "false"
           livenessProbe:
             httpGet:
               path: /healthz

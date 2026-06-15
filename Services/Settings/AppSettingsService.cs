@@ -9,8 +9,7 @@ public interface IAppSettingsService
 {
     Task<AiProviderOptions> GetAiProviderOptionsAsync(CancellationToken cancellationToken = default);
     Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default);
-    Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default);
-    Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default);
+    Task<RagOptions> GetRagOptionsAsync(CancellationToken cancellationToken = default);
     Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default);
     Task<ObservabilityOptions> GetObservabilityOptionsAsync(CancellationToken cancellationToken = default);
     Task<AgentOptions> GetAgentOptionsAsync(CancellationToken cancellationToken = default);
@@ -24,8 +23,7 @@ public class AppSettingsService(
     ApplicationDbContext dbContext,
     IOptions<AiProviderOptions> aiOptions,
     IOptions<TelegramBotOptions> telegramOptions,
-    IOptions<DataSourceOptions> dataSourceOptions,
-    IOptions<PushNotificationOptions> pushOptions,
+    IOptions<RagOptions> ragOptions,
     IOptions<VectorStoreOptions> vectorStoreOptions,
     IOptions<ObservabilityOptions> observabilityOptions,
     IOptions<AgentOptions> agentOptions) : IAppSettingsService
@@ -77,22 +75,12 @@ public class AppSettingsService(
         return options;
     }
 
-    public async Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default)
+    public async Task<RagOptions> GetRagOptionsAsync(CancellationToken cancellationToken = default)
     {
         var values = await GetAllAsync(cancellationToken);
-        var options = Clone(dataSourceOptions.Value);
-        options.AutoSyncIntervalMinutes = GetInt(values, "DataSources:AutoSyncIntervalMinutes", options.AutoSyncIntervalMinutes);
-        return options;
-    }
-
-    public async Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default)
-    {
-        var values = await GetAllAsync(cancellationToken);
-        var options = Clone(pushOptions.Value);
-        options.Enabled = GetBool(values, "PushNotifications:Enabled", options.Enabled);
-        options.EnableSecurityAdvisoryPush = GetBool(values, "PushNotifications:EnableSecurityAdvisoryPush", options.EnableSecurityAdvisoryPush);
-        options.WorkerIntervalSeconds = GetInt(values, "PushNotifications:WorkerIntervalSeconds", options.WorkerIntervalSeconds);
-        options.AdvisoryLookbackHours = GetInt(values, "PushNotifications:AdvisoryLookbackHours", options.AdvisoryLookbackHours);
+        var options = Clone(ragOptions.Value);
+        options.LocalEmbeddingDimensions = GetInt(values, "Rag:LocalEmbeddingDimensions", options.LocalEmbeddingDimensions);
+        options.MaxChunks = GetInt(values, "Rag:MaxChunks", options.MaxChunks);
         return options;
     }
 
@@ -121,7 +109,7 @@ public class AppSettingsService(
         options.AgentName = Get(values, "Agent:AgentName", options.AgentName);
         options.AgentTagline = Get(values, "Agent:AgentTagline", options.AgentTagline);
         options.ChatPlaceholder = Get(values, "Agent:ChatPlaceholder", options.ChatPlaceholder);
-        options.DefaultDomain = Get(values, "Agent:DefaultDomain", options.DefaultDomain);
+        options.DefaultModule = KnowledgeModuleNames.Normalize(Get(values, "Agent:DefaultModule", options.DefaultModule));
         options.PlannerSystemPrompt = Get(values, "Agent:PlannerSystemPrompt", options.PlannerSystemPrompt);
         options.RagSystemPrompt = Get(values, "Agent:RagSystemPrompt", options.RagSystemPrompt);
         options.GeneralSystemPrompt = Get(values, "Agent:GeneralSystemPrompt", options.GeneralSystemPrompt);
@@ -195,16 +183,11 @@ public class AppSettingsService(
             WebhookSecretToken = source.WebhookSecretToken
         };
 
-    private static DataSourceOptions Clone(DataSourceOptions source)
-        => new() { AutoSyncIntervalMinutes = source.AutoSyncIntervalMinutes };
-
-    private static PushNotificationOptions Clone(PushNotificationOptions source)
+    private static RagOptions Clone(RagOptions source)
         => new()
         {
-            Enabled = source.Enabled,
-            EnableSecurityAdvisoryPush = source.EnableSecurityAdvisoryPush,
-            WorkerIntervalSeconds = source.WorkerIntervalSeconds,
-            AdvisoryLookbackHours = source.AdvisoryLookbackHours
+            LocalEmbeddingDimensions = source.LocalEmbeddingDimensions,
+            MaxChunks = source.MaxChunks
         };
 
     private static VectorStoreOptions Clone(VectorStoreOptions source)
@@ -228,7 +211,7 @@ public class AppSettingsService(
             AgentName = source.AgentName,
             AgentTagline = source.AgentTagline,
             ChatPlaceholder = source.ChatPlaceholder,
-            DefaultDomain = source.DefaultDomain,
+            DefaultModule = source.DefaultModule,
             PlannerSystemPrompt = source.PlannerSystemPrompt,
             RagSystemPrompt = source.RagSystemPrompt,
             GeneralSystemPrompt = source.GeneralSystemPrompt,

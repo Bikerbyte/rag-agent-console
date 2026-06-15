@@ -19,13 +19,8 @@ services:
       AppRuntime__EnableTelegramWebhookIngress: ${APP_RUNTIME_ENABLE_TELEGRAM_WEBHOOK_INGRESS:-}
       AppRuntime__EnableTelegramPollingWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_POLLING_WORKER:-}
       AppRuntime__EnableTelegramUpdateQueueWorker: ${APP_RUNTIME_ENABLE_TELEGRAM_UPDATE_QUEUE_WORKER:-}
-      AppRuntime__EnableOfficialDataSyncWorker: ${APP_RUNTIME_ENABLE_OFFICIAL_DATA_SYNC_WORKER:-}
-      AppRuntime__EnableNotificationWorker: ${APP_RUNTIME_ENABLE_NOTIFICATION_WORKER:-}
-      PushNotifications__EnableSecurityAdvisoryPush: ${ENABLE_SECURITY_ADVISORY_PUSH:-true}
-      SecurityAdvisories__EnableCisaKevSource: ${SECURITY_ADVISORIES_ENABLE_CISA_KEV_SOURCE:-true}
-      SecurityAdvisories__EnableNvdSource: ${SECURITY_ADVISORIES_ENABLE_NVD_SOURCE:-true}
-      SecurityAdvisories__NvdLookbackDays: ${SECURITY_ADVISORIES_NVD_LOOKBACK_DAYS:-7}
-      SecurityAdvisories__MaxNvdResultsPerSync: ${SECURITY_ADVISORIES_MAX_NVD_RESULTS_PER_SYNC:-100}
+      Rag__LocalEmbeddingDimensions: ${RAG_LOCAL_EMBEDDING_DIMENSIONS:-384}
+      Rag__MaxChunks: ${RAG_MAX_CHUNKS:-5}
       AiProvider__Provider: ${AI_PROVIDER:-Local}
       AiProvider__EnableChatGeneration: ${AI_ENABLE_CHAT_GENERATION:-false}
       AiProvider__UseLocalFallback: ${AI_USE_LOCAL_FALLBACK:-true}

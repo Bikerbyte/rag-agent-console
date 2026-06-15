@@ -26,24 +26,6 @@ public class PushLog
     public DateTimeOffset CreatedTime { get; set; }
 }
 
-public class SyncJobLog
-{
-    public int SyncJobLogId { get; set; }
-
-    [MaxLength(128)]
-    public string? InstanceName { get; set; }
-
-    [MaxLength(64)]
-    public required string JobName { get; set; }
-
-    public DateTimeOffset StartTime { get; set; }
-    public DateTimeOffset? EndTime { get; set; }
-    public bool IsSuccess { get; set; }
-
-    [MaxLength(400)]
-    public string? Message { get; set; }
-}
-
 public class AppSetting
 {
     public int AppSettingId { get; set; }

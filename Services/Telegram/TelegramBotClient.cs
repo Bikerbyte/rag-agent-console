@@ -172,15 +172,15 @@ public class TelegramBotClient(
             InlineKeyboard =
             [
                 [
-                    new TelegramInlineKeyboardButton { Text = "Latest CVEs", CallbackData = "列出最近新增或更新的 CVE" },
-                    new TelegramInlineKeyboardButton { Text = "Critical", CallbackData = "列出最近高風險 Critical CVE" }
+                    new TelegramInlineKeyboardButton { Text = "Policies", CallbackData = "知識庫有哪些政策文件？" },
+                    new TelegramInlineKeyboardButton { Text = "Runbooks", CallbackData = "列出知識庫中的作業流程與 runbook" }
                 ],
                 [
-                    new TelegramInlineKeyboardButton { Text = "CISA KEV", CallbackData = "列出最近 CISA KEV 已知遭利用弱點" },
-                    new TelegramInlineKeyboardButton { Text = "Cisco risk", CallbackData = "最近 Cisco 有哪些高風險 CVE？" }
+                    new TelegramInlineKeyboardButton { Text = "Password policy", CallbackData = "一般員工密碼多久會過期？" },
+                    new TelegramInlineKeyboardButton { Text = "Backup policy", CallbackData = "備份資料需要使用什麼加密？" }
                 ],
                 [
-                    new TelegramInlineKeyboardButton { Text = "How to ask", CallbackData = "我可以問你哪些弱點管理問題？" }
+                    new TelegramInlineKeyboardButton { Text = "How to ask", CallbackData = "我可以問你哪些知識庫問題？" }
                 ]
             ]
         };

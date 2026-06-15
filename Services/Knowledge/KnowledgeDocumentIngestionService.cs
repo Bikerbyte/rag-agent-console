@@ -384,7 +384,7 @@ public class KnowledgeDocumentIngestionService(
     }
 
     private static string NormalizeModule(string? value)
-        => string.IsNullOrWhiteSpace(value) ? KnowledgeModuleNames.InternalDocs : Trim(value, 64);
+        => KnowledgeModuleNames.Normalize(value);
 
     private static string? Normalize(string? value, int maxLength)
         => string.IsNullOrWhiteSpace(value) ? null : Trim(value, maxLength);
