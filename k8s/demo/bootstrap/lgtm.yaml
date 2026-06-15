@@ -21,6 +21,12 @@ spec:
           ports:
             - containerPort: 3000
             - containerPort: 4317
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
