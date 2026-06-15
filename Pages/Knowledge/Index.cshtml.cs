@@ -5,22 +5,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace RagAgentConsole.Pages.Advisories;
+namespace RagAgentConsole.Pages.Knowledge;
 
 public class IndexModel(
     ApplicationDbContext dbContext,
-    ISecurityAdvisorySyncService syncService,
     IKnowledgeDocumentIngestionService knowledgeIngestionService,
-    IRagRetrievalService searchService,
+    IRagRetrievalService retrievalService,
     IAppSettingsService appSettingsService) : PageModel
 {
-    public IReadOnlyList<SecurityAdvisory> Advisories { get; private set; } = [];
-    public IReadOnlyList<SecurityAdvisoryChunk> PreviewChunks { get; private set; } = [];
     public IReadOnlyList<KnowledgeDocument> ManagedDocuments { get; private set; } = [];
     public IReadOnlyList<RetrievalResult> RetrievalResults { get; private set; } = [];
-    public int TotalCount { get; private set; }
-    public int KevCount { get; private set; }
-    public int CriticalCount { get; private set; }
     public int ChunkCount { get; private set; }
     public int ManagedDocumentCount { get; private set; }
     public int EstimatedTokenCount { get; private set; }
@@ -42,9 +36,6 @@ public class IndexModel(
     public string? StatusMessage { get; set; }
 
     public async Task OnGetAsync(
-        string? q = null,
-        bool kev = false,
-        bool critical = false,
         string? retrievalQuery = null,
         string? retrievalModule = null,
         string retrievalMode = RetrievalModes.Hybrid,
@@ -59,41 +50,6 @@ public class IndexModel(
         RetrievalTopK = Math.Clamp(topK, 1, 10);
         AgentName = (await appSettingsService.GetAgentOptionsAsync(cancellationToken)).AgentName;
 
-        var query = dbContext.SecurityAdvisories.AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var keyword = q.Trim().ToLowerInvariant();
-            query = query.Where(advisory =>
-                (advisory.CveId != null && advisory.CveId.ToLower().Contains(keyword)) ||
-                advisory.Title.ToLower().Contains(keyword) ||
-                advisory.Description.ToLower().Contains(keyword) ||
-                (advisory.Vendor != null && advisory.Vendor.ToLower().Contains(keyword)) ||
-                (advisory.Product != null && advisory.Product.ToLower().Contains(keyword)) ||
-                (advisory.Tags != null && advisory.Tags.ToLower().Contains(keyword)));
-        }
-
-        if (kev)
-        {
-            query = query.Where(advisory => advisory.IsKnownExploited);
-        }
-
-        if (critical)
-        {
-            query = query.Where(advisory => advisory.CvssScore >= 9 || advisory.Severity == "CRITICAL" || advisory.Severity == "Critical");
-        }
-
-        Advisories = await query
-            .OrderByDescending(advisory => advisory.LastModifiedAt ?? advisory.PublishedAt ?? advisory.LastSyncedTime)
-            .Take(60)
-            .ToListAsync();
-
-        PreviewChunks = await dbContext.SecurityAdvisoryChunks
-            .Include(chunk => chunk.Advisory)
-            .OrderByDescending(chunk => chunk.SecurityAdvisoryChunkId)
-            .Take(5)
-            .ToListAsync();
-
         ManagedDocuments = await dbContext.KnowledgeDocuments
             .AsNoTracking()
             .OrderByDescending(document => document.CreatedTime)
@@ -101,10 +57,7 @@ public class IndexModel(
 
         if (doc is int selectedDocumentId)
         {
-            SelectedDocument = await dbContext.KnowledgeDocuments
-                .AsNoTracking()
-                .FirstOrDefaultAsync(document => document.KnowledgeDocumentId == selectedDocumentId, cancellationToken);
-
+            SelectedDocument = ManagedDocuments.FirstOrDefault(document => document.KnowledgeDocumentId == selectedDocumentId);
             if (SelectedDocument is not null)
             {
                 SelectedDocumentSample = BuildSample(SelectedDocument.ExtractedText);
@@ -115,7 +68,7 @@ public class IndexModel(
         {
             try
             {
-                var response = await searchService.SearchWithTraceAsync(
+                var response = await retrievalService.SearchWithTraceAsync(
                     RetrievalQuery,
                     maxResults: RetrievalTopK,
                     moduleName: RetrievalModule,
@@ -129,21 +82,11 @@ public class IndexModel(
             }
         }
 
-        TotalCount = await dbContext.SecurityAdvisories.CountAsync(cancellationToken);
-        KevCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.IsKnownExploited, cancellationToken);
-        CriticalCount = await dbContext.SecurityAdvisories.CountAsync(advisory => advisory.CvssScore >= 9 || advisory.Severity == "CRITICAL" || advisory.Severity == "Critical", cancellationToken);
-        ChunkCount = await dbContext.SecurityAdvisoryChunks.CountAsync(cancellationToken);
-        ManagedDocumentCount = await dbContext.KnowledgeDocuments.CountAsync(cancellationToken);
-        EstimatedTokenCount = await dbContext.SecurityAdvisoryChunks
-            .Select(chunk => chunk.ChunkText.Length / 4)
-            .SumAsync(cancellationToken);
-    }
-
-    public async Task<IActionResult> OnPostSyncAsync(CancellationToken cancellationToken)
-    {
-        var result = await syncService.SyncAsync(cancellationToken);
-        StatusMessage = $"範例連接器同步完成：取得 {result.FetchedCount} 筆、新增 {result.AddedCount} 筆、更新 {result.UpdatedCount} 筆、索引 {result.ChunkCount} 個片段。";
-        return RedirectToPage();
+        ManagedDocumentCount = ManagedDocuments.Count;
+        ChunkCount = await dbContext.KnowledgeDocumentChunks.CountAsync(cancellationToken);
+        EstimatedTokenCount = await dbContext.KnowledgeDocumentChunks
+            .Select(chunk => (int?)(chunk.ChunkText.Length / 4))
+            .SumAsync(cancellationToken) ?? 0;
     }
 
     public async Task<IActionResult> OnPostUploadFileAsync(CancellationToken cancellationToken)
@@ -175,14 +118,13 @@ public class IndexModel(
                 var stream = file.OpenReadStream();
                 streams.Add(stream);
                 requests.Add(new KnowledgeDocumentFileImportRequest(
-                    // 批次上傳時不套用單一標題欄位，改用各自的檔名；只有單檔時才採用使用者填的標題。
                     uploads.Count == 1 && !string.IsNullOrWhiteSpace(FileInput.Title)
                         ? FileInput.Title
                         : Path.GetFileNameWithoutExtension(file.FileName),
                     file.FileName,
                     file.ContentType,
                     stream,
-                    KnowledgeModuleNames.InternalDocs,
+                    KnowledgeModuleNames.Normalize(FileInput.ModuleName),
                     Vendor: null,
                     Product: null,
                     Tags: FileInput.Tags,
@@ -209,23 +151,7 @@ public class IndexModel(
             }
         }
 
-        return RedirectToPage();
-    }
-
-    private static string BuildUploadStatus(int importedCount, int chunkTotal, IReadOnlyList<string> failures)
-    {
-        var parts = new List<string>();
-        if (importedCount > 0)
-        {
-            parts.Add($"已匯入 {importedCount} 份文件，共 {chunkTotal} 個片段。");
-        }
-
-        if (failures.Count > 0)
-        {
-            parts.Add($"略過 {failures.Count} 個檔案：{string.Join("、", failures)}");
-        }
-
-        return parts.Count == 0 ? "沒有可匯入的檔案。" : string.Join(" ", parts);
+        return RedirectToPage(new { section = "documents" });
     }
 
     public async Task<IActionResult> OnPostToggleDocumentAsync(int id, bool enabled, CancellationToken cancellationToken)
@@ -270,18 +196,35 @@ public class IndexModel(
     }
 
     private static string? NormalizeModuleFilter(string? value)
-        => value switch
+    {
+        if (string.IsNullOrWhiteSpace(value))
         {
-            KnowledgeModuleNames.CveAdvisory => KnowledgeModuleNames.CveAdvisory,
-            KnowledgeModuleNames.WorkflowQa => KnowledgeModuleNames.WorkflowQa,
-            KnowledgeModuleNames.InternalDocs => KnowledgeModuleNames.InternalDocs,
-            _ => null
-        };
+            return null;
+        }
+
+        return KnowledgeModuleNames.Normalize(value);
+    }
+
+    private static string BuildUploadStatus(int importedCount, int chunkTotal, IReadOnlyList<string> failures)
+    {
+        var parts = new List<string>();
+        if (importedCount > 0)
+        {
+            parts.Add($"已匯入 {importedCount} 份文件，共 {chunkTotal} 個片段。");
+        }
+
+        if (failures.Count > 0)
+        {
+            parts.Add($"略過 {failures.Count} 個檔案：{string.Join("、", failures)}");
+        }
+
+        return parts.Count == 0 ? "沒有可匯入的檔案。" : string.Join(' ', parts);
+    }
 
     private static string BuildSample(string? value)
     {
         var compact = string.Join(' ', (value ?? string.Empty)
-            .Split(new[] { '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            .Split(['\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
         return compact.Length <= 700 ? compact : compact[..700] + "…";
     }
 
@@ -290,6 +233,7 @@ public class IndexModel(
         public string? Title { get; set; }
         public string? Description { get; set; }
         public string? Tags { get; set; }
+        public string ModuleName { get; set; } = KnowledgeModuleNames.InternalDocs;
         public List<IFormFile> Uploads { get; set; } = [];
     }
 }

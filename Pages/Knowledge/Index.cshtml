@@ -1,0 +1,228 @@
+@page
+@using RagAgentConsole.Models
+@model RagAgentConsole.Pages.Knowledge.IndexModel
+@{
+    ViewData["Title"] = L["知識庫"].Value;
+    var activeRetrievalQuery = Request.Query["retrievalQuery"].ToString();
+    var activeRetrievalModule = Model.RetrievalModule ?? string.Empty;
+    var activeRetrievalMode = RetrievalModes.Normalize(Request.Query["retrievalMode"].ToString());
+    var activeTopK = int.TryParse(Request.Query["topK"], out var parsedTopK) ? Math.Clamp(parsedTopK, 1, 10) : 5;
+    var requestedSection = Request.Query["section"].ToString();
+    var activeSection = requestedSection is "sources" or "retrieval" or "settings" ? requestedSection : "documents";
+    var sectionTitle = activeSection switch
+    {
+        "sources" => L["匯入來源"].Value,
+        "retrieval" => L["檢索測試"].Value,
+        "settings" => L["索引設定"].Value,
+        _ => L["知識來源"].Value
+    };
+    var sectionSummary = activeSection switch
+    {
+        "sources" => L["上傳文件建立自己的知識庫。"].Value,
+        "retrieval" => L["先確認知識庫命中的片段，再交給 Agent 產生回答。"].Value,
+        "settings" => L["檢視 chunk、embedding 與檢索策略。"].Value,
+        _ => L["集中管理已上傳並建立索引的文件。"].Value
+    };
+}
+
+<section class="knowledge-shell">
+    <aside class="knowledge-sidebar" aria-label="Knowledge sections">
+        <nav class="knowledge-section-nav">
+            <a class="knowledge-section-link @(activeSection == "documents" ? "is-active" : string.Empty)" asp-page="/Knowledge/Index" asp-route-section="documents">
+                <span>▣</span><strong>@L["知識來源"]</strong>
+            </a>
+            <a class="knowledge-section-link @(activeSection == "sources" ? "is-active" : string.Empty)" asp-page="/Knowledge/Index" asp-route-section="sources">
+                <span>＋</span><strong>@L["匯入來源"]</strong>
+            </a>
+            <a class="knowledge-section-link @(activeSection == "retrieval" ? "is-active" : string.Empty)" asp-page="/Knowledge/Index" asp-route-section="retrieval">
+                <span>◎</span><strong>@L["檢索測試"]</strong>
+            </a>
+            <a class="knowledge-section-link @(activeSection == "settings" ? "is-active" : string.Empty)" asp-page="/Knowledge/Index" asp-route-section="settings">
+                <span>⚙</span><strong>@L["索引設定"]</strong>
+            </a>
+        </nav>
+
+        <div class="knowledge-sidebar-stats">
+            <div><strong>@Model.ManagedDocumentCount.ToString("N0")</strong><span>@L["文件"]</span></div>
+            <div><strong>@Model.ChunkCount.ToString("N0")</strong><span>@L["檢索片段"]</span></div>
+        </div>
+    </aside>
+
+    <main class="knowledge-workspace">
+        @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+        {
+            <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
+        }
+
+        <header class="knowledge-workspace-header">
+            <div><h1>@sectionTitle</h1><p>@sectionSummary</p></div>
+            <div class="knowledge-header-actions">
+                <a class="btn btn-outline-secondary" asp-page="/Knowledge/Index" asp-route-section="retrieval">@L["檢索測試"]</a>
+                <a class="btn btn-primary" asp-page="/Knowledge/Index" asp-route-section="sources">@L["新增文件"]</a>
+            </div>
+        </header>
+
+        @if (activeSection == "documents")
+        {
+            <section class="knowledge-primary-column">
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header"><div><h2>@L["知識來源"]</h2><p>@L["點選任一來源即可在下方檢視明細。"]</p></div></div>
+
+                    @if (Model.ManagedDocuments.Count == 0)
+                    {
+                        <div class="empty-state"><p class="empty-copy">@L["尚未上傳任何文件。可以從「匯入來源」上傳 Markdown / TXT / HTML / CSV / DOCX 檔案。"]</p></div>
+                    }
+                    else
+                    {
+                        <form method="post" id="doc-table-form">
+                            <div class="doc-batch-bar">
+                                <span class="doc-batch-count" data-doc-count>@L["已選"] 0</span>
+                                <div class="doc-batch-actions">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit" asp-page-handler="BulkDocuments" asp-route-action="enable" data-doc-bulk disabled>@L["啟用"]</button>
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit" asp-page-handler="BulkDocuments" asp-route-action="disable" data-doc-bulk disabled>@L["停用"]</button>
+                                    <button class="btn btn-sm btn-outline-danger" type="submit" asp-page-handler="BulkDocuments" asp-route-action="delete" data-doc-bulk disabled onclick="return confirm('@L["確定要刪除選取的文件嗎？此動作無法復原。"]');">@L["刪除"]</button>
+                                </div>
+                            </div>
+
+                            <div class="table-section">
+                                <table class="data-table doc-table">
+                                    <thead><tr>
+                                        <th class="doc-col-check"><input type="checkbox" data-doc-check-all aria-label="@L["全選"]" /></th>
+                                        <th>@L["標題"]</th><th>@L["模組"]</th><th>@L["來源"]</th>
+                                        <th class="doc-col-num">@L["片段"]</th><th>@L["最後更新"]</th><th>@L["狀態"]</th><th class="doc-col-actions">@L["操作"]</th>
+                                    </tr></thead>
+                                    <tbody>
+                                    @foreach (var document in Model.ManagedDocuments)
+                                    {
+                                        var isSelected = Model.SelectedDocument?.KnowledgeDocumentId == document.KnowledgeDocumentId;
+                                        <tr class="@(isSelected ? "is-selected" : string.Empty)">
+                                            <td class="doc-col-check"><input type="checkbox" name="SelectedDocumentIds" value="@document.KnowledgeDocumentId" data-doc-check aria-label="@L["選取"]" /></td>
+                                            <td>
+                                                <a class="doc-title-link" asp-page="/Knowledge/Index" asp-route-section="documents" asp-route-doc="@document.KnowledgeDocumentId"><span class="table-title">@document.Title</span></a>
+                                                @if (!string.IsNullOrWhiteSpace(document.FileName)) { <p class="table-copy">@document.FileName</p> }
+                                            </td>
+                                            <td>@document.ModuleName</td><td>@document.SourceType</td><td class="doc-col-num">@document.ChunkCount</td>
+                                            <td>@document.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd")</td>
+                                            <td><span class="status-pill @(document.IsEnabled ? "is-success" : "is-neutral")">@(document.IsEnabled ? L["啟用"] : L["停用"])</span></td>
+                                            <td class="doc-col-actions"><div class="document-actions">
+                                                <button class="icon-button" type="submit" asp-page-handler="ToggleDocument" asp-route-id="@document.KnowledgeDocumentId" asp-route-enabled="@(!document.IsEnabled)" title="@(document.IsEnabled ? L["停用"].Value : L["啟用"].Value)">@(document.IsEnabled ? "||" : ">")</button>
+                                                <button class="icon-button" type="submit" asp-page-handler="ReindexDocument" asp-route-id="@document.KnowledgeDocumentId" title="@L["重新索引"].Value">R</button>
+                                                <button class="icon-button is-danger" type="submit" asp-page-handler="DeleteDocument" asp-route-id="@document.KnowledgeDocumentId" onclick="return confirm('@L["確定要刪除這份文件嗎？此動作無法復原。"]');" title="@L["刪除"].Value">X</button>
+                                            </div></td>
+                                        </tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+                    }
+                </article>
+
+                @if (Model.SelectedDocument is { } selected)
+                {
+                    <article class="knowledge-card"><div class="doc-preview">
+                        <div class="doc-preview-head"><strong>@selected.Title</strong><span class="status-pill @(selected.IsEnabled ? "is-success" : "is-neutral")">@(selected.IsEnabled ? L["啟用"] : L["停用"])</span></div>
+                        <p class="doc-preview-meta">@selected.ModuleName · @selected.SourceType · @selected.CharacterCount.ToString("N0") @L["字"] · @selected.ChunkCount @L["片段"]</p>
+                        <div class="doc-preview-sample">@Model.SelectedDocumentSample</div>
+                    </div></article>
+                }
+            </section>
+        }
+        else if (activeSection == "sources")
+        {
+            <section class="knowledge-primary-column">
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header"><div><h2>@L["上傳檔案"]</h2><p>@L["檔案會自動抽取、切塊、建立向量，並存成可檢索的文件。"]</p></div></div>
+                    <form class="knowledge-ingest-form is-flat" method="post" asp-page-handler="UploadFile" enctype="multipart/form-data">
+                        <label class="field-block"><span>@L["文件名稱（選填）"]</span><input asp-for="FileInput.Title" class="form-control" placeholder="@L["未填寫時使用檔名"].Value" /></label>
+                        <label class="field-block"><span>@L["知識模組"]</span><select asp-for="FileInput.ModuleName" class="form-select"><option value="@KnowledgeModuleNames.InternalDocs">@KnowledgeModuleNames.InternalDocs</option><option value="@KnowledgeModuleNames.WorkflowQa">@KnowledgeModuleNames.WorkflowQa</option></select></label>
+                        <label class="field-block"><span>@L["描述（選填）"]</span><textarea asp-for="FileInput.Description" class="form-control" rows="3"></textarea></label>
+                        <label class="field-block"><span>@L["標籤（選填）"]</span><input asp-for="FileInput.Tags" class="form-control" placeholder="hr, sop, faq" /></label>
+                        <label class="upload-zone"><input asp-for="FileInput.Uploads" type="file" multiple accept=".md,.markdown,.txt,.log,.html,.htm,.csv,.docx" /><strong>@L["選擇檔案"]</strong><span>@L["支援 Markdown、TXT、HTML、CSV、DOCX，可一次選多個，每個上限 15 MB。"]</span></label>
+                        <button class="btn btn-primary" type="submit">@L["匯入檔案"]</button>
+                    </form>
+                </article>
+            </section>
+        }
+        else if (activeSection == "retrieval")
+        {
+            <section class="knowledge-primary-column">
+                <article class="knowledge-card">
+                    <div class="knowledge-card-header"><div><h2>@L["檢索測試"]</h2><p>@L["輸入自然語言查詢，檢視會被當作 Agent context 的片段。"]</p></div></div>
+                    <form class="retrieval-test-form is-flat" method="get">
+                        <input type="hidden" name="section" value="retrieval" />
+                        <label class="field-block"><span>@L["查詢"]</span><input class="form-control" type="search" name="retrievalQuery" value="@activeRetrievalQuery" placeholder="@L["例如：遠端工作核准流程"].Value" /></label>
+                        <label class="field-block"><span>@L["搜尋來源"]</span><select class="form-select" name="retrievalModule"><option value="@KnowledgeModuleNames.InternalDocs" selected="@(activeRetrievalModule == KnowledgeModuleNames.InternalDocs)">@KnowledgeModuleNames.InternalDocs</option><option value="@KnowledgeModuleNames.WorkflowQa" selected="@(activeRetrievalModule == KnowledgeModuleNames.WorkflowQa)">@KnowledgeModuleNames.WorkflowQa</option><option value="" selected="@(string.IsNullOrWhiteSpace(activeRetrievalModule))">@L["由 Planner 選擇"]</option></select></label>
+                        <label class="field-block"><span>@L["模式"]</span><select class="form-select" name="retrievalMode"><option value="@RetrievalModes.Hybrid" selected="@(activeRetrievalMode == RetrievalModes.Hybrid)">@L["混合"]</option><option value="@RetrievalModes.Vector" selected="@(activeRetrievalMode == RetrievalModes.Vector)">@L["向量"]</option><option value="@RetrievalModes.Keyword" selected="@(activeRetrievalMode == RetrievalModes.Keyword)">@L["關鍵字"]</option></select></label>
+                        <label class="field-block topk-field"><span>Top K</span><input class="form-control" type="number" min="1" max="10" name="topK" value="@activeTopK" /></label>
+                        <button class="btn btn-primary" type="submit">@L["執行檢索"]</button>
+                    </form>
+                </article>
+
+                @if (!string.IsNullOrWhiteSpace(Model.RetrievalError))
+                {
+                    <div class="alert alert-warning" role="alert">@Model.RetrievalError</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.RetrievalQuery) && Model.RetrievalResults.Count == 0)
+                {
+                    <div class="retrieval-empty"><p>@L["目前沒有命中的片段。可以先上傳文件，或改用更明確的關鍵字。"]</p></div>
+                }
+                else if (Model.RetrievalResults.Count > 0)
+                {
+                    <div class="retrieval-result-list">
+                    @for (var index = 0; index < Model.RetrievalResults.Count; index++)
+                    {
+                        var result = Model.RetrievalResults[index];
+                        <article class="retrieval-result-card">
+                            <div class="retrieval-result-head"><div><span class="chunk-rank"># @((index + 1).ToString("000"))</span><strong>@result.Title</strong></div><span class="status-pill is-neutral">Score @FormatScore(result.Score)</span></div>
+                            <dl class="retrieval-meta"><div><dt>@L["模組"]</dt><dd>@result.ModuleName</dd></div><div><dt>Vector</dt><dd>@FormatScore(result.VectorScore)</dd></div><div><dt>Text</dt><dd>@FormatScore(result.TextScore)</dd></div></dl>
+                            <p class="retrieval-chunk">@TrimPreview(result.ChunkText)</p>
+                        </article>
+                    }
+                    </div>
+                }
+            </section>
+        }
+        else
+        {
+            <section class="knowledge-primary-column"><article class="knowledge-card">
+                <div class="knowledge-card-header"><div><h2>@L["切塊與索引"]</h2><p>@L["上傳文件會自動切塊並建立向量索引。"]</p></div></div>
+                <div class="settings-readout">
+                    <div class="readout-row"><div><strong>@L["切塊方式"]</strong><p>@L["依文件段落自動建立 chunk。"]</p></div><span class="status-pill is-success">@L["自動"]</span></div>
+                    <div class="readout-row"><div><strong>@L["索引模式"]</strong><p>@L["使用 provider embedding；無 API key 時自動切換本機備援。"]</p></div><span class="status-pill is-neutral">@Model.EstimatedTokenCount.ToString("N0") tokens</span></div>
+                    <div class="readout-row"><div><strong>@L["檢索策略"]</strong><p>@L["結合向量分數、BM25 關鍵字與模組過濾進行排序。"]</p></div><span class="status-pill is-neutral">Hybrid</span></div>
+                </div>
+            </article></section>
+        }
+    </main>
+</section>
+
+<script>
+    (function () {
+        const form = document.getElementById('doc-table-form');
+        if (!form) return;
+        const all = form.querySelector('[data-doc-check-all]');
+        const boxes = Array.from(form.querySelectorAll('[data-doc-check]'));
+        const counter = form.querySelector('[data-doc-count]');
+        const buttons = Array.from(form.querySelectorAll('[data-doc-bulk]'));
+        function refresh() {
+            const selected = boxes.filter(box => box.checked).length;
+            if (counter) counter.textContent = '@L["已選"] ' + selected;
+            buttons.forEach(button => button.disabled = selected === 0);
+            if (all) { all.checked = selected > 0 && selected === boxes.length; all.indeterminate = selected > 0 && selected < boxes.length; }
+        }
+        if (all) all.addEventListener('change', () => { boxes.forEach(box => box.checked = all.checked); refresh(); });
+        boxes.forEach(box => box.addEventListener('change', refresh));
+        refresh();
+    })();
+</script>
+
+@functions {
+    private static string TrimPreview(string value)
+    {
+        var compact = string.Join(' ', value.Split(['\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return compact.Length <= 260 ? compact : compact[..260] + "...";
+    }
+
+    private static string FormatScore(double value) => value.ToString("0.000");
+}

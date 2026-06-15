@@ -1,8 +1,6 @@
-using System.ComponentModel.DataAnnotations;
 using RagAgentConsole.Data;
 using RagAgentConsole.Models;
 using RagAgentConsole.Services;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -24,103 +22,27 @@ public class IndexModel(
     public TelegramBotProfile? BotProfile { get; private set; }
     public int PendingUpdateCount { get; private set; }
     public string InstanceName { get; private set; } = string.Empty;
-    public IReadOnlyList<TelegramChatSubscription> Subscriptions { get; private set; } = [];
-    public IReadOnlyList<PushLog> PushLogs { get; private set; } = [];
-    public IReadOnlyList<SyncJobLog> SyncJobLogs { get; private set; } = [];
+    public IReadOnlyList<TelegramChatSubscription> Chats { get; private set; } = [];
+    public IReadOnlyList<PushLog> DeliveryLogs { get; private set; } = [];
 
-    [BindProperty]
-    public ChatSubscriptionInput Input { get; set; } = new();
-
-    [TempData]
-    public string? StatusMessage { get; set; }
-
-    public bool IsEditMode => Input.TelegramChatSubscriptionId.HasValue;
-
-    public async Task OnGetAsync(int? editId = null)
+    public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        await LoadPageDataAsync();
-
-        if (editId.HasValue)
-        {
-            await LoadInputAsync(editId.Value);
-        }
-    }
-
-    public async Task<IActionResult> OnPostSaveAsync()
-    {
-        if (!ModelState.IsValid)
-        {
-            await LoadPageDataAsync();
-            return Page();
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        TelegramChatSubscription entity;
-
-        if (Input.TelegramChatSubscriptionId.HasValue)
-        {
-            entity = await dbContext.TelegramChatSubscriptions
-                .FirstOrDefaultAsync(chat => chat.TelegramChatSubscriptionId == Input.TelegramChatSubscriptionId.Value)
-                ?? throw new InvalidOperationException("Telegram chat subscription was not found.");
-        }
-        else
-        {
-            entity = new TelegramChatSubscription
-            {
-                ChatId = Input.ChatId.Trim(),
-                ChatTitle = Input.ChatTitle.Trim(),
-                CreatedTime = now,
-                LastUpdatedTime = now
-            };
-
-            await dbContext.TelegramChatSubscriptions.AddAsync(entity);
-        }
-
-        entity.ChatId = Input.ChatId.Trim();
-        entity.ChatTitle = Input.ChatTitle.Trim();
-        entity.EnableAdvisoryPush = Input.EnableAdvisoryPush;
-        entity.AdvisoryKeywords = string.IsNullOrWhiteSpace(Input.AdvisoryKeywords) ? null : Input.AdvisoryKeywords.Trim();
-        entity.MinimumSeverity = string.IsNullOrWhiteSpace(Input.MinimumSeverity) ? null : Input.MinimumSeverity.Trim();
-        entity.LastUpdatedTime = now;
-
-        await dbContext.SaveChangesAsync();
-        logger.LogInformation("Saved Telegram chat subscription {ChatId}.", entity.ChatId);
-
-        StatusMessage = Input.TelegramChatSubscriptionId.HasValue
-            ? "Telegram chat settings updated."
-            : "Telegram chat created.";
-
-        return RedirectToPage();
-    }
-
-    public IActionResult OnPostEdit(int id)
-    {
-        return RedirectToPage(new { editId = id });
-    }
-
-    public IActionResult OnPostReset()
-    {
-        return RedirectToPage();
-    }
-
-    private async Task LoadPageDataAsync()
-    {
-        var currentTelegramOptions = await appSettingsService.GetTelegramBotOptionsAsync();
-        var currentAiOptions = await appSettingsService.GetAiProviderOptionsAsync();
+        var telegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
+        var ai = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
 
         InstanceName = runtimeOptions.Value.InstanceName;
-        AiProviderText = currentAiOptions.Provider;
-        IsAiChatEnabled = currentAiOptions.EnableChatGeneration &&
-            !string.Equals(currentAiOptions.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase);
-        BotEnabled = currentTelegramOptions.Enabled;
-        HasBotToken = !string.IsNullOrWhiteSpace(currentTelegramOptions.BotToken);
+        AiProviderText = ai.Provider;
+        IsAiChatEnabled = ai.EnableChatGeneration &&
+            !string.Equals(ai.Provider, AiProviderNames.Local, StringComparison.OrdinalIgnoreCase);
+        BotEnabled = telegram.Enabled;
+        HasBotToken = !string.IsNullOrWhiteSpace(telegram.BotToken);
         BotStatusMessage = "Telegram bot is not enabled yet.";
 
         if (BotEnabled && HasBotToken)
         {
             try
             {
-                BotProfile = await telegramBotClient.GetMeAsync();
+                BotProfile = await telegramBotClient.GetMeAsync(cancellationToken);
                 BotStatusMessage = BotProfile is null
                     ? "Bot token is configured, but Telegram did not return a profile."
                     : $"Connected as @{BotProfile.Username ?? BotProfile.FirstName}";
@@ -132,66 +54,17 @@ public class IndexModel(
             }
         }
 
-        PendingUpdateCount = await dbContext.TelegramUpdateInboxes.CountAsync(item => item.Status == "Pending" || item.Status == "Processing");
-
-        Subscriptions = await dbContext.TelegramChatSubscriptions
-            .OrderByDescending(chat => chat.EnableAdvisoryPush)
-            .ThenBy(chat => chat.ChatTitle)
+        PendingUpdateCount = await dbContext.TelegramUpdateInboxes
+            .CountAsync(item => item.Status == "Pending" || item.Status == "Processing", cancellationToken);
+        Chats = await dbContext.TelegramChatSubscriptions
+            .AsNoTracking()
+            .OrderByDescending(chat => chat.LastUpdatedTime)
             .Take(12)
-            .ToListAsync();
-
-        PushLogs = await dbContext.PushLogs
+            .ToListAsync(cancellationToken);
+        DeliveryLogs = await dbContext.PushLogs
+            .AsNoTracking()
             .OrderByDescending(log => log.CreatedTime)
-            .Take(8)
-            .ToListAsync();
-
-        SyncJobLogs = await dbContext.SyncJobLogs
-            .OrderByDescending(log => log.StartTime)
-            .Take(8)
-            .ToListAsync();
+            .Take(12)
+            .ToListAsync(cancellationToken);
     }
-
-    private async Task LoadInputAsync(int editId)
-    {
-        var entity = await dbContext.TelegramChatSubscriptions
-            .FirstOrDefaultAsync(chat => chat.TelegramChatSubscriptionId == editId);
-
-        if (entity is null)
-        {
-            StatusMessage = "Requested Telegram chat was not found.";
-            return;
-        }
-
-        Input = new ChatSubscriptionInput
-        {
-            TelegramChatSubscriptionId = entity.TelegramChatSubscriptionId,
-            ChatId = entity.ChatId,
-            ChatTitle = entity.ChatTitle,
-            EnableAdvisoryPush = entity.EnableAdvisoryPush,
-            AdvisoryKeywords = entity.AdvisoryKeywords,
-            MinimumSeverity = entity.MinimumSeverity
-        };
-    }
-
-    public class ChatSubscriptionInput
-    {
-        public int? TelegramChatSubscriptionId { get; set; }
-
-        [Required]
-        [StringLength(64)]
-        public string ChatId { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(128)]
-        public string ChatTitle { get; set; } = string.Empty;
-
-        public bool EnableAdvisoryPush { get; set; } = true;
-
-        [StringLength(800)]
-        public string? AdvisoryKeywords { get; set; }
-
-        [StringLength(32)]
-        public string? MinimumSeverity { get; set; }
-    }
-
 }

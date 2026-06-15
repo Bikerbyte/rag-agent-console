@@ -12,7 +12,7 @@
             @L["可換領域的 RAG Agent 平台：匯入文件、混合檢索、產生回答，並透過 Web 與 Telegram 對外服務。"]
         </p>
         <div class="hero-actions">
-            <a class="btn btn-primary" asp-page="/Advisories/Index">@L["開啟知識庫"]</a>
+            <a class="btn btn-primary" asp-page="/Knowledge/Index">@L["開啟知識庫"]</a>
             <a class="btn btn-outline-secondary" asp-page="/Chat/Index">@L["開始對話"]</a>
         </div>
     </div>
@@ -21,8 +21,8 @@
 <section class="compact-metrics">
     <article class="metric-strip">
         <span class="metric-label">@L["知識庫"]</span>
-        <strong>@Model.AdvisoryCount.ToString("N0")</strong>
-        <p>@Model.KnownExploitedCount.ToString("N0") @L["高風險"] · @Model.RagChunkCount.ToString("N0") @L["檢索片段"]</p>
+        <strong>@Model.DocumentCount.ToString("N0")</strong>
+        <p>@Model.RagChunkCount.ToString("N0") @L["檢索片段"]</p>
     </article>
     <article class="metric-strip">
         <span class="metric-label">@L["AI 供應商"]</span>
@@ -47,15 +47,15 @@
 
     <div class="detail-stack">
         <div class="detail-row">
-            <strong>@L["範例連接器同步"]</strong>
-            <p class="muted-line">@Model.LatestAdvisorySyncText</p>
+            <strong>@L["最近更新文件"]</strong>
+            <p class="muted-line">@Model.LatestDocumentText</p>
         </div>
         <div class="detail-row">
             <strong>@L["索引"]</strong>
             <p class="muted-line">@Model.RagIndexText</p>
         </div>
         <div class="detail-row">
-            <strong>@L["最近一次 Telegram 推送"]</strong>
+            <strong>@L["最近一次 Telegram 回覆"]</strong>
             <p class="muted-line">@Model.LatestReplyText</p>
         </div>
     </div>

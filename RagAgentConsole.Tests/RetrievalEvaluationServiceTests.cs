@@ -17,7 +17,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
 
     public RetrievalEvaluationServiceTests()
     {
-        _tempRoot = Path.Combine(Path.GetTempPath(), "advisory-eval-tests-" + Guid.NewGuid().ToString("N"));
+        _tempRoot = Path.Combine(Path.GetTempPath(), "retrieval-eval-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_tempRoot, "Evaluation"));
         _environment = new FakeHostEnvironment { ContentRootPath = _tempRoot };
     }
@@ -185,7 +185,6 @@ public class RetrievalEvaluationServiceTests : IDisposable
         db.SaveChanges();
 
         var documentResult = new RetrievalResult(
-            Advisory: null,
             Document: new KnowledgeDocument
             {
                 ModuleName = KnowledgeModuleNames.InternalDocs,
@@ -211,7 +210,7 @@ public class RetrievalEvaluationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EvaluateAsync_ExpectedMetadata_MatchesDomainTraceMetadata()
+    public async Task EvaluateAsync_ExpectedMetadata_MatchesDocumentMetadata()
     {
         var db = NewDb();
         var now = DateTimeOffset.UtcNow;
@@ -227,7 +226,6 @@ public class RetrievalEvaluationServiceTests : IDisposable
         db.SaveChanges();
 
         var documentResult = new RetrievalResult(
-            Advisory: null,
             Document: new KnowledgeDocument
             {
                 ModuleName = KnowledgeModuleNames.InternalDocs,
@@ -282,7 +280,6 @@ public class RetrievalEvaluationServiceTests : IDisposable
     private RetrievalEvaluationService CreateService(IRagRetrievalService search, ApplicationDbContext dbContext)
         => new(
             search,
-            new RagDomainRegistry([new SecurityAdvisoryDomain(), new GenericKnowledgeDomain()]),
             dbContext,
             _environment,
             NullLogger<RetrievalEvaluationService>.Instance);
@@ -333,7 +330,6 @@ public class RetrievalEvaluationServiceTests : IDisposable
     private static RetrievalResponse Response(params string[] chunks)
     {
         var results = chunks.Select((chunk, index) => new RetrievalResult(
-            Advisory: null,
             Document: new KnowledgeDocument
             {
                 ModuleName = KnowledgeModuleNames.InternalDocs,

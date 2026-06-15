@@ -83,11 +83,8 @@ public class IndexModel(
             new("TelegramBot:WebhookUrl", Input.WebhookUrl),
             new("TelegramBot:WebhookPath", Input.WebhookPath),
             new("TelegramBot:PollingDelaySeconds", Input.PollingDelaySeconds.ToString()),
-            new("DataSources:AutoSyncIntervalMinutes", Input.AutoSyncIntervalMinutes.ToString()),
-            new("PushNotifications:Enabled", Input.PushEnabled.ToString()),
-            new("PushNotifications:EnableSecurityAdvisoryPush", Input.SecurityAdvisoryPushEnabled.ToString()),
-            new("PushNotifications:WorkerIntervalSeconds", Input.PushWorkerIntervalSeconds.ToString()),
-            new("PushNotifications:AdvisoryLookbackHours", Input.AdvisoryLookbackHours.ToString()),
+            new("Rag:LocalEmbeddingDimensions", Input.LocalEmbeddingDimensions.ToString()),
+            new("Rag:MaxChunks", Input.RagMaxChunks.ToString()),
             new("VectorStore:CandidateLimit", Input.VectorStoreCandidateLimit.ToString()),
             new("Observability:EnableOpenTelemetry", Input.EnableOpenTelemetry.ToString()),
             new("Observability:EnableConsoleExporter", Input.EnableOpenTelemetryConsoleExporter.ToString()),
@@ -112,7 +109,7 @@ public class IndexModel(
         updates.Add(new AppSettingUpdate("Agent:AgentName", Input.AgentName));
         updates.Add(new AppSettingUpdate("Agent:AgentTagline", Input.AgentTagline));
         updates.Add(new AppSettingUpdate("Agent:ChatPlaceholder", Input.ChatPlaceholder));
-        updates.Add(new AppSettingUpdate("Agent:DefaultDomain", Input.DefaultDomain));
+        updates.Add(new AppSettingUpdate("Agent:DefaultModule", Input.DefaultModule));
         updates.Add(new AppSettingUpdate("Agent:PlannerSystemPrompt", Input.PlannerSystemPrompt));
         updates.Add(new AppSettingUpdate("Agent:RagSystemPrompt", Input.RagSystemPrompt));
         updates.Add(new AppSettingUpdate("Agent:GeneralSystemPrompt", Input.GeneralSystemPrompt));
@@ -163,8 +160,7 @@ public class IndexModel(
     {
         var ai = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
         var telegram = await appSettingsService.GetTelegramBotOptionsAsync(cancellationToken);
-        var dataSource = await appSettingsService.GetDataSourceOptionsAsync(cancellationToken);
-        var push = await appSettingsService.GetPushNotificationOptionsAsync(cancellationToken);
+        var rag = await appSettingsService.GetRagOptionsAsync(cancellationToken);
         var vectorStore = await appSettingsService.GetVectorStoreOptionsAsync(cancellationToken);
         var observability = await appSettingsService.GetObservabilityOptionsAsync(cancellationToken);
         var agent = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
@@ -173,7 +169,7 @@ public class IndexModel(
         BotEnabled = telegram.Enabled;
         HasTelegramBotToken = !string.IsNullOrWhiteSpace(telegram.BotToken);
         HasWebhookSecretToken = !string.IsNullOrWhiteSpace(telegram.WebhookSecretToken);
-        Input = AppSettingsInput.From(ai, telegram, dataSource, push, vectorStore, observability, agent);
+        Input = AppSettingsInput.From(ai, telegram, rag, vectorStore, observability, agent);
         SetAiStatus(ai);
     }
 
@@ -249,7 +245,7 @@ public class IndexModel(
         public string AgentName { get; set; } = "AI Assistant";
         public string AgentTagline { get; set; } = new AgentOptions().AgentTagline;
         public string ChatPlaceholder { get; set; } = new AgentOptions().ChatPlaceholder;
-        public string DefaultDomain { get; set; } = new AgentOptions().DefaultDomain;
+        public string DefaultModule { get; set; } = new AgentOptions().DefaultModule;
         public string PlannerSystemPrompt { get; set; } = new AgentOptions().PlannerSystemPrompt;
         public string RagSystemPrompt { get; set; } = new AgentOptions().RagSystemPrompt;
         public string GeneralSystemPrompt { get; set; } = new AgentOptions().GeneralSystemPrompt;
@@ -272,11 +268,8 @@ public class IndexModel(
         public string WebhookPath { get; set; } = "/api/telegram/webhook";
         public string? WebhookSecretToken { get; set; }
         public int PollingDelaySeconds { get; set; } = 3;
-        public int AutoSyncIntervalMinutes { get; set; } = 15;
-        public bool PushEnabled { get; set; } = true;
-        public bool SecurityAdvisoryPushEnabled { get; set; } = true;
-        public int PushWorkerIntervalSeconds { get; set; } = 90;
-        public int AdvisoryLookbackHours { get; set; } = 72;
+        public int LocalEmbeddingDimensions { get; set; } = 384;
+        public int RagMaxChunks { get; set; } = 5;
         public int VectorStoreCandidateLimit { get; set; } = 3000;
         public bool EnableOpenTelemetry { get; set; }
         public bool EnableOpenTelemetryConsoleExporter { get; set; }
@@ -285,8 +278,7 @@ public class IndexModel(
         public static AppSettingsInput From(
             AiProviderOptions ai,
             TelegramBotOptions telegram,
-            DataSourceOptions dataSource,
-            PushNotificationOptions push,
+            RagOptions rag,
             VectorStoreOptions vectorStore,
             ObservabilityOptions observability,
             AgentOptions agent)
@@ -295,7 +287,7 @@ public class IndexModel(
                 AgentName = agent.AgentName,
                 AgentTagline = agent.AgentTagline,
                 ChatPlaceholder = agent.ChatPlaceholder,
-                DefaultDomain = agent.DefaultDomain,
+                DefaultModule = agent.DefaultModule,
                 PlannerSystemPrompt = agent.PlannerSystemPrompt,
                 RagSystemPrompt = agent.RagSystemPrompt,
                 GeneralSystemPrompt = agent.GeneralSystemPrompt,
@@ -315,11 +307,8 @@ public class IndexModel(
                 WebhookUrl = telegram.WebhookUrl,
                 WebhookPath = telegram.WebhookPath,
                 PollingDelaySeconds = telegram.PollingDelaySeconds,
-                AutoSyncIntervalMinutes = dataSource.AutoSyncIntervalMinutes,
-                PushEnabled = push.Enabled,
-                SecurityAdvisoryPushEnabled = push.EnableSecurityAdvisoryPush,
-                PushWorkerIntervalSeconds = push.WorkerIntervalSeconds,
-                AdvisoryLookbackHours = push.AdvisoryLookbackHours,
+                LocalEmbeddingDimensions = rag.LocalEmbeddingDimensions,
+                RagMaxChunks = rag.MaxChunks,
                 VectorStoreCandidateLimit = vectorStore.CandidateLimit,
                 EnableOpenTelemetry = observability.EnableOpenTelemetry,
                 EnableOpenTelemetryConsoleExporter = observability.EnableConsoleExporter,

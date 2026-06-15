@@ -110,11 +110,8 @@ public class SettingsOpenAiValidationTests
         public Task<TelegramBotOptions> GetTelegramBotOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(TelegramOptions);
 
-        public Task<DataSourceOptions> GetDataSourceOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new DataSourceOptions());
-
-        public Task<PushNotificationOptions> GetPushNotificationOptionsAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(new PushNotificationOptions());
+        public Task<RagOptions> GetRagOptionsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new RagOptions());
 
         public Task<VectorStoreOptions> GetVectorStoreOptionsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new VectorStoreOptions());

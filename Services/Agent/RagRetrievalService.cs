@@ -1,5 +1,4 @@
 using RagAgentConsole.Models;
-using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
@@ -29,7 +28,7 @@ public class RagRetrievalService(
     IRagEmbeddingService embeddingService,
     IRagVectorStore vectorStore,
     IRagQueryPlanner queryPlanner,
-    IOptions<SecurityAdvisoryOptions> options,
+    IAppSettingsService appSettingsService,
     ILogger<RagRetrievalService> logger) : IRagRetrievalService
 {
     public async Task<IReadOnlyList<RetrievalResult>> SearchAsync(
@@ -64,7 +63,7 @@ public class RagRetrievalService(
                     [],
                     RetrievalPlan.EmptyValues,
                     RetrievalPlan.EmptyValues,
-                    moduleName ?? KnowledgeModuleNames.CveAdvisory),
+                    moduleName ?? KnowledgeModuleNames.InternalDocs),
                 RetrievalModes.Normalize(retrievalMode),
                 []);
         }
@@ -73,19 +72,16 @@ public class RagRetrievalService(
         var effectiveModule = string.IsNullOrWhiteSpace(moduleName) ? plan.ModuleName : moduleName.Trim();
         var effectiveMode = RetrievalModes.Normalize(retrievalMode);
         var queryVector = await embeddingService.BuildEmbeddingAsync(plan.RetrievalQuery, cancellationToken);
-        var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, options.Value.RagMaxChunks));
+        var ragOptions = await appSettingsService.GetRagOptionsAsync(cancellationToken);
+        var effectiveMax = Math.Clamp(maxResults, 1, Math.Max(1, ragOptions.MaxChunks));
         var request = new RetrievalRequest(
             plan.RetrievalQuery,
             plan.SearchKeywords,
-            plan.Entities,
             plan.Filters,
             queryVector,
             effectiveMax,
             effectiveModule,
-            effectiveMode,
-            plan.PublishedFrom,
-            plan.PublishedTo,
-            plan.PreferRecent);
+            effectiveMode);
         var candidates = await vectorStore.SearchAsync(request, cancellationToken);
 
         var ranked = new List<RetrievalResult>();
@@ -103,12 +99,12 @@ public class RagRetrievalService(
                 continue;
             }
 
-            ranked.Add(candidate switch
-            {
-                AdvisoryCandidate a => new RetrievalResult(a.Advisory, null, a.ChunkText, score, vectorScore, a.TextScore),
-                DocumentCandidate d => new RetrievalResult(null, d.Document, d.ChunkText, score, vectorScore, d.TextScore),
-                _ => throw new InvalidOperationException($"Unexpected candidate type: {candidate.GetType().Name}")
-            });
+            ranked.Add(new RetrievalResult(
+                candidate.Document,
+                candidate.ChunkText,
+                score,
+                vectorScore,
+                candidate.TextScore));
         }
 
         logger.LogDebug(
@@ -117,12 +113,8 @@ public class RagRetrievalService(
             ranked.Count,
             plan.RetrievalQuery);
 
-        var ordered = plan.PreferRecent
-            ? ranked.OrderByDescending(item => item.Advisory?.PublishedAt ?? DateTimeOffset.MinValue)
-                .ThenByDescending(item => item.Score)
-            : ranked.OrderByDescending(item => item.Score);
-
-        var results = ordered
+        var results = ranked
+            .OrderByDescending(item => item.Score)
             .Take(effectiveMax)
             .ToList();
 

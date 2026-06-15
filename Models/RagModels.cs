@@ -1,55 +1,23 @@
 namespace RagAgentConsole.Models;
 
-/// <summary>
-/// Well-known keys for <see cref="RetrievalPlan"/> entity values shared by
-/// multiple domains. Domain-specific keys (e.g. CVE id) are declared next to
-/// the domain that interprets them.
-/// </summary>
-public static class PlanEntityKeys
-{
-    public const string Vendor = "vendor";
-    public const string Product = "product";
-    public const string Version = "version";
-}
-
 public sealed record RetrievalRequest(
     string Question,
     IReadOnlyList<string> Keywords,
-    IReadOnlyDictionary<string, string?> Entities,
     IReadOnlyDictionary<string, string?> Filters,
     float[] QueryEmbedding,
     int MaxResults,
     string? ModuleName = null,
-    string RetrievalMode = RetrievalModes.Hybrid,
-    DateTimeOffset? PublishedFrom = null,
-    DateTimeOffset? PublishedTo = null,
-    bool PreferRecent = false)
+    string RetrievalMode = RetrievalModes.Hybrid)
 {
-    public string? GetEntity(string key)
-        => Entities.TryGetValue(key, out var value) ? value : null;
-
     public string? GetFilter(string key)
         => Filters.TryGetValue(key, out var value) ? value : null;
 }
 
-public abstract record RetrievalCandidate(
-    string ChunkText,
-    float[] Embedding,
-    double TextScore);
-
-public sealed record AdvisoryCandidate(
-    SecurityAdvisory Advisory,
-    string ChunkText,
-    float[] Embedding,
-    double TextScore)
-    : RetrievalCandidate(ChunkText, Embedding, TextScore);
-
-public sealed record DocumentCandidate(
+public sealed record RetrievalCandidate(
     KnowledgeDocument Document,
     string ChunkText,
     float[] Embedding,
-    double TextScore)
-    : RetrievalCandidate(ChunkText, Embedding, TextScore);
+    double TextScore);
 
 public enum PlannerStrategy { Ai, RawFallback }
 
@@ -61,11 +29,8 @@ public sealed record RetrievalPlan(
     IReadOnlyList<string> Notes,
     IReadOnlyDictionary<string, string?> Entities,
     IReadOnlyDictionary<string, string?> Filters,
-    string ModuleName = KnowledgeModuleNames.CveAdvisory,
-    PlannerStrategy Strategy = PlannerStrategy.Ai,
-    DateTimeOffset? PublishedFrom = null,
-    DateTimeOffset? PublishedTo = null,
-    bool PreferRecent = false)
+    string ModuleName = KnowledgeModuleNames.InternalDocs,
+    PlannerStrategy Strategy = PlannerStrategy.Ai)
 {
     public static readonly IReadOnlyDictionary<string, string?> EmptyValues =
         new Dictionary<string, string?>();
@@ -93,18 +58,38 @@ public static class RetrievalModes
 }
 
 public sealed record RetrievalResult(
-    SecurityAdvisory? Advisory,
-    KnowledgeDocument? Document,
+    KnowledgeDocument Document,
     string ChunkText,
     double Score,
     double VectorScore,
     double TextScore)
 {
-    public string ModuleName => Document?.ModuleName ?? KnowledgeModuleNames.CveAdvisory;
-    public string SourceKind => Advisory is not null ? "OfficialAdvisory" : "ManagedDocument";
-    public string Title => Advisory?.Title ?? Document?.Title ?? "Untitled";
-    public string SourceName => Advisory?.SourceName ?? Document?.SourceType ?? "Knowledge";
-    public string? SourceUrl => Advisory?.SourceUrl;
+    public string ModuleName => Document.ModuleName;
+    public string SourceKind => "ManagedDocument";
+    public string Title => Document.Title;
+    public string SourceName => Document.SourceType;
+
+    public IReadOnlyDictionary<string, string?> BuildMetadata()
+    {
+        var metadata = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["moduleName"] = Document.ModuleName,
+            ["sourceType"] = Document.SourceType
+        };
+
+        AddIfPresent(metadata, "vendor", Document.Vendor);
+        AddIfPresent(metadata, "product", Document.Product);
+        AddIfPresent(metadata, "tags", Document.Tags);
+        return metadata;
+    }
+
+    private static void AddIfPresent(Dictionary<string, string?> metadata, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            metadata[key] = value;
+        }
+    }
 }
 
 public sealed record RetrievalResponse(

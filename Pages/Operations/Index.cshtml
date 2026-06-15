@@ -5,184 +5,36 @@
 }
 
 <section class="page-header compact-header">
-    <div>
-        <p class="eyebrow">@L["執行與通知"]</p>
-        <h1>@L["運行狀態"]</h1>
-    </div>
+    <div><p class="eyebrow">@L["執行與通道"]</p><h1>@L["運行狀態"]</h1></div>
     <a class="btn btn-primary" asp-page="/Chat/Index">@L["開啟對話"]</a>
 </section>
 
-@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
-{
-    <div class="alert alert-info" role="alert">@Model.StatusMessage</div>
-}
-
 <section class="compact-metrics">
-    <article class="metric-strip">
-        <span class="metric-label">Telegram</span>
-        <strong>@(Model.BotEnabled && Model.HasBotToken ? L["就緒"].Value : L["待設定"].Value)</strong>
-        <p>@Model.PendingUpdateCount @L["筆待處理更新"]</p>
-    </article>
-    <article class="metric-strip">
-        <span class="metric-label">@L["節點"]</span>
-        <strong>@Model.InstanceName</strong>
-    </article>
-    <article class="metric-strip">
-        <span class="metric-label">@L["AI 供應商"]</span>
-        <strong>@Model.AiProviderText</strong>
-        <p>@(Model.IsAiChatEnabled ? L["已啟用回答生成"].Value : L["尚未連接回答生成"].Value)</p>
-    </article>
+    <article class="metric-strip"><span class="metric-label">Telegram</span><strong>@(Model.BotEnabled && Model.HasBotToken ? L["就緒"].Value : L["待設定"].Value)</strong><p>@Model.PendingUpdateCount @L["筆待處理更新"]</p></article>
+    <article class="metric-strip"><span class="metric-label">@L["節點"]</span><strong>@Model.InstanceName</strong></article>
+    <article class="metric-strip"><span class="metric-label">@L["AI 供應商"]</span><strong>@Model.AiProviderText</strong><p>@(Model.IsAiChatEnabled ? L["已啟用回答生成"].Value : L["尚未連接回答生成"].Value)</p></article>
 </section>
 
 <section class="ops-grid">
     <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">Telegram</span>
-                <h2 class="panel-title">@(Model.IsEditMode ? L["編輯訂閱"] : L["新增訂閱"])</h2>
-            </div>
-
-            @if (Model.IsEditMode)
-            {
-                <form method="post" asp-page-handler="Reset">
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">@L["新增"]</button>
-                </form>
-            }
-        </div>
-
-        <form method="post" asp-page-handler="Save" class="compact-form">
-            <input type="hidden" asp-for="Input.TelegramChatSubscriptionId" />
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-            <div class="form-row">
-                <div>
-                    <label asp-for="Input.ChatTitle" class="form-label">@L["對話名稱"]</label>
-                    <input asp-for="Input.ChatTitle" class="form-control" />
-                    <span asp-validation-for="Input.ChatTitle" class="text-danger"></span>
-                </div>
-                <div>
-                    <label asp-for="Input.ChatId" class="form-label">Chat ID</label>
-                    <input asp-for="Input.ChatId" class="form-control" />
-                    <span asp-validation-for="Input.ChatId" class="text-danger"></span>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div>
-                    <label asp-for="Input.AdvisoryKeywords" class="form-label">@L["主題關鍵字"]</label>
-                    <input asp-for="Input.AdvisoryKeywords" class="form-control" placeholder="policy, product, cve" />
-                    <span asp-validation-for="Input.AdvisoryKeywords" class="text-danger"></span>
-                </div>
-                <div>
-                    <label asp-for="Input.MinimumSeverity" class="form-label">@L["最低嚴重度"]</label>
-                    <input asp-for="Input.MinimumSeverity" class="form-control" placeholder="Critical" />
-                    <span asp-validation-for="Input.MinimumSeverity" class="text-danger"></span>
-                </div>
-            </div>
-
-            <div class="form-footer">
-                <div class="form-check">
-                    <input asp-for="Input.EnableAdvisoryPush" class="form-check-input" />
-                    <label asp-for="Input.EnableAdvisoryPush" class="form-check-label">@L["啟用主題推送"]</label>
-                </div>
-                <button type="submit" class="btn btn-primary">@L["儲存"]</button>
-            </div>
-        </form>
+        <div class="panel-header"><div class="panel-title-group"><span class="section-kicker">Telegram</span><h2 class="panel-title">@L["連線狀態"]</h2></div></div>
+        <div class="detail-stack"><div class="detail-row"><strong>@Model.BotStatusMessage</strong>@if (Model.BotProfile is not null) { <p class="muted-line">ID @Model.BotProfile.Id</p> }</div></div>
     </article>
-
     <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">@L["訂閱清單"]</span>
-                <h2 class="panel-title">@L["推送對象"]</h2>
-            </div>
-        </div>
-
+        <div class="panel-header"><div class="panel-title-group"><span class="section-kicker">@L["最近對話"]</span><h2 class="panel-title">Telegram chats</h2></div></div>
         <div class="compact-list">
-            @if (Model.Subscriptions.Count == 0)
-            {
-                <p class="empty-copy">@L["尚無推送對象。"]</p>
-            }
-            else
-            {
-                @foreach (var chat in Model.Subscriptions)
-                {
-                    <div class="compact-row">
-                        <div>
-                            <span class="table-title">@chat.ChatTitle</span>
-                            <p class="table-copy"><code>@chat.ChatId</code> · @(string.IsNullOrWhiteSpace(chat.AdvisoryKeywords) ? L["預設高訊號資料"].Value : chat.AdvisoryKeywords)</p>
-                        </div>
-                        <div class="row-actions">
-                            <span class="status-pill @(chat.EnableAdvisoryPush ? "is-success" : "is-neutral")">
-                                @(chat.EnableAdvisoryPush ? L["開"] : L["關"])
-                            </span>
-                            <form method="post" asp-page-handler="Edit">
-                                <input type="hidden" name="id" value="@chat.TelegramChatSubscriptionId" />
-                                <button type="submit" class="btn btn-sm btn-outline-primary">@L["編輯"]</button>
-                            </form>
-                        </div>
-                    </div>
-                }
-            }
+        @if (Model.Chats.Count == 0) { <p class="empty-copy">@L["尚無 Telegram 對話。"]</p> }
+        else { @foreach (var chat in Model.Chats) { <div class="compact-row"><div><span class="table-title">@chat.ChatTitle</span><p class="table-copy"><code>@chat.ChatId</code> · @chat.LastUpdatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</p></div></div> } }
         </div>
     </article>
 </section>
 
 <section class="ops-grid mt-4">
     <article class="panel">
-        <div class="panel-header">
-            <div class="panel-title-group">
-                <span class="section-kicker">@L["近期活動"]</span>
-                <h2 class="panel-title">@L["推送與同步紀錄"]</h2>
-            </div>
-        </div>
-
+        <div class="panel-header"><div class="panel-title-group"><span class="section-kicker">@L["近期活動"]</span><h2 class="panel-title">@L["Telegram 傳送紀錄"]</h2></div></div>
         <div class="activity-stack">
-            @{
-                var activity = Model.PushLogs
-                    .Select(log => new
-                    {
-                        Time = log.CreatedTime,
-                        Kind = "Push",
-                        log.IsSuccess,
-                        Title = log.MessageTitle,
-                        Detail = $"{log.PushType} · {(log.IsSuccess ? L["成功"].Value : log.ErrorMessage)}"
-                    })
-                    .Concat(Model.SyncJobLogs.Select(log => new
-                    {
-                        Time = log.StartTime,
-                        Kind = "Sync",
-                        log.IsSuccess,
-                        Title = log.JobName,
-                        Detail = log.Message ?? string.Empty
-                    }))
-                    .OrderByDescending(item => item.Time)
-                    .Take(12)
-                    .ToList();
-            }
-
-            @if (activity.Count == 0)
-            {
-                <p class="empty-copy">@L["尚無紀錄。"]</p>
-            }
-            else
-            {
-                @foreach (var item in activity)
-                {
-                    <div class="activity-row">
-                        <span class="status-pill @(item.IsSuccess ? "is-success" : "is-danger")">@item.Kind</span>
-                        <div>
-                            <strong>@item.Title</strong>
-                            <p>@item.Time.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @item.Detail</p>
-                        </div>
-                    </div>
-                }
-            }
+        @if (Model.DeliveryLogs.Count == 0) { <p class="empty-copy">@L["尚無紀錄。"]</p> }
+        else { @foreach (var log in Model.DeliveryLogs) { <div class="activity-row"><span class="status-pill @(log.IsSuccess ? "is-success" : "is-danger")">@(log.IsSuccess ? L["成功"] : L["失敗"])</span><div><strong>@log.MessageTitle</strong><p>@log.CreatedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm") · @log.PushType @if (!log.IsSuccess) { <span>· @log.ErrorMessage</span> }</p></div></div> } }
         </div>
     </article>
-
 </section>
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
