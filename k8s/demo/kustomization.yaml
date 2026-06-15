@@ -1,12 +1,13 @@
 # Self-contained demo：base 之上加自帶的 PostgreSQL + LGTM，
 # 對應 docker-compose.demo.yml 的角色——共用 infra 的環境請只用 base 並自行覆寫連線。
+# 完整資源集合只供 render / review。實際發布請使用 bootstrap、migrate、app 子目錄。
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
   - ../base
-  - postgres.yaml
-  - lgtm.yaml
+  - bootstrap/postgres.yaml
+  - bootstrap/lgtm.yaml
 
 patches:
   - target:

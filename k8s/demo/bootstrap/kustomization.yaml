@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: rag-agent-console
+
+resources:
+  - ../../base/bootstrap
+  - postgres.yaml
+  - lgtm.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: rag-agent-config
+    patch: |-
+      - op: replace
+        path: /data/Observability__OtlpEndpoint
+        value: http://lgtm:4317

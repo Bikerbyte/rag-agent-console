@@ -102,18 +102,41 @@ OpenAI / Ollama 的金鑰與位址於後台「設定」頁調整，Ollama 可以
 
 ## k8s 部署
 
-`k8s/` 用 kustomize：`base` 是 app 本身（web、worker、migration Job），`demo` 再疊上 Postgres 與 LGTM，方便在本機 cluster 直接跑起來。
+`k8s/` 用 kustomize：`base` 是 app 本身，`demo` 再帶 Postgres 與 LGTM。發布拆成 `bootstrap`、`migrate`、`app` 三階段，不能直接 `kubectl apply -k k8s/demo`，否則 web / worker 可能早於 migration 啟動。
+
+本機 k3d cluster 的首次安裝（將 `<cluster-name>` 換成實際名稱）：
 
 ```bash
 docker build -t rag-agent-console:local .
-kubectl apply -k k8s/demo
+k3d image import rag-agent-console:local -c <cluster-name>
+
+kubectl apply -k k8s/demo/bootstrap
+kubectl -n rag-agent-console rollout status statefulset/postgres --timeout=180s
+kubectl -n rag-agent-console rollout status deployment/lgtm --timeout=180s
+
+kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found
+kubectl apply -k k8s/demo/migrate
 kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate --timeout=180s
+
+kubectl apply -k k8s/demo/app
+kubectl -n rag-agent-console rollout status deployment/rag-agent-web --timeout=180s
+kubectl -n rag-agent-console rollout status deployment/rag-agent-worker --timeout=180s
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
-web、worker、migration 是同一個 image，用環境變數切角色，worker 只跑 Telegram 收訊。接既有的 Postgres / LGTM 就只用 `base`，連線字串和 OTLP endpoint 自己覆寫。
+升級既有 k8s 環境時，匯入新 image 後先停止舊 app，再重跑 migration Job：
 
-migration 跑在獨立 Job，所以升級換 image 時要先讓 Job 重跑再 rollout。
+```bash
+kubectl -n rag-agent-console scale deployment/rag-agent-web deployment/rag-agent-worker --replicas=0
+kubectl -n rag-agent-console wait --for=delete pod -l app=rag-agent-web --timeout=120s
+kubectl -n rag-agent-console wait --for=delete pod -l app=rag-agent-worker --timeout=120s
+kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found
+kubectl apply -k k8s/demo/migrate
+kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate --timeout=180s
+kubectl apply -k k8s/demo/app
+```
+
+web、worker、migration 使用同一個 image，以環境變數切角色；worker 只處理 Telegram update queue。接既有 Postgres / LGTM 時改用 `k8s/base/bootstrap`、`k8s/base/migrate`、`k8s/base/app`，並覆寫連線字串與 OTLP endpoint。
 
 ## 專案結構
 
