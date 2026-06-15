@@ -12,8 +12,6 @@ public class AppRuntimeOptions
     public bool EnableTelegramWebhookIngress { get; set; } = true;
     public bool EnableTelegramPollingWorker { get; set; } = true;
     public bool EnableTelegramUpdateQueueWorker { get; set; } = true;
-    public bool EnableOfficialDataSyncWorker { get; set; } = true;
-    public bool EnableNotificationWorker { get; set; } = true;
 
     public string GetEffectiveInstanceName()
     {
@@ -27,35 +25,12 @@ public class AppRuntimeOptions
     }
 }
 
-public class DataSourceOptions
+public class RagOptions
 {
-    public const string SectionName = "DataSources";
+    public const string SectionName = "Rag";
 
-    public int AutoSyncIntervalMinutes { get; set; } = 15;
-}
-
-public class PushNotificationOptions
-{
-    public const string SectionName = "PushNotifications";
-
-    public bool Enabled { get; set; } = true;
-    public bool EnableSecurityAdvisoryPush { get; set; } = true;
-    public int WorkerIntervalSeconds { get; set; } = 90;
-    public int AdvisoryLookbackHours { get; set; } = 72;
-}
-
-public class SecurityAdvisoryOptions
-{
-    public const string SectionName = "SecurityAdvisories";
-
-    public bool EnableCisaKevSource { get; set; } = true;
-    public bool EnableNvdSource { get; set; } = true;
-    public string CisaKevJsonUrl { get; set; } = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
-    public string NvdApiBaseUrl { get; set; } = "https://services.nvd.nist.gov";
-    public int NvdLookbackDays { get; set; } = 7;
-    public int MaxNvdResultsPerSync { get; set; } = 100;
-    public int EmbeddingDimensions { get; set; } = 384;
-    public int RagMaxChunks { get; set; } = 5;
+    public int LocalEmbeddingDimensions { get; set; } = 384;
+    public int MaxChunks { get; set; } = 5;
 }
 
 public class VectorStoreOptions
@@ -98,43 +73,28 @@ public class AgentOptions
 
     public string AgentName { get; set; } = "RAG Agent Console";
 
-    public string AgentTagline { get; set; } = "Domain-adaptable knowledge agent";
+    public string AgentTagline { get; set; } = "Document knowledge agent";
 
-    public string ChatPlaceholder { get; set; } = "Ask a question about any indexed document or sample connector...";
+    public string ChatPlaceholder { get; set; } = "Ask a question about any indexed document...";
 
-    /// <summary>
-    /// Domain used when the planner names no module or an unknown one
-    /// (e.g. "security_advisory" or "generic_knowledge").
-    /// </summary>
-    public string DefaultDomain { get; set; } = "security_advisory";
+    public string DefaultModule { get; set; } = KnowledgeModuleNames.InternalDocs;
 
     public string PlannerSystemPrompt { get; set; } =
         """
-        You are a knowledge base query planner for a domain-adaptable RAG agent.
+        You are a knowledge base query planner for a document RAG agent.
         Return JSON only. Do not include markdown fences.
-        Output fields: intent, domain, moduleName, retrievalQuery, searchKeywords, entities, filters, notes, publishedFrom, publishedTo, preferRecent.
-        entities is an object of extracted named values (e.g. vendor, product, version); filters is an object of hard retrieval constraints. Use null or omit keys that do not apply.
-        domain must be one of: security_advisory, generic_knowledge.
-        moduleName must be one of: CveAdvisory, WorkflowQa, InternalDocs.
-        Use domain = security_advisory with moduleName = CveAdvisory only when the question is about the built-in cybersecurity sample connector or CVE-style records;
-        for those questions entities may include vendor, product, version, cveId, and filters may include riskFilter and cveYear.
-        riskFilter must be one of: known_exploited, critical, high_risk, none.
-        Use domain = generic_knowledge with moduleName = WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
-        Use domain = generic_knowledge with moduleName = InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
-        Version must be supporting context only; do not include it in searchKeywords.
+        Output fields: intent, moduleName, retrievalQuery, searchKeywords, entities, filters, notes.
+        entities is an object of extracted named values; filters is an object of hard document metadata constraints. Use null or omit keys that do not apply.
+        moduleName must be one of: WorkflowQa, InternalDocs.
+        Use WorkflowQa for workflow, runbook, process, SOP, and operational procedure questions.
+        Use InternalDocs for internal memo, policy, compliance, HR, product documentation, and general uploaded document questions.
+        Do not invent a hard filter unless the user explicitly asks for that constraint.
         retrievalQuery should be concise English keywords for vector retrieval.
-        Temporal constraints — set publishedFrom / publishedTo as ISO 8601 (e.g. "2020-01-01T00:00:00+00:00"):
-        - "since 2020" or "2020年以後" → publishedFrom = 2020-01-01, publishedTo = null, cveYear = null.
-        - "before 2020" or "2020年以前" → publishedFrom = null, publishedTo = 2020-01-01, cveYear = null.
-        - "2020年" exact year → publishedFrom = 2020-01-01, publishedTo = 2021-01-01, cveYear = 2020.
-        - "2026/6" year-month → publishedFrom = 2026-06-01, publishedTo = 2026-07-01, cveYear = 2026.
-        Set preferRecent = true when the user asks about "latest", "recent", "最新", "最近", "近期", etc.
-        When the user mentions a product year like "windows server 2022", that is a product name, NOT a publication year — do not set temporal fields for it.
         """;
 
     public string RagSystemPrompt { get; set; } =
         """
-        You are an AI assistant helping users query a domain-adaptable knowledge base.
+        You are an AI assistant helping users query a document knowledge base.
         Answer in Traditional Chinese unless the user asks otherwise.
         Use only the provided context. Do not claim facts not present in the context.
         If the user asks about an exact version, policy, owner, date, or threshold that is not present in the context,

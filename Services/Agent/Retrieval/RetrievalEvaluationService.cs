@@ -38,7 +38,6 @@ public interface IRetrievalEvaluationService
 
 public sealed class RetrievalEvaluationService(
     IRagRetrievalService searchService,
-    IRagDomainRegistry domainRegistry,
     ApplicationDbContext dbContext,
     IWebHostEnvironment hostEnvironment,
     ILogger<RetrievalEvaluationService> logger) : IRetrievalEvaluationService
@@ -385,9 +384,7 @@ public sealed class RetrievalEvaluationService(
 
         if (expectedMetadata is { Count: > 0 })
         {
-            // Generic label path: a result is relevant when every expected
-            // pair matches its domain trace metadata (e.g. vendor=Citrix).
-            var metadata = domainRegistry.ResolveForResult(result).BuildTraceMetadata(result);
+            var metadata = result.BuildMetadata();
             return expectedMetadata.All(pair =>
                 metadata.TryGetValue(pair.Key, out var value) &&
                 string.Equals(value, pair.Value, StringComparison.OrdinalIgnoreCase));

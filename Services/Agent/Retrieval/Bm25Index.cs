@@ -112,17 +112,12 @@ public sealed class InMemoryBm25Index(
         await using var scope = scopeFactory.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var advisoryChunks = await dbContext.SecurityAdvisoryChunks
-            .AsNoTracking()
-            .Select(chunk => chunk.ChunkText)
-            .ToListAsync(cancellationToken);
-
         var knowledgeChunks = await dbContext.KnowledgeDocumentChunks
             .AsNoTracking()
             .Select(chunk => chunk.ChunkText)
             .ToListAsync(cancellationToken);
 
-        RebuildFromCorpus(advisoryChunks.Concat(knowledgeChunks));
+        RebuildFromCorpus(knowledgeChunks);
     }
 
     public void RebuildFromCorpus(IEnumerable<string> documents)
@@ -177,8 +172,8 @@ public sealed class InMemoryBm25Index(
         {
             if (!_documentFrequency.TryGetValue(term, out var df))
             {
-                // Unknown term: emit a small positive IDF so query-only signals
-                // (e.g. CVE IDs never seen at index time) still contribute weakly.
+                // Unknown terms keep a small positive IDF so new query terms
+                // can still contribute weakly before the next corpus refresh.
                 return Math.Log(1 + (DocumentCount + 0.5) / 1.5);
             }
 

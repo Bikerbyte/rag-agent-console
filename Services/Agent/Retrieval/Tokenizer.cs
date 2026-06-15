@@ -73,8 +73,8 @@ public sealed class MixedScriptTokenizer : ITokenizer
         var token = buffer.ToString();
         buffer.Clear();
 
-        // Keep alphanumeric identifiers like cve-2024-1234 (split on '-' above)
-        // and version numbers. Drop ultra-short tokens but keep digits-only of length >= 2
+        // Keep alphanumeric identifiers and version numbers. Drop ultra-short
+        // tokens but keep digits-only values of length >= 2
         // since they often encode meaningful version numbers (e.g. "2402").
         if (token.Length < 2 || StopWords.Contains(token))
         {

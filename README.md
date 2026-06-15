@@ -1,24 +1,23 @@
 # RAG Agent Console
 
-一個 RAG AI Agent 框架，可依照需求自由調整知識庫內容，成為不同用途的 AI Agent。
+一個文件型 RAG AI Agent 框架，可依照知識庫內容與 prompt 調整成不同用途的 AI Agent。
 
 Pipeline ：文件匯入、切塊、建立向量、混合檢索，再交給模型生成回答。 
 對外為 Web 對話和 Telegram 兩個入口，對內透過後台統一管理知識庫、檢索品質、設定。
 
-預設內建資安連接器（CISA KEV / NVD），收集資安相關情報。 
-可直接替換知識庫文件、prompt 即可更改領域，E.g. 上傳 HR 政策、作業SOP、產品 FAQ、OI等，知識庫支援 Markdown / TXT / HTML / CSV / DOCX 等常用格式。
+不綁定特定業務資料源；上傳 HR 政策、作業 SOP、產品 FAQ、內部規範等文件，再調整 prompt 即可更換領域。知識庫支援 Markdown / TXT / HTML / CSV / DOCX。
 
 
 ## 功能
 
-分開的資料來源和檢索引擎，換領域只要換知識庫文件和 prompt，不用動程式。 
+換領域只需要替換知識庫文件與 prompt，不需要修改 retrieval pipeline。
 
 - 知識庫：上傳檔案（支援批次）後自動抽取、切塊、建立向量索引，單一文件能啟用、停用、重新索引。
 - 混合檢索：向量相似度加 BM25 關鍵字，斷詞支援中英混排。
-- Query Planner：由 LLM 做意圖解析、時間範圍、模組選擇。
+- Query Planner：由 LLM 做意圖解析、關鍵字抽取與文件模組選擇。
 - Agent 對話：Web 與 Telegram，回覆附上檢索軌跡（用了哪些片段、分數多少）。
 - 檢索評估：可用文件標題、內容關鍵字或 Metadata 定義通用 golden set，並對 Hybrid / Vector / Keyword 三種策略並列比較 Hit@1 / Hit@5 / MRR。
-- 後台：推送與同步紀錄、Telegram 訂閱，以及 Agent prompt、供應商、檢索參數的設定。
+- 後台：文件管理、檢索測試、Telegram 運行紀錄，以及 Agent prompt、供應商、檢索參數設定。
 
 ## 架構
 
@@ -30,7 +29,6 @@ flowchart LR
     Agent --> Planner["Query Planner"]
     Planner --> Search["Hybrid Retrieval"]
 
-    Connectors["Sample Connector\nCISA KEV / NVD"] --> Ingestion["Knowledge Ingestion"]
     Uploads["上傳文件\nMD / TXT / HTML / CSV / DOCX"] --> Ingestion
     Ingestion --> Store["PostgreSQL\nrecords + chunks + embeddings"]
 
@@ -111,10 +109,12 @@ kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
-web / worker / migration Job 用同一個 image，靠環境變數切角色。  
+web / worker / migration Job 用同一個 image，靠環境變數切角色；worker 只負責 Telegram update queue。
 接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 自行覆寫；Secret 不要 commit 真值。
 
 升級 image 時要讓 migration Job 重跑；若前一個 Job 尚未被 TTL 清除，先執行 `kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found`，再重新 `kubectl apply -k ...` 並等待 Job 完成。
+
+`20260615022411_RemoveSecurityAdvisoryFeatures` 會刪除舊版專用資料表，因此舊 image 與新 schema 不相容。這次升級必須先備份 PostgreSQL、停止舊 web/worker，再執行 migration Job，最後才 rollout 新 image；不要讓舊 app 在 migration 後繼續執行。
 
 ## 專案結構
 
@@ -124,9 +124,8 @@ Models/              EF entity、options、view model
 Pages/               Razor Pages 後台
 Resources/           介面多語系資源（中 / 英）
 Services/Agent/       Agent 回覆、RAG 檢索、AI client、query planner
-Services/Advisories/  資安範例連接器、正規化、通知派送
 Services/Knowledge/   通用文件匯入、文字抽取、chunking、embedding
-Services/Telegram/    Telegram API、polling、webhook、update queue、push
+Services/Telegram/    Telegram API、polling、webhook、update queue、回答傳送
 Services/Settings/    後台設定覆蓋（DB 優先，fallback 到 appsettings）
 Evaluation/          領域中立的 golden set 種子（可用標題、內容關鍵字或 Metadata 判定命中）
 ```

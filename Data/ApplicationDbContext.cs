@@ -7,16 +7,13 @@ using Pgvector;
 namespace RagAgentConsole.Data;
 
 /// <summary>
-/// 管理頁面、同步工作與 Telegram 推送紀錄共用的 EF Core DbContext。
+/// 文件知識庫、設定與 Telegram 執行紀錄共用的 EF Core DbContext。
 /// </summary>
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
     public DbSet<TelegramChatSubscription> TelegramChatSubscriptions => Set<TelegramChatSubscription>();
     public DbSet<TelegramUpdateInbox> TelegramUpdateInboxes => Set<TelegramUpdateInbox>();
     public DbSet<PushLog> PushLogs => Set<PushLog>();
-    public DbSet<SyncJobLog> SyncJobLogs => Set<SyncJobLog>();
-    public DbSet<SecurityAdvisory> SecurityAdvisories => Set<SecurityAdvisory>();
-    public DbSet<SecurityAdvisoryChunk> SecurityAdvisoryChunks => Set<SecurityAdvisoryChunk>();
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
     public DbSet<KnowledgeDocumentChunk> KnowledgeDocumentChunks => Set<KnowledgeDocumentChunk>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
@@ -41,9 +38,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 (left, right) => Equals(left, right),
                 vector => vector == null ? 0 : vector.GetHashCode());
 
-            modelBuilder.Entity<SecurityAdvisoryChunk>()
-                .Property(chunk => chunk.Embedding)
-                .HasConversion(vectorToJson!, vectorComparer);
             modelBuilder.Entity<KnowledgeDocumentChunk>()
                 .Property(chunk => chunk.Embedding)
                 .HasConversion(vectorToJson!, vectorComparer);
@@ -62,19 +56,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<AppSetting>()
             .HasIndex(setting => setting.SettingKey)
             .IsUnique();
-
-        modelBuilder.Entity<SecurityAdvisory>()
-            .HasIndex(advisory => new { advisory.SourceName, advisory.ExternalId })
-            .IsUnique();
-
-        modelBuilder.Entity<SecurityAdvisory>()
-            .HasIndex(advisory => advisory.CveId);
-
-        modelBuilder.Entity<SecurityAdvisory>()
-            .HasMany(advisory => advisory.Chunks)
-            .WithOne(chunk => chunk.Advisory)
-            .HasForeignKey(chunk => chunk.SecurityAdvisoryId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<RetrievalEvaluationCaseEntity>()
             .HasIndex(evaluationCase => evaluationCase.CaseKey)

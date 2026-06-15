@@ -1,4 +1,5 @@
 @page
+@using RagAgentConsole.Models
 @model RagAgentConsole.Pages.Settings.IndexModel
 @{
     ViewData["Title"] = L["設定"].Value;
@@ -65,10 +66,10 @@
                     <input asp-for="Input.ChatPlaceholder" class="form-control" placeholder="@Model.DefaultAgentOptions.ChatPlaceholder" />
                 </label>
                 <label class="field-block">
-                    <span>@L["預設知識領域"]</span>
-                    <select asp-for="Input.DefaultDomain" class="form-select">
-                        <option value="security_advisory">security_advisory</option>
-                        <option value="generic_knowledge">generic_knowledge</option>
+                    <span>@L["預設知識模組"]</span>
+                    <select asp-for="Input.DefaultModule" class="form-select">
+                        <option value="@KnowledgeModuleNames.InternalDocs">@KnowledgeModuleNames.InternalDocs</option>
+                        <option value="@KnowledgeModuleNames.WorkflowQa">@KnowledgeModuleNames.WorkflowQa</option>
                     </select>
                 </label>
                 <div class="field-block field-span-2">
@@ -204,6 +205,14 @@
                     <span>@L["候選上限"]</span>
                     <input asp-for="Input.VectorStoreCandidateLimit" class="form-control" type="number" min="50" max="10000" />
                 </label>
+                <label class="field-block">
+                    <span>@L["回答片段上限"]</span>
+                    <input asp-for="Input.RagMaxChunks" class="form-control" type="number" min="1" max="20" />
+                </label>
+                <label class="field-block">
+                    <span>@L["本機向量維度"]</span>
+                    <input asp-for="Input.LocalEmbeddingDimensions" class="form-control" type="number" min="64" max="2048" />
+                </label>
                 <label class="field-switch">
                     <input asp-for="Input.EnableOpenTelemetry" class="form-check-input" />
                     <span><strong>OpenTelemetry</strong></span>
@@ -265,38 +274,6 @@
                 <label class="field-block">
                     <span>@L["輪詢間隔（秒）"]</span>
                     <input asp-for="Input.PollingDelaySeconds" class="form-control" type="number" min="1" />
-                </label>
-            </div>
-        </section>
-
-        <section class="settings-card" id="settings-jobs">
-            <div class="settings-card-header">
-                <div>
-                    <span class="section-kicker">@L["背景工作"]</span>
-                    <h3>@L["同步與通知頻率"]</h3>
-                </div>
-            </div>
-
-            <div class="settings-control-grid">
-                <label class="field-block">
-                    <span>@L["自動同步間隔（分）"]</span>
-                    <input asp-for="Input.AutoSyncIntervalMinutes" class="form-control" type="number" min="5" />
-                </label>
-                <label class="field-block">
-                    <span>@L["推送工作間隔（秒）"]</span>
-                    <input asp-for="Input.PushWorkerIntervalSeconds" class="form-control" type="number" min="30" />
-                </label>
-                <label class="field-block">
-                    <span>@L["範例資料回溯（時）"]</span>
-                    <input asp-for="Input.AdvisoryLookbackHours" class="form-control" type="number" min="1" />
-                </label>
-                <label class="field-switch">
-                    <input asp-for="Input.PushEnabled" class="form-check-input" />
-                    <span><strong>@L["啟用推送工作"]</strong></span>
-                </label>
-                <label class="field-switch">
-                    <input asp-for="Input.SecurityAdvisoryPushEnabled" class="form-check-input" />
-                    <span><strong>@L["範例資料推送"]</strong></span>
                 </label>
             </div>
         </section>

@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using RagAgentConsole.Models;
-using Microsoft.Extensions.Options;
 
 namespace RagAgentConsole.Services;
 
@@ -23,9 +22,6 @@ public interface IRagAnswerService
 public class RagAnswerService(
     IRagRetrievalService searchService,
     IAppSettingsService appSettingsService,
-    IRagDomainRegistry domainRegistry,
-    IOptions<SecurityAdvisoryOptions> options,
-    IOptions<AiProviderOptions> aiProviderOptions,
     IAiChatClient aiChatClient) : IRagAnswerService
 {
     public async Task<string> BuildAnswerAsync(
@@ -45,10 +41,11 @@ public class RagAnswerService(
             return new AgentAnswerResult(CapabilitiesReply, null);
         }
 
-        var aiOptions = aiProviderOptions.Value;
+        var aiOptions = await appSettingsService.GetAiProviderOptionsAsync(cancellationToken);
         var agentOptions = await appSettingsService.GetAgentOptionsAsync(cancellationToken);
+        var ragOptions = await appSettingsService.GetRagOptionsAsync(cancellationToken);
 
-        var searchResponse = await searchService.SearchWithTraceAsync(question, history, options.Value.RagMaxChunks, cancellationToken: cancellationToken);
+        var searchResponse = await searchService.SearchWithTraceAsync(question, history, ragOptions.MaxChunks, cancellationToken: cancellationToken);
 
         var results = searchResponse.Results;
         var trace = BuildTrace(question, searchResponse);
@@ -88,7 +85,7 @@ public class RagAnswerService(
         foreach (var result in results)
         {
             builder.AppendLine();
-            builder.AppendLine(domainRegistry.ResolveForResult(result).BuildPlainSummaryBlock(result));
+            builder.AppendLine(BuildPlainSummaryBlock(result));
         }
 
         return new AgentAnswerResult(builder.ToString().TrimEnd(), trace);
@@ -101,12 +98,10 @@ public class RagAnswerService(
         string systemPrompt,
         CancellationToken cancellationToken)
     {
-        // Context formatting is domain-specific: advisory hits include CVE
-        // metadata, uploaded documents only generic metadata.
         var contextBuilder = new StringBuilder();
         foreach (var result in results)
         {
-            contextBuilder.AppendLine(domainRegistry.ResolveForResult(result).BuildContextBlock(result));
+            contextBuilder.AppendLine(BuildContextBlock(result));
         }
 
         var userPrompt = $"""
@@ -177,10 +172,10 @@ public class RagAnswerService(
                 result.VectorScore,
                 result.TextScore,
                 Trim(result.ChunkText, 260),
-                domainRegistry.ResolveForResult(result).BuildTraceMetadata(result))).ToList());
+                result.BuildMetadata())).ToList());
 
     private static bool ContainsVersionLike(string value)
-        => Regex.IsMatch(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
+        => Regex.IsMatch(value, "\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
 
     private static string BuildFollowUpContext(
         string question,
@@ -216,8 +211,40 @@ public class RagAnswerService(
 
     private static string? ExtractVersion(string value)
     {
-        var match = Regex.Match(value, "(?<!cve-)\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
+        var match = Regex.Match(value, "\\b(?:\\d+(?:\\.\\d+){1,3}[a-z0-9-]*|\\d{4})\\b", RegexOptions.IgnoreCase);
         return match.Success ? match.Value : null;
+    }
+
+    private static string BuildContextBlock(RetrievalResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"Module: {result.ModuleName}");
+        builder.AppendLine($"Source kind: {result.SourceKind}");
+        builder.AppendLine($"Title: {result.Title}");
+        AppendIfPresent(builder, "Vendor", result.Document.Vendor);
+        AppendIfPresent(builder, "Product", result.Document.Product);
+        AppendIfPresent(builder, "Tags", result.Document.Tags);
+        builder.AppendLine($"Context chunk: {result.ChunkText}");
+        builder.AppendLine($"Source: {result.SourceName}");
+        return builder.ToString();
+    }
+
+    private static string BuildPlainSummaryBlock(RetrievalResult result)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"- {result.Title}");
+        builder.AppendLine($"  模組: {result.ModuleName}");
+        builder.AppendLine($"  摘要: {Trim(result.ChunkText, 220)}");
+        builder.Append($"  來源: {result.SourceName}");
+        return builder.ToString();
+    }
+
+    private static void AppendIfPresent(StringBuilder builder, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            builder.AppendLine($"{label}: {value}");
+        }
     }
 
     private static IReadOnlyList<string> ExtractContextKeywords(string? value, string? currentVersion)

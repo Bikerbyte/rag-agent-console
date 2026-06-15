@@ -11,16 +11,16 @@ public class KnowledgeDocumentPipelineTests
     {
         var extractor = new KnowledgeDocumentTextExtractor();
         await using var stream = BuildStream("""
-        # NetScaler Advisory
+        # Backup Recovery Standard
 
-        Citrix **NetScaler ADC** should restrict management access.
+        Tier 1 systems require **AES-256** encrypted backups.
         """);
 
-        var result = await extractor.ExtractAsync("advisory.md", "text/markdown", stream);
+        var result = await extractor.ExtractAsync("backup-standard.md", "text/markdown", stream);
 
         Assert.Equal("Markdig", result.ParserName);
-        Assert.Contains("NetScaler Advisory", result.Text);
-        Assert.Contains("Citrix NetScaler ADC should restrict management access.", result.Text);
+        Assert.Contains("Backup Recovery Standard", result.Text);
+        Assert.Contains("Tier 1 systems require AES-256 encrypted backups.", result.Text);
         Assert.DoesNotContain("**", result.Text);
     }
 
@@ -29,15 +29,15 @@ public class KnowledgeDocumentPipelineTests
     {
         var extractor = new KnowledgeDocumentTextExtractor();
         await using var stream = BuildStream("""
-        vendor,product,risk
-        Citrix,NetScaler,critical
+        system,owner,retention
+        Finance,IT,730 days
         """);
 
-        var result = await extractor.ExtractAsync("advisories.csv", "text/csv", stream);
+        var result = await extractor.ExtractAsync("retention-policy.csv", "text/csv", stream);
 
         Assert.Equal("CsvHelper", result.ParserName);
-        Assert.Contains("vendor | product | risk", result.Text);
-        Assert.Contains("Citrix | NetScaler | critical", result.Text);
+        Assert.Contains("system | owner | retention", result.Text);
+        Assert.Contains("Finance | IT | 730 days", result.Text);
     }
 
     [Fact]
@@ -46,12 +46,12 @@ public class KnowledgeDocumentPipelineTests
         var chunkingService = new KnowledgeTextChunkingService();
         var text = string.Join(
             Environment.NewLine,
-            Enumerable.Range(1, 80).Select(index => $"Line {index}: Citrix NetScaler advisory context and mitigation guidance."));
+            Enumerable.Range(1, 80).Select(index => $"Line {index}: Backup recovery context and operational guidance."));
 
         var chunks = chunkingService.SplitIntoChunks(text);
 
         Assert.NotEmpty(chunks);
-        Assert.All(chunks, chunk => Assert.Contains("NetScaler", chunk));
+        Assert.All(chunks, chunk => Assert.Contains("Backup", chunk));
     }
 
     private static MemoryStream BuildStream(string value)
