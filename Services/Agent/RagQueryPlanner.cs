@@ -150,12 +150,14 @@ public class RagQueryPlanner(
 
     private static string ResolveModuleName(string? moduleName, string fallback)
     {
-        if (string.Equals(moduleName, KnowledgeModuleNames.WorkflowQa, StringComparison.OrdinalIgnoreCase))
+        var normalizedModuleName = moduleName?.Trim();
+
+        if (string.Equals(normalizedModuleName, KnowledgeModuleNames.WorkflowQa, StringComparison.OrdinalIgnoreCase))
         {
             return KnowledgeModuleNames.WorkflowQa;
         }
 
-        if (string.Equals(moduleName, KnowledgeModuleNames.InternalDocs, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedModuleName, KnowledgeModuleNames.InternalDocs, StringComparison.OrdinalIgnoreCase))
         {
             return KnowledgeModuleNames.InternalDocs;
         }

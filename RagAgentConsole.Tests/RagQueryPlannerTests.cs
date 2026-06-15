@@ -101,6 +101,30 @@ public class RagQueryPlannerTests
     }
 
     [Theory]
+    [InlineData(" WorkflowQa ", KnowledgeModuleNames.InternalDocs, KnowledgeModuleNames.WorkflowQa)]
+    [InlineData(" InternalDocs ", KnowledgeModuleNames.WorkflowQa, KnowledgeModuleNames.InternalDocs)]
+    public async Task BuildPlanAsync_WhenAiModuleHasWhitespace_UsesRequestedModule(
+        string moduleName,
+        string defaultModule,
+        string expectedModule)
+    {
+        var json = $$"""
+            {
+              "moduleName": "{{moduleName}}",
+              "retrievalQuery": "test query",
+              "searchKeywords": [],
+              "entities": {},
+              "filters": {},
+              "notes": []
+            }
+            """;
+
+        var plan = await CreatePlanner(true, json, defaultModule).BuildPlanAsync("test");
+
+        Assert.Equal(expectedModule, plan.ModuleName);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("not json")]
     public async Task BuildPlanAsync_WhenAiResponseCannotBeUsed_FallsBack(string? response)
