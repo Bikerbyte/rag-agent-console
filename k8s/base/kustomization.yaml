@@ -3,15 +3,12 @@ kind: Kustomization
 
 namespace: rag-agent-console
 
+# 完整資源集合只供 render / review。實際發布請依序套用
+# bootstrap -> migrate -> app，避免 web/worker 早於 migration 啟動。
 resources:
-  - namespace.yaml
-  - configmap.yaml
-  - secret.yaml
-  - migration-job.yaml
-  - web-deployment.yaml
-  - web-service.yaml
-  - worker-deployment.yaml
-  - ingress.yaml
+  - bootstrap
+  - migrate
+  - app
 
 # 換成自己的 registry / tag，例如 ghcr.io/<user>/rag-agent-console:v1。
 images:
