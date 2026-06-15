@@ -64,19 +64,20 @@ flowchart LR
 
 ## 開始方式
 
-依賴於 PostgreSQL + pgvector。
+硬依賴 PostgreSQL + pgvector。三種啟動方式：
 
-**開始**——demo overlay 會帶起 app + PostgreSQL + LGTM，ports 和 volumes 都是隔離的，不會碰到機器上既有的服務：
+**self-contain 模式**——overlay 一起帶 app + PostgreSQL + LGTM，用獨立的 ports 和 volumes：
 
 ```bash
 cp .env.example .env
 docker compose -p rag-demo -f docker-compose.yml -f docker-compose.demo.yml up -d --build
 ```
 
-後台在 `http://localhost:8080`，Grafana（trace / metric）在 `http://localhost:3300`。  
-關閉方式 `docker compose -p rag-demo -f docker-compose.yml -f docker-compose.demo.yml down --volumes` 。
+後台: `http://localhost:8080`  
+Grafana（trace / metric）: `http://localhost:3300`  
+關閉方式 `docker compose -p rag-demo -f docker-compose.yml -f docker-compose.demo.yml down --volumes`  
 
-**已存在 PostgreSQL / LGTM**——`docker-compose.yml` 只需要開起 app，在 `.env` 填上連線資訊即可：
+**已有 PostgreSQL / LGTM**——`docker-compose.yml` 只需要開起 app，在 `.env` 填上連線資訊即可：
 
 ```bash
 cp .env.example .env
@@ -92,15 +93,16 @@ docker compose up -d --build
 dotnet run --ConnectionStrings:DefaultConnection="Host=<postgres-host>;Port=5433;Database=rag_agent;Username=postgres;Password=change-me;SSL Mode=Disable"
 ```
 
-後台預設 `http://localhost:5166`。  
-也可用 `dotnet run -- migrate` 只跑 migration 不起站。
+後台: `http://localhost:5166`  
+也可 `dotnet run -- migrate` 只跑 migration 不起站  
 
-跑起來之後，到「設定 → AI 供應商」選擇 Provider 並開啟「回答生成」（Query Planner 與對話皆需要 AI 模型）。OpenAI / Ollama 的金鑰與位址都在後台「設定」頁改，Ollama 也可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`。
+「設定 → AI 供應商」選擇 Provider 並開啟「回答生成」（Query Planner 與對話皆需要 AI 模型）  
+OpenAI / Ollama 的金鑰與位址於後台「設定」頁調整，Ollama 可以指到外部 GPU 主機，例如 `http://192.168.1.20:11434`  
 
 
 ## k8s 部署
 
-`k8s/` 是 kustomize 結構：`base` 只有 app（web / worker / migration Job），`demo` overlay 再帶起 PostgreSQL + LGTM，讓單機叢集（minikube / k3s / kind）能一份指令跑起來：
+`k8s/` 用 kustomize：`base` 是 app 本身（web、worker、migration Job），`demo` 再疊上 Postgres 與 LGTM，方便在本機 cluster 直接跑起來。
 
 ```bash
 docker build -t rag-agent-console:local .
@@ -109,12 +111,9 @@ kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
-web / worker / migration Job 用同一個 image，靠環境變數切角色；worker 只負責 Telegram update queue。
-接共用 infra 時只用 `base`，連線字串與 OTLP endpoint 自行覆寫；Secret 不要 commit 真值。
+web、worker、migration 是同一個 image，用環境變數切角色，worker 只跑 Telegram 收訊。接既有的 Postgres / LGTM 就只用 `base`，連線字串和 OTLP endpoint 自己覆寫。
 
-升級 image 時要讓 migration Job 重跑；若前一個 Job 尚未被 TTL 清除，先執行 `kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found`，再重新 `kubectl apply -k ...` 並等待 Job 完成。
-
-`20260615022411_RemoveSecurityAdvisoryFeatures` 會刪除舊版專用資料表，因此舊 image 與新 schema 不相容。這次升級必須先備份 PostgreSQL、停止舊 web/worker，再執行 migration Job，最後才 rollout 新 image；不要讓舊 app 在 migration 後繼續執行。
+migration 跑在獨立 Job，所以升級換 image 時要先讓 Job 重跑再 rollout。
 
 ## 專案結構
 
