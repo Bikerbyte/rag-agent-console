@@ -138,6 +138,8 @@ kubectl apply -k k8s/demo/app
 
 web、worker、migration 使用同一個 image，以環境變數切角色；worker 只處理 Telegram update queue。接既有 Postgres / LGTM 時改用 `k8s/base/bootstrap`、`k8s/base/migrate`、`k8s/base/app`，並覆寫連線字串與 OTLP endpoint。
 
+已在 k3d v5.8.3 / k3s v1.31.5 實測三階段部署：9 筆 migrations、web / worker / PostgreSQL / LGTM rollout、7 份 demo 文件 ingestion、Hybrid / Vector / Keyword Top 1 與 Tempo trace 均通過。部署前需保留足夠磁碟空間；node 進入 `DiskPressure` 時 Kubernetes 會停止排程並驅逐 pods。
+
 ## 專案結構
 
 ```text

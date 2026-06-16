@@ -9,3 +9,12 @@ resources:
 images:
   - name: rag-agent-console
     newTag: local
+
+patches:
+  - target:
+      kind: Ingress
+      name: rag-agent-web
+    patch: |-
+      - op: replace
+        path: /spec/ingressClassName
+        value: traefik
