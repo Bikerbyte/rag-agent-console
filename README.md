@@ -64,7 +64,7 @@ flowchart LR
 
 ## 開始方式
 
-硬依賴 PostgreSQL + pgvector。三種啟動方式：
+三種啟動方式：
 
 **self-contain 模式**——overlay 一起帶 app + PostgreSQL + LGTM，用獨立的 ports 和 volumes：
 
@@ -102,9 +102,7 @@ OpenAI / Ollama 的金鑰與位址於後台「設定」頁調整，Ollama 可以
 
 ## k8s 部署
 
-`k8s/` 用 kustomize：`base` 是 app，`demo` 再帶 Postgres 與 LGTM。同一個 image 以環境變數切 web / worker / migration 三種角色，worker 單副本只跑 Telegram 收訊。發布拆成 `bootstrap → migrate → app` 三階段，確保 migration Job 跑完才 rollout app（直接 `apply -k k8s/demo` 會讓 web / worker 早於 migration 啟動）。
-
-本機 k3d 首次安裝：
+本機 k3d ：
 
 ```bash
 docker build -t rag-agent-console:local .
@@ -119,10 +117,6 @@ kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate
 kubectl apply -k k8s/demo/app
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
-
-升級既有環境同理，差別是先把 web / worker scale 到 0 再重跑 migration Job。接既有 Postgres / LGTM 改用 `k8s/base/*` 並覆寫連線字串與 OTLP endpoint。
-
-已在 k3d / k3s v1.31 實測:三階段 rollout、9 個 migration、檢索與 Tempo trace 全通過。
 
 ## 專案結構
 
