@@ -102,9 +102,9 @@ OpenAI / Ollama 的金鑰與位址於後台「設定」頁調整，Ollama 可以
 
 ## k8s 部署
 
-`k8s/` 用 kustomize：`base` 是 app 本身，`demo` 再帶 Postgres 與 LGTM。發布拆成 `bootstrap`、`migrate`、`app` 三階段，不能直接 `kubectl apply -k k8s/demo`，否則 web / worker 可能早於 migration 啟動。
+`k8s/` 用 kustomize：`base` 是 app，`demo` 再帶 Postgres 與 LGTM。同一個 image 以環境變數切 web / worker / migration 三種角色，worker 單副本只跑 Telegram 收訊。發布拆成 `bootstrap → migrate → app` 三階段，確保 migration Job 跑完才 rollout app（直接 `apply -k k8s/demo` 會讓 web / worker 早於 migration 啟動）。
 
-本機 k3d cluster 的首次安裝（將 `<cluster-name>` 換成實際名稱）：
+本機 k3d 首次安裝：
 
 ```bash
 docker build -t rag-agent-console:local .
@@ -112,33 +112,17 @@ k3d image import rag-agent-console:local -c <cluster-name>
 
 kubectl apply -k k8s/demo/bootstrap
 kubectl -n rag-agent-console rollout status statefulset/postgres --timeout=180s
-kubectl -n rag-agent-console rollout status deployment/lgtm --timeout=180s
 
-kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found
 kubectl apply -k k8s/demo/migrate
 kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate --timeout=180s
 
 kubectl apply -k k8s/demo/app
-kubectl -n rag-agent-console rollout status deployment/rag-agent-web --timeout=180s
-kubectl -n rag-agent-console rollout status deployment/rag-agent-worker --timeout=180s
 kubectl -n rag-agent-console port-forward svc/rag-agent-web 8080:80
 ```
 
-升級既有 k8s 環境時，匯入新 image 後先停止舊 app，再重跑 migration Job：
+升級既有環境同理，差別是先把 web / worker scale 到 0 再重跑 migration Job。接既有 Postgres / LGTM 改用 `k8s/base/*` 並覆寫連線字串與 OTLP endpoint。
 
-```bash
-kubectl -n rag-agent-console scale deployment/rag-agent-web deployment/rag-agent-worker --replicas=0
-kubectl -n rag-agent-console wait --for=delete pod -l app=rag-agent-web --timeout=120s
-kubectl -n rag-agent-console wait --for=delete pod -l app=rag-agent-worker --timeout=120s
-kubectl -n rag-agent-console delete job rag-agent-migrate --ignore-not-found
-kubectl apply -k k8s/demo/migrate
-kubectl -n rag-agent-console wait --for=condition=complete job/rag-agent-migrate --timeout=180s
-kubectl apply -k k8s/demo/app
-```
-
-web、worker、migration 使用同一個 image，以環境變數切角色；worker 只處理 Telegram update queue。接既有 Postgres / LGTM 時改用 `k8s/base/bootstrap`、`k8s/base/migrate`、`k8s/base/app`，並覆寫連線字串與 OTLP endpoint。
-
-已在 k3d v5.8.3 / k3s v1.31.5 實測三階段部署：9 筆 migrations、web / worker / PostgreSQL / LGTM rollout、7 份 demo 文件 ingestion、Hybrid / Vector / Keyword Top 1 與 Tempo trace 均通過。部署前需保留足夠磁碟空間；node 進入 `DiskPressure` 時 Kubernetes 會停止排程並驅逐 pods。
+已在 k3d / k3s v1.31 實測:三階段 rollout、9 個 migration、檢索與 Tempo trace 全通過。
 
 ## 專案結構
 
