@@ -4,42 +4,42 @@
   "cases": [
     {
       "id": "tier-one-recovery",
-      "question": "Tier 1 核心交易系統的 RTO 與 RPO 是多少？",
+      "question": "Tier 1 核心交易系統最多可以停多久？資料最多可回復到多久前？",
       "expectedDocumentTitles": ["03-backup-recovery-standard"],
       "expectedContentKeywords": ["Tier 1 核心交易系統", "2 小時", "15 分鐘"],
       "notes": "Tests table-value retrieval."
     },
     {
       "id": "database-audit-log-retention",
-      "question": "資料庫稽核日誌線上保存與封存期限是多久？",
+      "question": "資料庫稽核日誌線上與封存各要保留多久？",
       "expectedDocumentTitles": ["04-log-retention-standard"],
-      "expectedContentKeywords": ["資料庫稽核日誌", "365 天", "1,095 天"],
+      "expectedContentKeywords": ["資料庫稽核日誌", "365 天", "1095 天"],
       "notes": "Tests retention-policy retrieval."
     },
     {
       "id": "employee-password-expiration",
-      "question": "一般員工帳號密碼有效期限多久？",
+      "question": "一般員工帳號密碼有效期限是多久？到期前幾天提醒？",
       "expectedDocumentTitles": ["07-password-expiration-policy"],
       "expectedContentKeywords": ["一般員工帳號", "90 天", "到期前 14 天開始提醒"],
       "notes": "Tests retrieval of a precise policy duration."
     },
     {
       "id": "kev-internet-patch-sla",
-      "question": "已列入 CISA KEV 且可由網際網路存取的弱點要多久內修補？",
+      "question": "CISA KEV 且可由網際網路存取的弱點，修補期限是多久？",
       "expectedDocumentTitles": ["01-patch-sla-policy"],
       "expectedContentKeywords": ["已列入 CISA KEV", "系統可由網際網路存取", "48 小時內"],
       "notes": "Tests retrieval of a patch SLA rule."
     },
     {
       "id": "admin-account-lockout",
-      "question": "管理者帳號登入失敗幾次後會鎖定多久？",
+      "question": "管理員一直登入失敗時，幾次會被鎖？會鎖多久？",
       "expectedDocumentTitles": ["05-password-lockout-standard"],
       "expectedContentKeywords": ["管理者帳號登入失敗", "4 次", "30 分鐘", "通知 SOC"],
       "notes": "Tests retrieval of an account lockout control."
     },
     {
       "id": "critical-vendor-review-frequency",
-      "question": "Critical 供應商多久審查一次？",
+      "question": "Critical 供應商的審查頻率是多久一次？",
       "expectedDocumentTitles": ["06-third-party-risk-standard"],
       "expectedContentKeywords": ["Critical", "每 3 個月"],
       "notes": "Tests retrieval of a vendor-risk review cadence."

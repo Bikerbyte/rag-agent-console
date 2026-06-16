@@ -1,5 +1,7 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using RagAgentConsole.Data;
 using RagAgentConsole.Models;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,9 @@ public sealed class RetrievalEvaluationService(
     ILogger<RetrievalEvaluationService> logger) : IRetrievalEvaluationService
 {
     private const string GoldenSetRelativePath = "Evaluation/golden-set.json";
+
+    private static readonly Regex NumericThousandsSeparatorPattern = new(@"(?<=\d),(?=\d{3}(\D|$))", RegexOptions.Compiled);
+    private static readonly Regex WhitespacePattern = new(@"\s+", RegexOptions.Compiled);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -376,8 +381,8 @@ public sealed class RetrievalEvaluationService(
         }
 
         if (expectedContentKeywords.Any(keyword =>
-                result.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                result.ChunkText.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                ContainsEvaluationKeyword(result.Title, keyword) ||
+                ContainsEvaluationKeyword(result.ChunkText, keyword)))
         {
             return true;
         }
@@ -392,6 +397,44 @@ public sealed class RetrievalEvaluationService(
 
         return false;
     }
+
+    private static bool ContainsEvaluationKeyword(string value, string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(keyword))
+        {
+            return false;
+        }
+
+        if (value.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedValue = NormalizeEvaluationText(value);
+        var normalizedKeyword = NormalizeEvaluationText(keyword);
+        if (string.IsNullOrWhiteSpace(normalizedKeyword))
+        {
+            return false;
+        }
+
+        if (normalizedValue.Contains(normalizedKeyword, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return RemoveWhitespace(normalizedValue)
+            .Contains(RemoveWhitespace(normalizedKeyword), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeEvaluationText(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormKC).Trim();
+        normalized = NumericThousandsSeparatorPattern.Replace(normalized, string.Empty);
+        return WhitespacePattern.Replace(normalized, " ");
+    }
+
+    private static string RemoveWhitespace(string value)
+        => WhitespacePattern.Replace(value, string.Empty);
 
     private static RetrievalEvaluationSummary BuildSummary(
         string mode,

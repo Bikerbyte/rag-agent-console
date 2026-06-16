@@ -210,6 +210,46 @@ public class RetrievalEvaluationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EvaluateAsync_ExpectedContentKeyword_NormalizesNumericSeparatorsAndWhitespace()
+    {
+        var db = NewDb();
+        var now = DateTimeOffset.UtcNow;
+        db.RetrievalEvaluationCases.Add(new RetrievalEvaluationCaseEntity
+        {
+            CaseKey = "retention-format",
+            Question = "稽核日誌保存多久",
+            ExpectedContentKeywords = "1000 筆\n1095天",
+            CreatedTime = now,
+            LastUpdatedTime = now
+        });
+        db.SaveChanges();
+
+        var documentResult = new RetrievalResult(
+            Document: new KnowledgeDocument
+            {
+                ModuleName = KnowledgeModuleNames.InternalDocs,
+                Title = "日誌保存標準",
+                SourceType = "Upload",
+                ExtractedText = "text",
+                ContentHash = "hash"
+            },
+            ChunkText: "資料外洩門檻為 1,000 筆，資料庫稽核日誌封存 1,095 天。",
+            Score: 1.0,
+            VectorScore: 0.5,
+            TextScore: 0.5);
+        var plan = new RetrievalPlan("q", "q", null, [], [], RetrievalPlan.EmptyValues, RetrievalPlan.EmptyValues, KnowledgeModuleNames.InternalDocs);
+        var service = CreateService(
+            new ScriptedSearchService([new RetrievalResponse(plan, RetrievalModes.Hybrid, [documentResult])]),
+            db);
+
+        var report = await service.EvaluateAsync([RetrievalModes.Hybrid]);
+
+        var summary = Assert.Single(report.Summaries);
+        Assert.Equal(1.0, summary.HitAt1);
+        Assert.True(summary.CaseResults[0].TopResults[0].IsRelevant);
+    }
+
+    [Fact]
     public async Task EvaluateAsync_ExpectedMetadata_MatchesDocumentMetadata()
     {
         var db = NewDb();
