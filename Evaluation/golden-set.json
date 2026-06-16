@@ -3,60 +3,46 @@
   "description": "Golden set used to compute Hit@K and MRR. Relevant results are identified through document titles, content phrases, or domain metadata so the evaluation remains independent of any specific knowledge domain.",
   "cases": [
     {
-      "id": "password-expiration",
-      "question": "一般員工密碼多久會過期？",
-      "expectedDocumentTitles": ["07-password-expiration-policy"],
-      "expectedContentKeywords": ["一般員工帳號 | 90 天"],
-      "notes": "Tests retrieval of a precise policy duration."
-    },
-    {
-      "id": "privileged-password-length",
-      "question": "管理者密碼最少要幾個字元",
-      "expectedDocumentTitles": ["05-password-lockout-standard", "07-password-expiration-policy"],
-      "expectedContentKeywords": ["管理者與特權帳號密碼至少 20 個字元", "管理者與特權帳號密碼至少 22 個字元"],
-      "notes": "Allows either applicable password policy document."
-    },
-    {
       "id": "tier-one-recovery",
-      "question": "Tier 1 核心系統的 RTO 和 RPO 是多少？",
+      "question": "Tier 1 核心交易系統的 RTO 與 RPO 是多少？",
       "expectedDocumentTitles": ["03-backup-recovery-standard"],
-      "expectedContentKeywords": ["2 小時 | 15 分鐘"],
+      "expectedContentKeywords": ["Tier 1 核心交易系統", "2 小時", "15 分鐘"],
       "notes": "Tests table-value retrieval."
     },
     {
-      "id": "sev-one-reporting",
-      "question": "SEV-1 事件要多久內通報？",
-      "expectedDocumentTitles": ["02-incident-severity-matrix"],
-      "expectedContentKeywords": ["10 分鐘內"],
-      "notes": "Tests retrieval of an incident response deadline."
-    },
-    {
-      "id": "administrator-log-retention",
-      "question": "管理者操作日誌要保存多久",
+      "id": "database-audit-log-retention",
+      "question": "資料庫稽核日誌線上保存與封存期限是多久？",
       "expectedDocumentTitles": ["04-log-retention-standard"],
-      "expectedContentKeywords": ["180 天 | 730 天"],
+      "expectedContentKeywords": ["資料庫稽核日誌", "365 天", "1,095 天"],
       "notes": "Tests retention-policy retrieval."
     },
     {
-      "id": "third-party-account-disable",
-      "question": "第三方人員離開專案後多久要停用帳號",
-      "expectedDocumentTitles": ["06-third-party-risk-standard"],
-      "expectedContentKeywords": ["第三方帳號必須在 8 小時內停用"],
-      "notes": "Tests SOP-style account offboarding retrieval."
+      "id": "employee-password-expiration",
+      "question": "一般員工帳號密碼有效期限多久？",
+      "expectedDocumentTitles": ["07-password-expiration-policy"],
+      "expectedContentKeywords": ["一般員工帳號", "90 天", "到期前 14 天開始提醒"],
+      "notes": "Tests retrieval of a precise policy duration."
     },
     {
-      "id": "backup-encryption",
-      "question": "備份資料需要使用什麼加密？",
-      "expectedDocumentTitles": ["03-backup-recovery-standard"],
-      "expectedContentKeywords": ["AES-256 加密"],
-      "notes": "Tests retrieval by a technical control."
+      "id": "kev-internet-patch-sla",
+      "question": "已列入 CISA KEV 且可由網際網路存取的弱點要多久內修補？",
+      "expectedDocumentTitles": ["01-patch-sla-policy"],
+      "expectedContentKeywords": ["已列入 CISA KEV", "系統可由網際網路存取", "48 小時內"],
+      "notes": "Tests retrieval of a patch SLA rule."
     },
     {
-      "id": "session-timeout",
-      "question": "財務系統閒置多久會自動登出",
+      "id": "admin-account-lockout",
+      "question": "管理者帳號登入失敗幾次後會鎖定多久？",
       "expectedDocumentTitles": ["05-password-lockout-standard"],
-      "expectedContentKeywords": ["財務與人資系統閒置 15 分鐘後自動登出"],
-      "notes": "Tests retrieval of a specific operational rule."
+      "expectedContentKeywords": ["管理者帳號登入失敗", "4 次", "30 分鐘", "通知 SOC"],
+      "notes": "Tests retrieval of an account lockout control."
+    },
+    {
+      "id": "critical-vendor-review-frequency",
+      "question": "Critical 供應商多久審查一次？",
+      "expectedDocumentTitles": ["06-third-party-risk-standard"],
+      "expectedContentKeywords": ["Critical", "每 3 個月"],
+      "notes": "Tests retrieval of a vendor-risk review cadence."
     }
   ]
 }
